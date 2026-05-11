@@ -1,0 +1,212 @@
+// Prisma schema for Adapta Class
+// Based on: adapta-class-documento-tecnico.md — Sección 4
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+enum Tema {
+  LENGUA_CULTURA
+  COMUNICACION_ORAL
+  LECTURA
+  ESCRITURA
+  LITERATURA
+}
+
+enum TipoJuego {
+  BASE
+  CAMBIANTE
+}
+
+enum TipoFuente {
+  DEFAULT
+  MANUAL
+  IA
+}
+
+// ─── Auth & Users ────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  role          Role
+  created_at    DateTime @default(now())
+
+  student       Student?
+  teacher       Teacher?
+
+  // Relations as teacher
+  paralelos     Paralelo[]    @relation("TeacherParalelos")
+  assignments   Assignment[]  @relation("AssignmentCreator")
+  questions     GameQuestion[] @relation("QuestionCreator")
+
+  // Relations as student
+  progress      StudentProgress[] @relation("StudentProgressUser")
+  notifications Notification[]    @relation("NotificationStudent")
+
+  @@map("users")
+}
+
+model Student {
+  user_id         String    @id
+  nombre          String
+  puntos_xp       Int       @default(0)
+  racha_dias      Int       @default(0)
+  last_login_date DateTime? @db.Date
+  paralelo_id     String?
+
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  paralelo Paralelo? @relation(fields: [paralelo_id], references: [id], onDelete: SetNull)
+
+  @@map("students")
+}
+
+model Teacher {
+  user_id String @id
+  nombre  String
+  cedula  String @unique
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("teachers")
+}
+
+model CedulaAutorizada {
+  cedula           String @id
+  nombre_referencia String
+
+  @@map("cedulas_autorizadas")
+}
+
+// ─── Paralelos ───────────────────────────────────────────
+
+model Paralelo {
+  id             String   @id @default(uuid())
+  nombre         String
+  grado          Int
+  teacher_id     String
+  codigo_acceso  String   @unique @db.VarChar(6)
+  activo         Boolean  @default(true)
+  created_at     DateTime @default(now())
+
+  teacher     User          @relation("TeacherParalelos", fields: [teacher_id], references: [id])
+  students    Student[]
+  questions   GameQuestion[]
+  assignments Assignment[]
+
+  @@map("paralelos")
+}
+
+// ─── Games ───────────────────────────────────────────────
+
+model Game {
+  id                  String    @id @default(uuid())
+  titulo              String
+  tema                Tema
+  tipo                TipoJuego
+  acepta_preguntas_ia Boolean   @default(false)
+  config_default      Json?
+  grado_min           Int
+  grado_max           Int
+  descripcion         String?
+  thumbnail_url       String?
+
+  content     GameContent[]
+  questions   GameQuestion[]
+  assignments Assignment[]
+
+  @@map("games")
+}
+
+model GameContent {
+  id             String @id @default(uuid())
+  game_id        String
+  grado          Int
+  contenido_json Json
+
+  game Game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@unique([game_id, grado])
+  @@map("game_content")
+}
+
+model GameQuestion {
+  id              String     @id @default(uuid())
+  game_id         String
+  paralelo_id     String?
+  preguntas_json  Json
+  tipo_fuente     TipoFuente @default(DEFAULT)
+  created_by      String?
+  created_at      DateTime   @default(now())
+
+  game     Game      @relation(fields: [game_id], references: [id], onDelete: Cascade)
+  paralelo Paralelo? @relation(fields: [paralelo_id], references: [id], onDelete: SetNull)
+  creator  User?     @relation("QuestionCreator", fields: [created_by], references: [id])
+
+  @@unique([game_id, paralelo_id])
+  @@map("game_questions")
+}
+
+// ─── Assignments & Progress ──────────────────────────────
+
+model Assignment {
+  id                  String   @id @default(uuid())
+  paralelo_id         String
+  game_id             String
+  minutos_requeridos  Int
+  fecha_limite        DateTime
+  created_by          String
+  created_at          DateTime @default(now())
+
+  paralelo      Paralelo          @relation(fields: [paralelo_id], references: [id])
+  game          Game              @relation(fields: [game_id], references: [id])
+  creator       User              @relation("AssignmentCreator", fields: [created_by], references: [id])
+  progress      StudentProgress[]
+  notifications Notification[]
+
+  @@map("assignments")
+}
+
+model StudentProgress {
+  id              String    @id @default(uuid())
+  student_id      String
+  assignment_id   String
+  minutos_jugados Decimal   @default(0) @db.Decimal(5, 2)
+  completado      Boolean   @default(false)
+  xp_otorgado     Boolean   @default(false)
+  completed_at    DateTime?
+
+  student    User       @relation("StudentProgressUser", fields: [student_id], references: [id])
+  assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, assignment_id])
+  @@map("student_progress")
+}
+
+// ─── Notifications ───────────────────────────────────────
+
+model Notification {
+  id            String   @id @default(uuid())
+  student_id    String
+  assignment_id String
+  mensaje       String
+  leida         Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  student    User       @relation("NotificationStudent", fields: [student_id], references: [id])
+  assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

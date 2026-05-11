@@ -1,0 +1,540 @@
+/* ─── Dashboard Styles ──────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.dashboard-page {
+  min-height: 100vh;
+  background: #0d0e15;
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+}
+
+/* ─── Navbar ─────────────────────────────────────────────── */
+
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 32px;
+  background: rgba(17, 18, 26, 0.8);
+  border-bottom: 1px solid #232536;
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-logo {
+  font-size: 1.5rem;
+}
+
+.nav-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #6366f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+}
+
+.teacher-avatar {
+  background: #00e5ff;
+  color: #0d0e15;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-role {
+  font-size: 0.7rem;
+  color: #a0a0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-logout {
+  padding: 8px 16px;
+  border: 1px solid #2d2f42;
+  border-radius: 8px;
+  background: #1a1c29;
+  color: #a0a0b0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+/* ─── Content ────────────────────────────────────────────── */
+
+.dashboard-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ─── Welcome Banner ─────────────────────────────────────── */
+
+.welcome-banner {
+  padding: 32px;
+  border-radius: 16px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.student-banner {
+  background: #11121a;
+  border: 1px solid #232536;
+}
+
+.teacher-banner {
+  background: #11121a;
+  border: 1px solid #232536;
+}
+
+.welcome-text h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+
+.welcome-text p {
+  color: #a0a0b0;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.welcome-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 24px;
+  background: #1a1c29;
+  border-radius: 12px;
+  border: 1px solid #2d2f42;
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: #a0a0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Dashboard Grid ─────────────────────────────────────── */
+
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-section {
+  background: #11121a;
+  border: 1px solid #232536;
+  border-radius: 16px;
+  padding: 28px;
+}
+
+.dashboard-section h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.section-desc {
+  color: #a0a0b0;
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+}
+
+/* ─── Join Form ──────────────────────────────────────────── */
+
+.join-input-row {
+  display: flex;
+  gap: 12px;
+}
+
+.join-input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1px solid #2d2f42;
+  border-radius: 8px;
+  background: #1a1c29;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-align: center;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.join-input::placeholder {
+  letter-spacing: 2px;
+  font-weight: 400;
+  color: #5b5d72;
+}
+
+.join-input:focus {
+  border-color: #6366f1;
+  background: #232536;
+}
+
+.join-btn {
+  padding: 14px 28px;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.join-btn:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.join-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Create Form ────────────────────────────────────────── */
+
+.create-btn {
+  padding: 8px 20px;
+  border: 1px solid #6366f1;
+  border-radius: 8px;
+  background: transparent;
+  color: #6366f1;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.create-form {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: #1a1c29;
+  border-radius: 12px;
+  border: 1px solid #2d2f42;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.create-form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.create-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #2d2f42;
+  border-radius: 8px;
+  background: #11121a;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.create-select {
+  padding: 12px 16px;
+  border: 1px solid #2d2f42;
+  border-radius: 8px;
+  background: #11121a;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.create-select option {
+  background: #11121a;
+}
+
+.create-submit {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.create-submit:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+/* ─── Paralelos Grid ─────────────────────────────────────── */
+
+.paralelos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.paralelo-card {
+  padding: 20px;
+  background: #1a1c29;
+  border: 1px solid #2d2f42;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.paralelo-card:hover {
+  border-color: #6366f1;
+  background: #232536;
+}
+
+.paralelo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.paralelo-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.grado-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.paralelo-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: #11121a;
+  border-radius: 8px;
+  border: 1px solid #2d2f42;
+}
+
+.code-label {
+  font-size: 0.75rem;
+  color: #a0a0b0;
+}
+
+.code-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #00e5ff;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.copy-btn:hover {
+  background: #232536;
+}
+
+.paralelo-stats {
+  font-size: 0.85rem;
+  color: #a0a0b0;
+}
+
+/* ─── States ─────────────────────────────────────────────── */
+
+.form-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fca5a5;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.form-success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #86efac;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #a0a0b0;
+  gap: 12px;
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+}
+
+.spinner-lg {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #2d2f42;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #5b5d72;
+  gap: 12px;
+}
+
+.cs-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .dashboard-nav {
+    padding: 10px 16px;
+  }
+
+  .dashboard-content {
+    padding: 20px 16px;
+  }
+
+  .welcome-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .welcome-text h1 {
+    font-size: 1.3rem;
+  }
+
+  .join-input-row,
+  .create-form-row {
+    flex-direction: column;
+  }
+
+  .paralelos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-user .user-info {
+    display: none;
+  }
+}
