@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { paralelosService, type Paralelo } from '../services/paralelos.service';
+import { paralelosService } from '../services/paralelos.service';
 import './Dashboard.css';
 
 export default function StudentDashboard() {
