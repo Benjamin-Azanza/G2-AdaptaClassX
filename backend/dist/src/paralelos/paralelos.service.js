@@ -64,7 +64,7 @@ let ParalelosService = class ParalelosService {
             where: { user_id: studentUserId },
         });
         if (!student) {
-            throw new common_1.NotFoundException('Estudiante no encontrado');
+            throw new common_1.BadRequestException('Perfil de estudiante no encontrado');
         }
         if (student.paralelo_id) {
             throw new common_1.ConflictException('Ya perteneces a un paralelo. Debes salir del actual antes de unirte a otro.');
@@ -72,21 +72,15 @@ let ParalelosService = class ParalelosService {
         return this.prisma.student.update({
             where: { user_id: studentUserId },
             data: { paralelo_id: paralelo.id },
-            include: {
-                paralelo: true,
-            },
+            include: { paralelo: true },
         });
     }
     async findAll() {
         return this.prisma.paralelo.findMany({
             where: { activo: true },
             include: {
-                _count: {
-                    select: { students: true },
-                },
-                teacher: {
-                    include: { teacher: true },
-                },
+                _count: { select: { students: true } },
+                teacher: { include: { teacher: true } },
             },
             orderBy: { created_at: 'desc' },
         });
@@ -95,18 +89,28 @@ let ParalelosService = class ParalelosService {
         const paralelo = await this.prisma.paralelo.findUnique({
             where: { id },
             include: {
-                students: {
-                    include: { user: true },
-                },
-                _count: {
-                    select: { students: true },
-                },
+                students: { include: { user: true } },
+                _count: { select: { students: true } },
             },
         });
         if (!paralelo) {
             throw new common_1.NotFoundException('Paralelo no encontrado');
         }
         return paralelo;
+    }
+    async archive(id) {
+        const paralelo = await this.prisma.paralelo.findUnique({ where: { id } });
+        if (!paralelo) {
+            throw new common_1.NotFoundException('Paralelo no encontrado');
+        }
+        await this.prisma.student.updateMany({
+            where: { paralelo_id: id },
+            data: { paralelo_id: null },
+        });
+        return this.prisma.paralelo.update({
+            where: { id },
+            data: { activo: false },
+        });
     }
 };
 exports.ParalelosService = ParalelosService;

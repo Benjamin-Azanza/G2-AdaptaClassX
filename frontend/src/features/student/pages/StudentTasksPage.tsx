@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { StudentShell } from '../components/StudentShell';
 import { studentAssignmentsService } from '../services/student.service';
+import type { StudentAssignment } from '../types/student.types';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-EC', {
@@ -11,9 +13,29 @@ function formatDate(iso: string) {
 }
 
 export function StudentTasksPage() {
-  // TODO: cuando haya backend, reemplazar por useEffect + estado + studentAssignmentsService.getPending()
-  const pending = studentAssignmentsService.getPending();
-  const completed = studentAssignmentsService.getCompleted();
+  const [pending, setPending] = useState<StudentAssignment[]>([]);
+  const [completed, setCompleted] = useState<StudentAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    studentAssignmentsService.getMyAssignments()
+      .then((data) => {
+        setPending(data.pending);
+        setCompleted(data.completed);
+      })
+      .catch((err) => console.error('Failed to load assignments', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <StudentShell title="Mis Tareas">
+        <div className="flex h-64 items-center justify-center">
+          <p className="font-headline text-xl text-on-surface-variant">Cargando tareas...</p>
+        </div>
+      </StudentShell>
+    );
+  }
 
   return (
     <StudentShell title="Mis Tareas">

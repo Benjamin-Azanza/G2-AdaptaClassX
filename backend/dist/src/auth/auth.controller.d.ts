@@ -10,6 +10,7 @@ export declare class AuthController {
             email: string;
             role: import("@prisma/client").$Enums.Role;
             nombre: string | undefined;
+            paralelo_id: string | null;
         };
     }>;
     login(dto: LoginDto): Promise<{
@@ -19,6 +20,7 @@ export declare class AuthController {
             email: string;
             role: import("@prisma/client").$Enums.Role;
             nombre: string | undefined;
+            paralelo_id: string | null;
         };
     }>;
 }

@@ -37,6 +37,9 @@ let ParalelosController = class ParalelosController {
     async findOne(id) {
         return this.paralelosService.findOne(id);
     }
+    async archive(id) {
+        return this.paralelosService.archive(id);
+    }
 };
 exports.ParalelosController = ParalelosController;
 __decorate([
@@ -59,17 +62,27 @@ __decorate([
 ], ParalelosController.prototype, "join", null);
 __decorate([
     (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ParalelosController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ParalelosController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Patch)(':id/archive'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ParalelosController.prototype, "archive", null);
 exports.ParalelosController = ParalelosController = __decorate([
     (0, common_1.Controller)('paralelos'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

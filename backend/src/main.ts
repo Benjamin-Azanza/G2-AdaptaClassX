@@ -5,9 +5,14 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for frontend (Vite dev server)
+  // Enable CORS for frontend
+  // In production set FRONTEND_URL to your Vercel deployment URL
+  const frontendUrl = process.env.FRONTEND_URL;
+  const allowedOrigins = ['http://localhost:5173', 'http://localhost:3001'];
+  if (frontendUrl) allowedOrigins.push(frontendUrl);
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true,
   });
 

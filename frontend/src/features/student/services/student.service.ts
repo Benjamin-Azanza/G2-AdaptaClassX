@@ -1,91 +1,94 @@
+import api from '../../../services/api';
+import type { AuthUser } from '../../../types/auth';
 import type { StudentAssignment, StudentGame, StudentProfile } from '../types/student.types';
 
-// ─── MOCK DATA (reemplazar retornos con llamadas axios cuando el backend esté listo) ──
-// Para conectar al backend: cambiar cada función por `api.get('/endpoint')` con Axios.
+interface BackendGame {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  tema: string;
+  tipo: 'BASE' | 'CAMBIANTE';
+  thumbnail_url?: string | null;
+}
 
-export const MOCK_STUDENT_PROFILE: StudentProfile = {
-  xp: 1250,
-  racha: 5,
-  nivel: 8,
-  titulo: 'Lector Explorador',
-  paralelo: {
-    id: 'paralelo-3a',
-    nombre: '3ro A',
-    grado: 3,
-  },
+const temaLabels: Record<string, string> = {
+  LENGUA_CULTURA: 'Lengua y Cultura',
+  COMUNICACION_ORAL: 'Comunicacion Oral',
+  LECTURA: 'Lectura',
+  ESCRITURA: 'Escritura',
+  LITERATURA: 'Literatura',
 };
 
-// Solo 1 juego activo + 1 bloqueado como placeholder.
-// Cuando haya backend: GET /games?paralelo_id=xxx
-export const MOCK_STUDENT_GAMES: StudentGame[] = [
-  {
-    id: 'bomb-game',
-    title: 'Quiz Rápido — Lectura',
-    description: 'Responde preguntas y recolecta estrellas en este juego de plataformas.',
-    category: 'Lectura',
-    tipo: 'CAMBIANTE',
-    imageUrl: '/games/bomb-game/thumbnail.png',
-    route: '/games/bomb-game',
+function getBombGameRoute(params?: Record<string, string>) {
+  const search = new URLSearchParams(params);
+  const query = search.toString();
+  return query ? `/games/bomb-game?${query}` : '/games/bomb-game';
+}
+
+function mapTemaToLabel(tema: string) {
+  return temaLabels[tema] ?? tema.replaceAll('_', ' ');
+}
+
+function mapBackendGame(game: BackendGame): StudentGame {
+  return {
+    id: game.id,
+    title: game.titulo,
+    description: game.descripcion ?? 'Juego educativo disponible.',
+    category: mapTemaToLabel(game.tema),
+    tipo: game.tipo,
+    imageUrl: game.thumbnail_url ?? undefined,
+    route: getBombGameRoute({ gameId: game.id }),
     locked: false,
-  },
-  {
-    id: 'coming-soon',
-    title: 'Próximamente',
-    description: 'Nuevo juego en camino. Tu profesor lo habilitará pronto.',
-    category: 'Escritura',
-    tipo: 'BASE',
-    route: '#',
-    locked: true,
-  },
-];
+  };
+}
 
-// Solo 1 tarea activa apuntando al juego real.
-// Cuando haya backend: GET /assignments?student_id=xxx
-export const MOCK_STUDENT_ASSIGNMENTS: StudentAssignment[] = [
-  {
-    id: 'assignment-1',
-    gameId: 'bomb-game',
-    gameTitle: 'Quiz Rápido — Lectura',
-    gameCategory: 'Lectura',
-    gameRoute: '/games/bomb-game',
-    minutosRequeridos: 15,
-    minutosJugados: 7,
-    completado: false,
-    fechaLimite: '2026-05-20T23:59:00',
-  },
-];
+export function buildStudentProfile(user: AuthUser | null | undefined): StudentProfile {
+  return {
+    xp: 0,
+    racha: 0,
+    nivel: 1,
+    titulo: 'Explorador en progreso',
+    paralelo: user?.paralelo_id
+      ? {
+          id: user.paralelo_id,
+          nombre: 'Paralelo asignado',
+          grado: 0,
+        }
+      : null,
+  };
+}
 
-export const MOCK_COMPLETED_ASSIGNMENTS: StudentAssignment[] = [
-  {
-    id: 'assignment-0',
-    gameId: 'bomb-game',
-    gameTitle: 'Quiz Rápido — Lectura',
-    gameCategory: 'Lectura',
-    gameRoute: '/games/bomb-game',
-    minutosRequeridos: 10,
-    minutosJugados: 12,
-    completado: true,
-    fechaLimite: '2026-05-10T23:59:00',
-    xpGanado: 50,
-    completadoAt: '2026-05-10T15:30:00',
-  },
-];
-
-// ─── Service stubs (listos para reemplazar por llamadas reales) ────────────────
 export const studentGamesService = {
-  // TODO: reemplazar por → return api.get<StudentGame[]>('/games')
-  getAvailableGames(): StudentGame[] {
-    return MOCK_STUDENT_GAMES;
+  async getAvailableGames(): Promise<StudentGame[]> {
+    const response = await api.get<BackendGame[]>('/games');
+    return response.data.map(mapBackendGame);
   },
 };
 
 export const studentAssignmentsService = {
-  // TODO: reemplazar por → return api.get<StudentAssignment[]>('/assignments/pending')
-  getPending(): StudentAssignment[] {
-    return MOCK_STUDENT_ASSIGNMENTS;
-  },
-  // TODO: reemplazar por → return api.get<StudentAssignment[]>('/assignments/completed')
-  getCompleted(): StudentAssignment[] {
-    return MOCK_COMPLETED_ASSIGNMENTS;
+  async getMyAssignments(): Promise<{
+    pending: StudentAssignment[];
+    completed: StudentAssignment[];
+  }> {
+    const response = await api.get<{
+      pending: StudentAssignment[];
+      completed: StudentAssignment[];
+    }>('/assignments/my');
+
+    const normalizeTask = (task: StudentAssignment): StudentAssignment => ({
+      ...task,
+      gameCategory: mapTemaToLabel(task.gameCategory),
+      gameRoute: task.gameRoute.startsWith('/games/bomb-game')
+        ? task.gameRoute
+        : getBombGameRoute({
+            assignmentId: task.id,
+            gameId: task.gameId,
+          }),
+    });
+
+    return {
+      pending: response.data.pending.map(normalizeTask),
+      completed: response.data.completed.map(normalizeTask),
+    };
   },
 };

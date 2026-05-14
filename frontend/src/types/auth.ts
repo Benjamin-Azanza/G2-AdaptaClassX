@@ -5,4 +5,6 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   nombre: string;
+  /** null if student has not joined a paralelo yet */
+  paralelo_id: string | null;
 }

@@ -31,13 +31,12 @@ export function RegisterPage() {
 
     try {
       await register({
-        nombre: form.nombre,
-        email: form.email,
+        nombre: form.nombre.trim(),
+        email: form.email.trim(),
         password: form.password,
-        cedula: form.cedula || undefined,
+        cedula: form.cedula.trim() || undefined,
       });
-      const user = useAuthStore.getState().user;
-      navigate(user?.role === 'TEACHER' ? routePaths.teacherDashboard : routePaths.studentDashboard);
+      navigate(routePaths.login);
     } catch {
       // The store exposes the error for the form.
     }

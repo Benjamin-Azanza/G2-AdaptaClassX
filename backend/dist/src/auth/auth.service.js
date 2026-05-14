@@ -60,16 +60,24 @@ let AuthService = class AuthService {
             where: { email: dto.email },
         });
         if (existingUser) {
-            throw new common_1.ConflictException('El email ya está registrado');
+            throw new common_1.ConflictException('El email ya esta registrado');
         }
         let role = client_1.Role.STUDENT;
-        if (dto.cedula) {
+        const cedula = dto.cedula?.trim();
+        if (cedula) {
             const authorizedCedula = await this.prisma.cedulaAutorizada.findUnique({
-                where: { cedula: dto.cedula },
+                where: { cedula },
             });
-            if (authorizedCedula) {
-                role = client_1.Role.TEACHER;
+            if (!authorizedCedula) {
+                throw new common_1.ForbiddenException('La cedula ingresada no esta autorizada para crear cuentas docentes');
             }
+            const existingTeacher = await this.prisma.teacher.findUnique({
+                where: { cedula },
+            });
+            if (existingTeacher) {
+                throw new common_1.ConflictException('Esta cedula docente ya esta asociada a una cuenta existente');
+            }
+            role = client_1.Role.TEACHER;
         }
         const password_hash = await bcrypt.hash(dto.password, 10);
         const user = await this.prisma.user.create({
@@ -82,7 +90,7 @@ let AuthService = class AuthService {
                         teacher: {
                             create: {
                                 nombre: dto.nombre,
-                                cedula: dto.cedula,
+                                cedula: cedula,
                             },
                         },
                     }
@@ -108,6 +116,7 @@ let AuthService = class AuthService {
                 email: user.email,
                 role: user.role,
                 nombre: user.teacher?.nombre || user.student?.nombre,
+                paralelo_id: user.student?.paralelo_id ?? null,
             },
         };
     }
@@ -120,11 +129,11 @@ let AuthService = class AuthService {
             },
         });
         if (!user) {
-            throw new common_1.UnauthorizedException('Credenciales inválidas');
+            throw new common_1.UnauthorizedException('Credenciales invalidas');
         }
         const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
         if (!isPasswordValid) {
-            throw new common_1.UnauthorizedException('Credenciales inválidas');
+            throw new common_1.UnauthorizedException('Credenciales invalidas');
         }
         if (user.role === client_1.Role.STUDENT && user.student) {
             const today = new Date();
@@ -171,6 +180,7 @@ let AuthService = class AuthService {
                 email: user.email,
                 role: user.role,
                 nombre: user.teacher?.nombre || user.student?.nombre,
+                paralelo_id: user.student?.paralelo_id ?? null,
             },
         };
     }

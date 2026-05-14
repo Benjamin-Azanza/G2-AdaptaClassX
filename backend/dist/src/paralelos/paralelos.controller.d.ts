@@ -85,4 +85,13 @@ export declare class ParalelosController {
         teacher_id: string;
         activo: boolean;
     }>;
+    archive(id: string): Promise<{
+        id: string;
+        created_at: Date;
+        nombre: string;
+        codigo_acceso: string;
+        grado: number;
+        teacher_id: string;
+        activo: boolean;
+    }>;
 }

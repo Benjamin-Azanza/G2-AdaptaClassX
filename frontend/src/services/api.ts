@@ -1,55 +1,9 @@
-import axios, {
-  type AxiosAdapter,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from 'axios';
-
-interface DevMemoryBackend {
-  handleDevMemoryRequest: (
-    config: InternalAxiosRequestConfig,
-  ) => Promise<AxiosResponse | null>;
-}
-
-declare global {
-  interface Window {
-    __ADAPTACLASS_DEV_MEMORY_BACKEND__?: DevMemoryBackend;
-  }
-}
-
-const defaultAdapter = axios.getAdapter(axios.defaults.adapter);
-
-const optionalDevMemoryAdapter: AxiosAdapter = async (config) => {
-  const browserMemoryBackend = window.__ADAPTACLASS_DEV_MEMORY_BACKEND__;
-
-  if (browserMemoryBackend) {
-    const response = await browserMemoryBackend.handleDevMemoryRequest(config);
-
-    if (response) {
-      return response;
-    }
-  }
-
-  if (import.meta.env.DEV) {
-    try {
-      const devBackend = (await import(
-        /* @vite-ignore */ '/src/lib/devMemoryBackend.ts'
-      )) as DevMemoryBackend;
-      const response = await devBackend.handleDevMemoryRequest(config);
-
-      if (response) {
-        return response;
-      }
-    } catch {
-      // Removing src/lib/devMemoryBackend.ts restores the normal backend flow.
-    }
-  }
-
-  return defaultAdapter(config);
-};
+import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
-  adapter: optionalDevMemoryAdapter,
+  // In production (Vercel) this must be set as VITE_API_URL in the Vercel dashboard.
+  // In local dev we prefer the Vite proxy so the frontend only needs one origin.
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -67,7 +21,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor: handle 401
+// Response interceptor: handle 401 (expired / invalid token)
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -5,8 +5,12 @@ const common_1 = require("@nestjs/common");
 const app_module_1 = require("./app.module");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const frontendUrl = process.env.FRONTEND_URL;
+    const allowedOrigins = ['http://localhost:5173', 'http://localhost:3001'];
+    if (frontendUrl)
+        allowedOrigins.push(frontendUrl);
     app.enableCors({
-        origin: ['http://localhost:5173', 'http://localhost:3000'],
+        origin: allowedOrigins,
         credentials: true,
     });
     app.useGlobalPipes(new common_1.ValidationPipe({

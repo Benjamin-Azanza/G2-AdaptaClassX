@@ -46,6 +46,10 @@ const Joi = __importStar(require("joi"));
 const prisma_module_1 = require("./prisma/prisma.module");
 const auth_module_1 = require("./auth/auth.module");
 const paralelos_module_1 = require("./paralelos/paralelos.module");
+const games_module_1 = require("./games/games.module");
+const assignments_module_1 = require("./assignments/assignments.module");
+const progress_module_1 = require("./progress/progress.module");
+const notifications_module_1 = require("./notifications/notifications.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -56,15 +60,23 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 validationSchema: Joi.object({
                     DATABASE_URL: Joi.string().required(),
-                    JWT_SECRET: Joi.string().required(),
+                    DIRECT_URL: Joi.string().optional(),
+                    JWT_SECRET: Joi.string().min(32).required(),
                     JWT_EXPIRES_IN: Joi.string().default('7d'),
                     PORT: Joi.number().default(3000),
-                    NODE_ENV: Joi.string().default('development'),
+                    NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+                    FRONTEND_URL: Joi.string().uri().optional(),
+                    OPENAI_API_KEY: Joi.string().optional(),
+                    OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
                 }),
             }),
             prisma_module_1.PrismaModule,
             auth_module_1.AuthModule,
             paralelos_module_1.ParalelosModule,
+            games_module_1.GamesModule,
+            assignments_module_1.AssignmentsModule,
+            progress_module_1.ProgressModule,
+            notifications_module_1.NotificationsModule,
         ],
     })
 ], AppModule);

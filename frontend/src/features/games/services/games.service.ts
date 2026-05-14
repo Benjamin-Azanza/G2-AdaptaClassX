@@ -1,45 +1,53 @@
 import api from '../../../services/api';
-import axios from 'axios';
 import type { TeacherGame, TeacherGameSummary } from '../types/game.types';
 
+interface BackendGame {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  tema: string;
+  tipo: 'BASE' | 'CAMBIANTE';
+  thumbnail_url?: string | null;
+}
+
 interface TeacherGamesResponse {
-  games?: TeacherGame[];
-  data?: TeacherGame[];
+  games?: BackendGame[];
+  data?: BackendGame[];
   summary?: TeacherGameSummary;
 }
 
-const localFallbackGames: TeacherGame[] = [
-  {
-    id: 'bomb-game',
-    title: 'Quiz Rapido - Lectura',
-    description: 'Juego cambiante para practicar comprension lectora con preguntas del docente.',
-    category: 'Lengua y Literatura',
-    route: '/teacher/questions',
-    status: 'published',
-    questionsCount: 0,
-    imageUrl: '/games/bomb-game/thumbnail.png',
-  },
-];
+const temaLabels: Record<string, string> = {
+  LENGUA_CULTURA: 'Lengua y Cultura',
+  COMUNICACION_ORAL: 'Comunicacion Oral',
+  LECTURA: 'Lectura',
+  ESCRITURA: 'Escritura',
+  LITERATURA: 'Literatura',
+};
 
-function normalizeGamesResponse(response: TeacherGamesResponse | TeacherGame[]) {
+function mapBackendGame(game: BackendGame): TeacherGame {
+  return {
+    id: game.id,
+    title: game.titulo,
+    description: game.descripcion ?? 'Juego educativo disponible.',
+    category: temaLabels[game.tema] ?? game.tema.replaceAll('_', ' '),
+    imageUrl: game.thumbnail_url ?? undefined,
+    route: `/games/bomb-game?gameId=${game.id}`,
+    questionsCount: 0,
+    status: game.tipo === 'CAMBIANTE' ? 'published' : 'draft',
+  };
+}
+
+function normalizeGamesResponse(response: TeacherGamesResponse | BackendGame[]) {
   if (Array.isArray(response)) {
-    return response;
+    return response.map(mapBackendGame);
   }
 
-  return response.games ?? response.data ?? [];
+  return (response.games ?? response.data ?? []).map(mapBackendGame);
 }
 
 export const gamesService = {
   async getTeacherGames() {
-    try {
-      const response = await api.get<TeacherGamesResponse | TeacherGame[]>('/games');
-      return normalizeGamesResponse(response.data);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return localFallbackGames;
-      }
-
-      throw error;
-    }
+    const response = await api.get<TeacherGamesResponse | BackendGame[]>('/games');
+    return normalizeGamesResponse(response.data);
   },
 };

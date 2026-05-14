@@ -49,7 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error: unknown) {
       const message = getApiErrorMessage(error, 'Error al iniciar sesion');
       set({ error: message, isLoading: false });
-      throw err;
+      throw error;
     }
   },
 
@@ -57,16 +57,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await authService.register(data);
-      const { access_token, user } = response.data;
-
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      set({ user, token: access_token, isLoading: false });
+      await authService.register(data);
+      set({ user: null, token: null, isLoading: false, error: null });
     } catch (error: unknown) {
       const message = getApiErrorMessage(error, 'Error al registrarse');
       set({ error: message, isLoading: false });
-      throw err;
+      throw error;
     }
   },
 

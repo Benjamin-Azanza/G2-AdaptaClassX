@@ -1,11 +1,31 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { StudentShell } from '../components/StudentShell';
-import { MOCK_STUDENT_GAMES } from '../services/student.service';
+import { studentGamesService } from '../services/student.service';
+import type { StudentGame } from '../types/student.types';
 
 const CATEGORIES = ['Lectura', 'Escritura', 'Literatura', 'Lengua y Cultura'];
 
 export function StudentGameCatalogPage() {
-  const games = MOCK_STUDENT_GAMES;
+  const [games, setGames] = useState<StudentGame[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    studentGamesService.getAvailableGames()
+      .then((data) => setGames(data))
+      .catch((err) => console.error('Failed to load games', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <StudentShell title="Catálogo de Juegos">
+        <div className="flex h-64 items-center justify-center">
+          <p className="font-headline text-xl text-on-surface-variant">Cargando juegos...</p>
+        </div>
+      </StudentShell>
+    );
+  }
 
   return (
     <StudentShell title="Catálogo de Juegos">

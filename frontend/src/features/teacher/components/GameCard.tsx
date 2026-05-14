@@ -60,7 +60,7 @@ export function GameCard({ game, index }: GameCardProps) {
           La carga se realiza desde Preguntas, seleccionando el juego destino.
         </p>
         <Link
-          to={game.id === 'bomb-game' ? routePaths.bombGame : '#'}
+          to={game.route ?? routePaths.bombGame}
           className="mt-xs flex w-full items-center justify-center gap-xs border-2 border-on-background bg-primary px-4 py-2 font-headline text-sm font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
         >
           <span className="material-symbols-outlined">play_arrow</span>

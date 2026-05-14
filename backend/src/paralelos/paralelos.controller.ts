@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -32,12 +33,20 @@ export class ParalelosController {
   }
 
   @Get()
+  @Roles(Role.TEACHER)
   async findAll() {
     return this.paralelosService.findAll();
   }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
   async findOne(@Param('id') id: string) {
     return this.paralelosService.findOne(id);
+  }
+
+  @Patch(':id/archive')
+  @Roles(Role.TEACHER)
+  async archive(@Param('id') id: string) {
+    return this.paralelosService.archive(id);
   }
 }

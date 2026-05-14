@@ -80,7 +80,14 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
-      <Route path={routePaths.bombGame} element={<BombGamePage />} />
+      <Route
+        path={routePaths.bombGame}
+        element={
+          <ProtectedRoute>
+            <BombGamePage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to={routePaths.login} replace />} />
     </Routes>
   );

@@ -70,6 +70,7 @@ model Student {
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   paralelo Paralelo? @relation(fields: [paralelo_id], references: [id], onDelete: SetNull)
 
+  @@index([paralelo_id])
   @@map("students")
 }
 
@@ -113,7 +114,7 @@ model Paralelo {
 
 model Game {
   id                  String    @id @default(uuid())
-  titulo              String
+  titulo              String    @unique
   tema                Tema
   tipo                TipoJuego
   acepta_preguntas_ia Boolean   @default(false)
@@ -192,6 +193,8 @@ model StudentProgress {
   assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, assignment_id])
+  @@index([student_id])
+  @@index([assignment_id])
   @@map("student_progress")
 }
 
@@ -208,5 +211,7 @@ model Notification {
   student    User       @relation("NotificationStudent", fields: [student_id], references: [id])
   assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
 
+  @@index([student_id])
+  @@index([assignment_id])
   @@map("notifications")
 }
