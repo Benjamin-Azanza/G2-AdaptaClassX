@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const questionAmounts = [5, 10, 15];
+// Optional: You could fetch these from your backend.
 const contentTargetGames = [
   {
     id: 'bomb-game',
@@ -8,10 +8,32 @@ const contentTargetGames = [
   },
 ];
 
-export function QuestionGenerationForm() {
+interface QuestionGenerationFormProps {
+  onSubmit: (formData: FormData, targetGameId: string) => void;
+  isLoading: boolean;
+}
+
+export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerationFormProps) {
   const [amount, setAmount] = useState(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [targetGameId, setTargetGameId] = useState(contentTargetGames[0]?.id ?? '');
+  const [difficulty, setDifficulty] = useState('Basico');
+  const [context, setContext] = useState('');
+
+  const questionAmounts = [5, 10, 15];
+
+  const handleSubmit = () => {
+    if (!uploadedFile || !targetGameId) return;
+
+    const formData = new FormData();
+    formData.append('file', uploadedFile);
+    formData.append('targetGameId', targetGameId);
+    formData.append('amount', amount.toString());
+    formData.append('difficulty', difficulty);
+    formData.append('context', context);
+
+    onSubmit(formData, targetGameId);
+  };
 
   return (
     <section className="flex h-fit flex-col gap-md border-2 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] md:col-span-1">
@@ -31,7 +53,7 @@ export function QuestionGenerationForm() {
         <input
           className="sr-only"
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept=".pdf,.doc,.docx,.txt"
           onChange={(event) => setUploadedFile(event.target.files?.[0] ?? null)}
         />
       </label>
@@ -72,10 +94,14 @@ export function QuestionGenerationForm() {
 
       <label className="flex flex-col gap-sm text-sm font-bold uppercase">
         Nivel de dificultad
-        <select className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary">
-          <option>Basico</option>
-          <option>Intermedio</option>
-          <option>Avanzado</option>
+        <select 
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
+          value={difficulty}
+          onChange={(e) => setDifficulty(e.target.value)}
+        >
+          <option value="Basico">Basico</option>
+          <option value="Intermedio">Intermedio</option>
+          <option value="Avanzado">Avanzado</option>
         </select>
       </label>
 
@@ -85,16 +111,19 @@ export function QuestionGenerationForm() {
           className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
           placeholder="Ej: Enfocar en comprension lectora, vocabulario o figuras literarias..."
           rows={3}
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
         />
       </label>
 
       <button
         className="mt-auto flex w-full items-center justify-center gap-sm border-2 border-on-background bg-primary px-4 py-3 font-headline text-2xl font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] disabled:cursor-not-allowed disabled:opacity-60"
         type="button"
-        disabled={!uploadedFile || !targetGameId}
+        disabled={!uploadedFile || !targetGameId || isLoading}
+        onClick={handleSubmit}
       >
         <span className="material-symbols-outlined">smart_toy</span>
-        Generar
+        {isLoading ? 'Generando...' : 'Generar'}
       </button>
     </section>
   );

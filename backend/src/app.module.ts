@@ -8,6 +8,7 @@ import { GamesModule } from './games/games.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { ProgressModule } from './progress/progress.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AssignmentsModule,
     ProgressModule,
     NotificationsModule,
+    AiModule,
   ],
 })
 export class AppModule {}
