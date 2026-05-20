@@ -7,18 +7,31 @@ interface GeneratedQuestionPreview {
 
 interface QuestionPreviewProps {
   questions?: GeneratedQuestionPreview[];
+  onSave?: () => void;
 }
 
-export function QuestionPreview({ questions = [] }: QuestionPreviewProps) {
+export function QuestionPreview({ questions = [], onSave }: QuestionPreviewProps) {
   const hasQuestions = questions.length > 0;
 
   return (
     <section className="flex flex-col gap-lg md:col-span-2">
-      <div className="border-2 border-on-background bg-surface-container-high p-md shadow-[4px_4px_0_0_#1d1c17]">
-        <h2 className="font-headline text-2xl font-bold">Vista previa</h2>
-        <p className="mt-xs text-on-surface-variant">
-          Las preguntas apareceran aqui despues de generar contenido desde un documento.
-        </p>
+      <div className="flex items-center justify-between border-2 border-on-background bg-surface-container-high p-md shadow-[4px_4px_0_0_#1d1c17]">
+        <div>
+          <h2 className="font-headline text-2xl font-bold">Vista previa</h2>
+          <p className="mt-xs text-on-surface-variant">
+            Las preguntas apareceran aqui despues de generar contenido desde un documento.
+          </p>
+        </div>
+        {hasQuestions && onSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            className="flex items-center gap-sm border-2 border-on-background bg-primary px-4 py-2 font-headline text-lg font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
+          >
+            <span className="material-symbols-outlined">save</span>
+            Guardar
+          </button>
+        )}
       </div>
 
       <div className="flex min-h-[420px] flex-col items-center justify-center gap-md border-2 border-on-background bg-surface-container-lowest p-lg text-center shadow-[8px_8px_0_0_#1d1c17]">
@@ -36,16 +49,22 @@ export function QuestionPreview({ questions = [] }: QuestionPreviewProps) {
             </div>
           </>
         ) : (
-          <div className="w-full text-left">
-            <div className="mb-md flex justify-end gap-sm">
-              <button className="border-2 border-on-background bg-surface-container-lowest p-2 shadow-[2px_2px_0_0_#1d1c17]" type="button" aria-label="Editar pregunta">
-                <span className="material-symbols-outlined">edit</span>
-              </button>
-              <button className="border-2 border-on-background bg-error-container p-2 text-on-error-container shadow-[2px_2px_0_0_#1d1c17]" type="button" aria-label="Eliminar pregunta">
-                <span className="material-symbols-outlined">delete</span>
-              </button>
-            </div>
-            <p className="font-headline text-2xl font-bold">{questions[0]?.prompt}</p>
+          <div className="w-full flex flex-col gap-md text-left">
+            {questions.map((q, index) => (
+              <div key={q.id || index} className="flex flex-col gap-sm border-2 border-on-background p-md">
+                <p className="font-headline text-xl font-bold">{index + 1}. {q.prompt}</p>
+                <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
+                  {q.options.map((opt, i) => (
+                    <div 
+                      key={i} 
+                      className={`border-2 p-2 ${i === q.correctOptionIndex ? 'border-primary bg-primary/10 font-bold' : 'border-outline-variant'}`}
+                    >
+                      {String.fromCharCode(65 + i)}. {opt}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
