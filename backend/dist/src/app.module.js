@@ -50,6 +50,7 @@ const games_module_1 = require("./games/games.module");
 const assignments_module_1 = require("./assignments/assignments.module");
 const progress_module_1 = require("./progress/progress.module");
 const notifications_module_1 = require("./notifications/notifications.module");
+const ai_module_1 = require("./ai/ai.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -67,7 +68,7 @@ exports.AppModule = AppModule = __decorate([
                     NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
                     FRONTEND_URL: Joi.string().uri().optional(),
                     OPENAI_API_KEY: Joi.string().optional(),
-                    OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
+                    AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'),
                 }),
             }),
             prisma_module_1.PrismaModule,
@@ -77,6 +78,7 @@ exports.AppModule = AppModule = __decorate([
             assignments_module_1.AssignmentsModule,
             progress_module_1.ProgressModule,
             notifications_module_1.NotificationsModule,
+            ai_module_1.AiModule,
         ],
     })
 ], AppModule);

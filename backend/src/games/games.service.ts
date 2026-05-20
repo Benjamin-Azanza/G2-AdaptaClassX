@@ -9,7 +9,6 @@ export class GamesService {
   async findAll() {
     return this.prisma.game.findMany({
       orderBy: { titulo: 'asc' },
-      take: 1,
     });
   }
 

@@ -14,9 +14,14 @@ type GameQuestion = {
 
 type BackendQuestionRow = {
   preguntas_json: Array<{
-    texto: string;
-    opciones: string[];
-    respuestaCorrecta: number;
+    // Normalized format (stored by AI service)
+    texto?: string;
+    opciones?: string[];
+    respuestaCorrecta?: number;
+    // Legacy AI format (fallback, in case old records exist)
+    prompt?: string;
+    options?: string[];
+    correctOptionIndex?: number;
   }>;
 };
 
@@ -64,9 +69,10 @@ export const BombGamePage: React.FC = () => {
           const response = await api.get<BackendQuestionRow[]>(`/games/${gameId}/questions`);
           const apiQuestions = response.data.flatMap((row) =>
             (row.preguntas_json ?? []).map((question) => ({
-              q: question.texto,
-              options: question.opciones,
-              answer: question.respuestaCorrecta,
+              // Support both normalized format and legacy AI format
+              q: question.texto ?? question.prompt ?? '',
+              options: question.opciones ?? question.options ?? [],
+              answer: question.respuestaCorrecta ?? question.correctOptionIndex ?? 0,
             })),
           );
 

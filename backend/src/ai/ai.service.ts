@@ -2,9 +2,8 @@ import { Injectable, BadRequestException, InternalServerErrorException } from '@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import OpenAI from 'openai';
-import * as pdfParseModule from 'pdf-parse';
-const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 import * as mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
 import { TipoFuente } from '@prisma/client';
 
 @Injectable()
@@ -26,24 +25,50 @@ export class AiService {
       throw new BadRequestException('No file provided');
     }
 
+    console.log(`[AI] extractText — mimetype: ${file.mimetype}, size: ${file.size} bytes`);
+
     try {
+      let rawText: string;
+
       if (file.mimetype === 'application/pdf') {
-        const data = await pdfParse(file.buffer);
-        return data.text;
+        const parser = new PDFParse({ data: file.buffer });
+        const result = await parser.getText();
+        rawText = result.text;
       } else if (
         file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         file.mimetype === 'application/msword'
       ) {
         const result = await mammoth.extractRawText({ buffer: file.buffer });
-        return result.value;
+        rawText = result.value;
       } else if (file.mimetype.startsWith('text/')) {
-        return file.buffer.toString('utf-8');
+        rawText = file.buffer.toString('utf-8');
       } else {
         throw new BadRequestException('Unsupported file format. Please upload PDF, DOCX, or TXT.');
       }
+
+      const cleaned = this.cleanText(rawText);
+      console.log(`[AI] extractText — raw chars: ${rawText.length}, cleaned words: ${cleaned.split(/\s+/).length}`);
+      return cleaned;
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      console.error('[AI] extractText error:', error);
       throw new InternalServerErrorException('Error extracting text from file');
     }
+  }
+
+  private cleanText(raw: string): string {
+    return raw
+      // Collapse 3+ consecutive newlines into 2
+      .replace(/\n{3,}/g, '\n\n')
+      // Remove lines that are only numbers or whitespace (page numbers, etc.)
+      .replace(/^\s*\d+\s*$/gm, '')
+      // Collapse multiple spaces/tabs into a single space
+      .replace(/[ \t]{2,}/g, ' ')
+      // Trim each line
+      .split('\n').map(l => l.trim()).join('\n')
+      .trim()
+      // Truncate to ~4000 words to stay within context limits
+      .split(/\s+/).slice(0, 4000).join(' ');
   }
 
   async generateQuestions(
@@ -53,63 +78,103 @@ export class AiService {
     difficulty: string,
     context?: string,
   ): Promise<any> {
-    const prompt = `
-Actúa como un profesor experto. Tu tarea es generar ${amount} preguntas de opción múltiple basadas en el siguiente texto.
-El nivel de dificultad debe ser "${difficulty}".
-${context ? `Consideraciones adicionales o contexto: ${context}\n` : ''}
+    const model = this.configService.get<string>('AI_MODEL') || 'z-ai/glm-4.5-air:free';
 
-Texto de origen:
+    const prompt = `Eres un generador de preguntas de opción múltiple para niños de 8 a 10 años (3ro-5to EGB).
+
+TEXTO BASE:
 """
 ${text}
 """
 
-Debes devolver EXACTAMENTE Y ÚNICAMENTE un arreglo JSON con el siguiente formato, sin markdown ni explicaciones adicionales:
-[
-  {
-    "id": "uuid-generado-aleatoriamente",
-    "prompt": "Pregunta generada",
-    "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-    "correctOptionIndex": 0
-  }
-]
-Asegúrate de que 'correctOptionIndex' sea un número entre 0 y 3 que indique la opción correcta.
-`;
+TAREA: Genera exactamente ${amount} preguntas de opción múltiple basadas ÚNICAMENTE en el texto anterior. Nivel de dificultad: ${difficulty}.${context ? `\nConsideraciones: ${context}` : ''}
+
+REGLAS:
+- Cada pregunta debe poder responderse leyendo el texto base.
+- 4 opciones por pregunta, solo una correcta.
+- Lenguaje claro y simple para niños.
+- No inventes información que no esté en el texto.
+
+RESPONDE SOLO con un array JSON válido, sin markdown, sin explicaciones:
+[{"texto":"...","opciones":["A","B","C","D"],"respuestaCorrecta":0},...]
+
+respuestaCorrecta es el índice (0-3) de la opción correcta.`;
+
+    console.log(`[AI] generateQuestions — model: ${model}, amount: ${amount}, text words: ${text.split(/\s+/).length}`);
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'z-ai/glm-4.5-air:free', // O el modelo que esté disponible en la URL base
-        messages: [{ role: 'system', content: prompt }],
-        response_format: { type: 'json_object' } 
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000 + amount * 300, // reasoning models use extra tokens for thinking
       });
 
-      const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error('No content returned from LLM');
-      }
-      
-      const jsonStr = content.replace(/```json/gi, '').replace(/```/g, '').trim();
-      let questions;
+      const choice = response.choices[0];
+      console.log(`[AI] LLM finish_reason: ${choice?.finish_reason}`);
+      console.log(`[AI] LLM full choice:`, JSON.stringify(choice, null, 2).slice(0, 600));
+
+      // Some reasoning models (e.g. GLM-4.5) put output in alternate fields
+      const msg = choice?.message as any;
+      const content =
+        msg?.content ||
+        msg?.reasoning_content ||
+        msg?.reasoning ||
+        msg?.tool_calls?.[0]?.function?.arguments;
+
+      if (!content) throw new Error(`No content from LLM. finish_reason: ${choice?.finish_reason}`);
+
+      // Strip markdown code fences if present
+      const jsonStr = content.replace(/```(?:json)?/gi, '').trim();
+
+      let questions: any;
       try {
         questions = JSON.parse(jsonStr);
-      } catch (err) {
-        throw new Error('LLM did not return a valid JSON format');
-      }
+      } catch (parseErr) {
+        console.warn('[AI] Direct JSON.parse failed, attempting recovery. Raw (200):', jsonStr.slice(0, 200));
 
-      if (!Array.isArray(questions) && questions.questions) {
-          questions = questions.questions;
-      }
-
-      if (!Array.isArray(questions)) {
-          if (questions.id && questions.prompt && questions.options) {
-              questions = [questions];
-          } else {
-              throw new Error('LLM did not return an array');
+        // Strategy 1: extract a complete [...] block
+        const fullMatch = jsonStr.match(/\[[\s\S]*\]/);
+        if (fullMatch) {
+          try {
+            questions = JSON.parse(fullMatch[0]);
+          } catch {
+            // Strategy 2: response was truncated (finish_reason=length) — extract complete objects
+            const partialObjects = [...jsonStr.matchAll(/\{[^{}]*"respuestaCorrecta"\s*:\s*\d[^{}]*\}/g)];
+            if (partialObjects.length > 0) {
+              console.warn(`[AI] Recovered ${partialObjects.length} complete question(s) from truncated response`);
+              questions = partialObjects.map(m => JSON.parse(m[0]));
+            } else {
+              throw new Error('Could not recover any valid questions from LLM response');
+            }
           }
+        } else {
+          // Strategy 2 directly: extract complete objects
+          const partialObjects = [...jsonStr.matchAll(/\{[^{}]*"respuestaCorrecta"\s*:\s*\d[^{}]*\}/g)];
+          if (partialObjects.length > 0) {
+            console.warn(`[AI] Recovered ${partialObjects.length} complete question(s) from truncated response`);
+            questions = partialObjects.map(m => JSON.parse(m[0]));
+          } else {
+            throw new Error('LLM did not return a parseable JSON array');
+          }
+        }
       }
 
+      // Unwrap if the model wrapped the array in an object
+      if (!Array.isArray(questions)) {
+        const keys = Object.keys(questions);
+        const arrayKey = keys.find(k => Array.isArray(questions[k]));
+        if (arrayKey) {
+          console.warn(`[AI] Unwrapping array from key: ${arrayKey}`);
+          questions = questions[arrayKey];
+        } else {
+          throw new Error(`LLM response is not an array. Keys found: ${keys.join(', ')}`);
+        }
+      }
+
+      console.log(`[AI] Questions parsed OK — count: ${questions.length}`);
       return questions;
     } catch (error) {
-      console.error('Error in LLM generation', error);
+      console.error('[AI] generateQuestions error:', error);
       throw new InternalServerErrorException('Error generating questions from LLM');
     }
   }
@@ -121,13 +186,14 @@ Asegúrate de que 'correctOptionIndex' sea un número entre 0 y 3 que indique la
     userId: string,
   ) {
     try {
-      if (!paraleloId) {
-        // If there's no paraleloId, maybe they are global questions, but our schema requires it or allow null?
-        // Let's check schema. paralelo_id is String?.
-        // The unique constraint is @@unique([game_id, paralelo_id])
-        // Let's use findFirst to see if exists, then update or create since upsert with null is tricky in prisma sometimes.
-      }
-      
+      // Normalize to the canonical game format: {texto, opciones, respuestaCorrecta}
+      // Supports both the new format (AI now uses these names directly) and legacy field names
+      const normalizedQuestions = questions.map((q: any) => ({
+        texto: q.texto ?? q.prompt ?? '',
+        opciones: q.opciones ?? q.options ?? [],
+        respuestaCorrecta: q.respuestaCorrecta ?? q.correctOptionIndex ?? 0,
+      }));
+
       // Upsert or create
       const existing = await this.prisma.gameQuestion.findFirst({
         where: { game_id: gameId, paralelo_id: paraleloId || null }
@@ -137,7 +203,7 @@ Asegúrate de que 'correctOptionIndex' sea un número entre 0 y 3 que indique la
         return await this.prisma.gameQuestion.update({
           where: { id: existing.id },
           data: {
-            preguntas_json: questions,
+            preguntas_json: normalizedQuestions,
             tipo_fuente: TipoFuente.IA,
           }
         });
@@ -146,7 +212,7 @@ Asegúrate de que 'correctOptionIndex' sea un número entre 0 y 3 que indique la
           data: {
             game_id: gameId,
             paralelo_id: paraleloId || null,
-            preguntas_json: questions,
+            preguntas_json: normalizedQuestions,
             tipo_fuente: TipoFuente.IA,
             created_by: userId,
           }

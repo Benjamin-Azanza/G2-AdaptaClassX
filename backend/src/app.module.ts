@@ -22,8 +22,8 @@ import { AiModule } from './ai/ai.module';
         PORT: Joi.number().default(3000),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         FRONTEND_URL: Joi.string().uri().optional(),
-        OPENAI_API_KEY: Joi.string().optional(), // Optional until AI module is implemented
-        OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
+        OPENAI_API_KEY: Joi.string().optional(),
+        AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'), // Override to swap models without code changes
       }),
     }),
     PrismaModule,

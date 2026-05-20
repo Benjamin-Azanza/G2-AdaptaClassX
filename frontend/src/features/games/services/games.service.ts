@@ -7,6 +7,7 @@ interface BackendGame {
   descripcion: string | null;
   tema: string;
   tipo: 'BASE' | 'CAMBIANTE';
+  acepta_preguntas_ia: boolean;
   thumbnail_url?: string | null;
 }
 
@@ -34,6 +35,7 @@ function mapBackendGame(game: BackendGame): TeacherGame {
     route: `/games/bomb-game?gameId=${game.id}`,
     questionsCount: 0,
     status: game.tipo === 'CAMBIANTE' ? 'published' : 'draft',
+    aceitaIA: game.acepta_preguntas_ia,
   };
 }
 
