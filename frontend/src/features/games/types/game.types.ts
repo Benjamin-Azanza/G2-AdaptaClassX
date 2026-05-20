@@ -9,6 +9,7 @@ export interface TeacherGame {
   status?: 'draft' | 'published' | 'archived';
   questionsCount?: number;
   updatedAt?: string;
+  aceitaIA?: boolean;
 }
 
 export interface TeacherGameSummary {

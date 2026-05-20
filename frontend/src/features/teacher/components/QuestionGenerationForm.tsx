@@ -1,29 +1,39 @@
-import { useState } from 'react';
-
-// Optional: You could fetch these from your backend.
-const contentTargetGames = [
-  {
-    id: 'bomb-game',
-    title: 'Quiz Rapido - Lectura',
-  },
-];
+import { useState, useEffect } from 'react';
+import type { Paralelo } from '../types/paralelo.types';
+import type { TeacherGame } from '../../games/types/game.types';
 
 interface QuestionGenerationFormProps {
-  onSubmit: (formData: FormData, targetGameId: string) => void;
+  onSubmit: (formData: FormData, targetGameId: string, paraleloId: string) => void;
   isLoading: boolean;
+  paralelos: Paralelo[];
+  games: TeacherGame[];
+  gamesLoading?: boolean;
 }
 
-export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerationFormProps) {
+export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, gamesLoading }: QuestionGenerationFormProps) {
   const [amount, setAmount] = useState(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [targetGameId, setTargetGameId] = useState(contentTargetGames[0]?.id ?? '');
+  const [targetGameId, setTargetGameId] = useState('');
   const [difficulty, setDifficulty] = useState('Basico');
   const [context, setContext] = useState('');
+  const [selectedParaleloId, setSelectedParaleloId] = useState('');
 
   const questionAmounts = [5, 10, 15];
 
+  useEffect(() => {
+    if (paralelos.length > 0 && !selectedParaleloId) {
+      setSelectedParaleloId(paralelos[0].id);
+    }
+  }, [paralelos, selectedParaleloId]);
+
+  useEffect(() => {
+    if (games.length > 0 && !targetGameId) {
+      setTargetGameId(games[0].id);
+    }
+  }, [games, targetGameId]);
+
   const handleSubmit = () => {
-    if (!uploadedFile || !targetGameId) return;
+    if (!uploadedFile || !targetGameId || !selectedParaleloId) return;
 
     const formData = new FormData();
     formData.append('file', uploadedFile);
@@ -32,7 +42,7 @@ export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerati
     formData.append('difficulty', difficulty);
     formData.append('context', context);
 
-    onSubmit(formData, targetGameId);
+    onSubmit(formData, targetGameId, selectedParaleloId);
   };
 
   return (
@@ -59,13 +69,32 @@ export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerati
       </label>
 
       <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-        Juego destino
+        Paralelo de destino
         <select
           className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
+          value={selectedParaleloId}
+          onChange={(event) => setSelectedParaleloId(event.target.value)}
+        >
+          <option value="">Selecciona un paralelo...</option>
+          {paralelos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre} ({p.grado}ro EGB)
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
+        Juego destino
+        <select
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           value={targetGameId}
           onChange={(event) => setTargetGameId(event.target.value)}
+          disabled={gamesLoading || games.length === 0}
         >
-          {contentTargetGames.map((game) => (
+          {gamesLoading && <option value="">Cargando juegos...</option>}
+          {!gamesLoading && games.length === 0 && <option value="">No hay juegos disponibles</option>}
+          {games.map((game) => (
             <option key={game.id} value={game.id}>
               {game.title}
             </option>
@@ -119,7 +148,7 @@ export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerati
       <button
         className="mt-auto flex w-full items-center justify-center gap-sm border-2 border-on-background bg-primary px-4 py-3 font-headline text-2xl font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] disabled:cursor-not-allowed disabled:opacity-60"
         type="button"
-        disabled={!uploadedFile || !targetGameId || isLoading}
+        disabled={!uploadedFile || !targetGameId || !selectedParaleloId || isLoading}
         onClick={handleSubmit}
       >
         <span className="material-symbols-outlined">smart_toy</span>

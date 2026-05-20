@@ -879,7 +879,7 @@ Profesor sube PDF (max 5MB) → Multer lo recibe en memoria (RAM)
 
 ---
 
-## SECCIÓN 8 — Roadmap 
+## SECCIÓN 8 — Roadmap Definitivo (4 Semanas)
 
 ### Semana 1 — Fundación y Autenticación
 
@@ -906,6 +906,105 @@ Profesor sube PDF (max 5MB) → Multer lo recibe en memoria (RAM)
 - [ ] Frontend: redirección post-login al dashboard correcto según rol
 
 **Entregable Semana 1:** login/registro funcionando con roles diferenciados. Un profesor puede crear un paralelo y obtener un código. Un estudiante puede registrarse y unirse con el código.
+
+---
+
+### Semana 2 — Motor de Juegos y Flujo del Estudiante
+
+**Objetivo:** tener un juego funcionando end-to-end y el dashboard del estudiante navegable.
+
+**Día 1-2: Integración Phaser**
+- [ ] Frontend: definir y documentar el contrato de Custom DOM Events
+- [ ] Frontend: crear componente base para juegos de Phaser (`GameWrapper.tsx`)
+- [ ] Frontend: implementar primer juego CAMBIANTE (quiz de preguntas de opción múltiple)
+- [ ] Frontend: implementar heartbeat cada 30 segundos (game:heartbeat)
+- [ ] Frontend: implementar disparo de game:completed
+
+**Día 3-4: Backend de progreso**
+- [ ] Backend: módulo `games` — GET /games (catálogo filtrado por grado)
+- [ ] Backend: GET /games/:id/questions?paraleloId= (con fallback a preguntas por defecto)
+- [ ] Backend: módulo `progress` — POST /progress/heartbeat (acumula minutos)
+- [ ] Backend: POST /progress/complete (marca completado, otorga XP, actualiza racha)
+- [ ] Backend: lógica de racha en cada login
+
+**Día 5: UI del estudiante**
+- [ ] Frontend: Student Dashboard (layout con racha, XP, carrusel de juegos)
+- [ ] Frontend: pantalla de juego (canvas Phaser + barra de progreso para asignaciones)
+- [ ] Frontend: pantalla Post-Juego (score, XP ganado, botones)
+- [ ] Frontend: Catálogo de Juegos organizado por tema
+- [ ] Frontend: Mis Tareas (lista de asignaciones pendientes y completadas)
+
+**Entregable Semana 2:** un estudiante logueado puede ver su dashboard, entrar a un juego, jugar 15 minutos y ver la pantalla de resultados con XP ganado.
+
+---
+
+### Semana 3 — Dashboard del Profesor y Funcionalidades de IA
+
+**Objetivo:** el flujo completo profesor → asignación → estudiante funcionando.
+
+**Día 1-2: Dashboard del profesor**
+- [ ] Frontend: Teacher Dashboard (lista de paralelos)
+- [ ] Frontend: pantalla Gestionar Paralelo (código de acceso, lista de estudiantes)
+- [ ] Frontend: pantalla Asignar Actividad (selector de paralelo, juego, tiempo, fecha)
+- [ ] Backend: módulo `assignments` — POST /assignments (crea asignación + registros de progreso + notificaciones)
+- [ ] Backend: GET /assignments?studentId= (asignaciones del estudiante)
+- [ ] Backend: GET /notifications/pending?studentId= (para polling cada 30s)
+- [ ] Frontend: integrar polling de notificaciones en el Student Dashboard
+
+**Día 3-4: Inteligencia Artificial**
+- [ ] Backend: módulo `ai` — POST /ai/generate-questions
+  - Multer en memoria para recibir el PDF
+  - pdf-parse para extraer texto
+  - Llamada a OpenAI con prompt + validación del JSON de respuesta
+  - Throttler: max 5 requests/hora por profesor
+- [ ] Backend: POST /games/:id/questions (guardar preguntas para un paralelo)
+- [ ] Frontend: pantalla Gestionar Preguntas
+  - Tab "Manual": formulario para ingresar preguntas
+  - Tab "IA": subir PDF + elegir cantidad + vista previa + confirmar
+
+**Día 5: Progreso del paralelo**
+- [ ] Frontend: pantalla Ver Progreso del Paralelo (tabla de estudiantes vs asignaciones)
+- [ ] Backend: GET /assignments/:id/progress (devuelve progreso de todos los estudiantes)
+
+**Entregable Semana 3:** profesor crea paralelo → asigna actividad → estudiante recibe notificación → juega → se registra el progreso → profesor puede ver quién completó.
+
+---
+
+### Semana 4 — Chatbot, Pulido y Despliegue
+
+**Objetivo:** app completa lista para demo pública.
+
+**Día 1: Chatbot**
+- [ ] Backend: POST /chatbot — prompt del sistema con lista de juegos + rol del usuario
+- [ ] Frontend: componente Chatbot (modal flotante, accesible desde todos los dashboards)
+
+**Día 2-3: Pulido UI/UX**
+- [ ] Animación de XP ganado en pantalla post-juego
+- [ ] Carrusel diagonal estilo phaser.io en el dashboard
+- [ ] Diseño del logo en el header
+- [ ] Mensajes de error amigables en todos los formularios
+- [ ] Loading states en todas las llamadas a la API
+- [ ] Pantalla de confirmación al salir de un juego a medias
+
+**Día 4: Despliegue**
+- [ ] Crear cuenta en Railway o Render
+- [ ] Configurar variables de entorno en producción
+- [ ] Desplegar backend (NestJS)
+- [ ] Desplegar frontend (Vite → build estático)
+- [ ] Ejecutar seed script en producción con datos de demo
+- [ ] Verificar que el flujo completo funciona en la URL pública
+
+**Día 5: Demo y ensayo**
+- [ ] Ensayar el flujo completo sin errores:
+  1. Profe se registra con cédula → rol TEACHER
+  2. Profe crea paralelo → obtiene código "KX7T2M"
+  3. Estudiante se registra → ingresa código → queda en el paralelo
+  4. Profe sube PDF → IA genera 10 preguntas → profe las asigna al quiz de Lectura
+  5. Profe asigna actividad: 10 min de Quiz Lectura, vence en 3 días
+  6. Estudiante ve notificación → abre la tarea → juega 10 minutos
+  7. Sistema marca como completada → estudiante gana 50 XP → profe ve en el progreso
+
+---
 
 
 

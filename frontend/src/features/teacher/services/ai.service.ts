@@ -2,9 +2,9 @@ import api from '../../../services/api';
 
 export interface GeneratedQuestionPreview {
   id: string;
-  prompt: string;
-  options: string[];
-  correctOptionIndex: number;
+  texto: string;
+  opciones: string[];
+  respuestaCorrecta: number;
 }
 
 export const aiService = {
