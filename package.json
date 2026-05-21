@@ -6,6 +6,6 @@
     "backend"
   ],
   "scripts": {
-    "postinstall": "npx prisma generate --schema=backend/prisma/schema.prisma"
+    "postinstall": "cd backend && node_modules/.bin/prisma generate"
   }
 }
