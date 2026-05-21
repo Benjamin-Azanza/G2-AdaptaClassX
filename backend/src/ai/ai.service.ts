@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import OpenAI from 'openai';
 import * as mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse');
 import { TipoFuente } from '@prisma/client';
 
 @Injectable()
@@ -31,8 +32,7 @@ export class AiService {
       let rawText: string;
 
       if (file.mimetype === 'application/pdf') {
-        const parser = new PDFParse({ data: file.buffer });
-        const result = await parser.getText();
+        const result = await pdfParse(file.buffer);
         rawText = result.text;
       } else if (
         file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
