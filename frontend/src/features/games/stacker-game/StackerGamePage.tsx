@@ -18,7 +18,7 @@ export const StackerGamePage: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const handleQuit = () => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/tasks');
+    const handleQuit = () => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
     window.addEventListener('game:quit', handleQuit);
 
     async function initGame() {
@@ -62,7 +62,7 @@ export const StackerGamePage: React.FC = () => {
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-sm md:p-lg">
       <button
-        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/tasks')}
+        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games')}
         className="absolute left-md top-md z-20 flex items-center gap-xs border-4 border-on-background bg-surface px-md py-sm font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
       >
         <span className="material-symbols-outlined">arrow_back</span>

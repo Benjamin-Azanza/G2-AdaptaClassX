@@ -21,6 +21,7 @@ import { SnakeGamePage } from '../../features/games/snake-game/SnakeGamePage';
 import { SnowmenAttackGamePage } from '../../features/games/snowmen-attack-game/SnowmenAttackGamePage';
 import { StackerGamePage } from '../../features/games/stacker-game/StackerGamePage';
 import { TomGamePage } from '../../features/games/tom-game/TomGamePage';
+import { PirateSurvivalGamePage } from '../../features/games/pirate-survival-game/PirateSurvivalGamePage';
 
 export function AppRouter() {
   return (
@@ -101,6 +102,7 @@ export function AppRouter() {
       <Route path={routePaths.snowmenAttackGame} element={<ProtectedRoute><SnowmenAttackGamePage /></ProtectedRoute>} />
       <Route path={routePaths.stackerGame} element={<ProtectedRoute><StackerGamePage /></ProtectedRoute>} />
       <Route path={routePaths.tomGame} element={<ProtectedRoute><TomGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.pirateSurvivalGame} element={<ProtectedRoute><PirateSurvivalGamePage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={routePaths.login} replace />} />
     </Routes>
   );

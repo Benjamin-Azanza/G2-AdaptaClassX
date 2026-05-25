@@ -27,6 +27,20 @@ export default class MainGame extends Phaser.Scene
         this.score = 0;
         this.highscore = this.registry.get('highscore');
         this.newHighscore = false;
+        
+        this.lives = 3;
+        this.maxLives = 8;
+        this.immunityTimer = 0;
+        this.speedTimer = 0;
+        this.questionTimer = 10;
+        this.isQuestionMode = false;
+        this.pendingBuff = null;
+
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        this.hasQuestions = this.questions.length > 0;
+        this.itemGroup = this.add.group();
+        this.itemSpawnTimer = 5;
+        this.questionOverlayObjects = [];
 
         this.add.image(400, 300, 'background').setScale(2);
 
@@ -37,6 +51,7 @@ export default class MainGame extends Phaser.Scene
         this.player = new Player(this, 400, 400);
 
         this.scoreText = this.add.bitmapText(16, 32, 'slime', 'Score   0', 40).setDepth(1);
+        this.livesText = this.add.bitmapText(16, 80, 'slime', `Vidas   ${this.lives}`, 40).setDepth(1);
 
         this.introText = this.add.bitmapText(400, 300, 'slime', 'Avoid the Germs\nCollect the Rings', 60).setOrigin(0.5).setCenterAlign().setDepth(1);
 
@@ -63,10 +78,19 @@ export default class MainGame extends Phaser.Scene
 
     playerHitGerm (player, germ)
     {
-        //  We don't count a hit if the germ is fading in or out
         if (player.isAlive && germ.alpha === 1)
         {
-            this.gameOver();
+            if (this.immunityTimer > 0) return;
+            
+            this.lives--;
+            this.livesText.setText(`Vidas   ${this.lives}`);
+            
+            if (this.lives <= 0) {
+                this.gameOver();
+            } else {
+                this.immunityTimer = 3;
+                this.sound.play('fail');
+            }
         }
     }
 
@@ -130,5 +154,188 @@ export default class MainGame extends Phaser.Scene
         target.y = this.player.y;
 
         return target;
+    }
+
+    update (time, delta)
+    {
+        if (!this.player.isAlive || this.isQuestionMode) return;
+        const dt = delta / 1000;
+        
+        this._tickItems(dt);
+        this._checkItemCollisions();
+
+        if (this.immunityTimer > 0) {
+            this.immunityTimer -= dt;
+            this.player.alpha = (Math.floor(time / 150) % 2 === 0) ? 0.5 : 1;
+            if (this.immunityTimer <= 0) this.player.alpha = 1;
+        }
+
+        if (this.speedTimer > 0) {
+            this.speedTimer -= dt;
+            if (this.speedTimer <= 0) this.player.setSpeedMultiplier(1);
+        }
+
+        if (this.hasQuestions) {
+            this.questionTimer -= dt;
+            if (this.questionTimer <= 0) {
+                this.questionTimer = 10;
+                this.pendingBuff = 'PERIODIC';
+                this._showQuestion();
+            }
+        }
+    }
+
+    _tickItems(dt) {
+        let activeItems = 0;
+        for (const item of this.itemGroup.getChildren()) { if (item.active) activeItems++; }
+        if (activeItems >= 2) return;
+
+        this.itemSpawnTimer -= dt;
+        if (this.itemSpawnTimer <= 0) {
+            this.itemSpawnTimer = 7;
+            const types = ['VIDA', 'VELOCIDAD', 'INMUNITY'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const spawnX = Phaser.Math.Between(50, 750);
+            const spawnY = Phaser.Math.Between(50, 550);
+            
+            const scale = type === 'VIDA' ? 0.2 : 0.25; // Player size
+            const item = this.add.sprite(spawnX, spawnY, `item-${type}`).setScale(scale).setDepth(2);
+            item.itemType = type;
+            this.itemGroup.add(item);
+            
+            this.tweens.add({ targets: item, y: spawnY - 5, yoyo: true, repeat: -1, duration: 1000 });
+        }
+    }
+
+    _checkItemCollisions () {
+        const px = this.player.x, py = this.player.y;
+        for (const item of this.itemGroup.getChildren()) {
+            if (!item.active) continue;
+            const dist = Phaser.Math.Distance.Between(px, py, item.x, item.y);
+            if (dist < 40) { // Generous hitbox for easy interaction
+                this.sound.play('pickup');
+                const type = item.itemType;
+                item.destroy();
+
+                if (this.hasQuestions) {
+                    this.pendingBuff = type;
+                    this._showQuestion();
+                } else {
+                    this._applyBuff(type);
+                }
+            }
+        }
+    }
+
+    _applyBuff (type) {
+        if (type === 'VIDA') {
+            this.lives = Math.min(this.maxLives, this.lives + 1);
+            this.livesText.setText(`Vidas   ${this.lives}`);
+        } else if (type === 'VELOCIDAD') {
+            this.speedTimer = 7;
+            this.player.setSpeedMultiplier(1.5);
+        } else if (type === 'INMUNITY') {
+            this.immunityTimer = 7;
+        }
+    }
+
+    _showQuestion() {
+        this.isQuestionMode = true;
+        this.player.body.stop();
+
+        const cam = this.cameras.main;
+        const cx  = 400, cy  = 300;
+        const idx = Phaser.Math.Between(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[idx];
+
+        const options = [...this.currentQuestion.options];
+        const correctOption = options[this.currentQuestion.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        this.correctAnswerIndex = options.indexOf(correctOption);
+
+        const bg = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.8).setDepth(100).setInteractive();
+        this.questionOverlayObjects.push(bg);
+
+        let title = "¡PREGUNTA POR PODER!";
+        if (this.pendingBuff === 'PERIODIC') title = "¡RESPONDE PARA SEGUIR JUGANDO!";
+        
+        const titleText = this.add.text(cx, cy - 180, title, {
+            fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 720 }, align: 'center'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 300, btnH = 60, gapX = 20, gapY = 16;
+        const gridX = cx - btnW - gapX / 2, gridY = cy - 20;
+
+        options.forEach((option, i) => {
+            const col = i % 2, row = Math.floor(i / 2);
+            const bx = gridX + col * (btnW + gapX), by = gridY + row * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(101);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(102);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH)
+                .setDepth(103).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerQuestion(i, bx, by, btnW, btnH, btnGfx));
+        });
+    }
+
+    _answerQuestion(selectedIndex, bx, by, btnW, btnH, btnGfx) {
+        this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+        const correct = selectedIndex === this.correctAnswerIndex;
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+        const resultText = this.add.text(400, 300 + 120, correct ? '¡CORRECTO!' : 'FALLASTE', {
+                fontFamily: 'monospace', fontSize: '28px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(102);
+        this.questionOverlayObjects.push(resultText);
+
+        if (correct) {
+            if (this.pendingBuff !== 'PERIODIC') this._applyBuff(this.pendingBuff);
+        } else {
+            if (this.pendingBuff === 'PERIODIC') {
+                this.lives--;
+                this.livesText.setText(`Vidas   ${this.lives}`);
+                if (this.lives <= 0) {
+                    this.time.delayedCall(1500, () => {
+                        this.questionOverlayObjects.forEach(o => o.destroy());
+                        this.questionOverlayObjects = [];
+                        this.gameOver();
+                    });
+                    return;
+                }
+            }
+        }
+
+        this.immunityTimer = 3;
+        this.pendingBuff = null;
+
+        this.time.delayedCall(1600, () => {
+            this.questionOverlayObjects.forEach(o => o.destroy());
+            this.questionOverlayObjects = [];
+            this.isQuestionMode = false;
+        });
     }
 }

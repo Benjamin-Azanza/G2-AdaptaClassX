@@ -248,6 +248,16 @@ async function main() {
       descripcion: 'Una demo interactiva con animaciones y sonidos divertidos.',
       config_default: { rutaJuego: '/games/tom' },
     },
+    {
+      titulo: 'Pirate Survival',
+      tema: Tema.COMUNICACION_ORAL,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 3,
+      grado_max: 7,
+      descripcion: 'Sobrevive oleadas de esqueletos como un pirata. Responde preguntas entre rondas para recuperar vida.',
+      config_default: { rutaJuego: '/games/pirate-survival' },
+    },
   ];
 
   for (const juegoData of juegosImportados) {

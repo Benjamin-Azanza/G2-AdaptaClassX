@@ -19,4 +19,5 @@ export const routePaths = {
   snowmenAttackGame: '/games/snowmen-attack',
   stackerGame: '/games/stacker',
   tomGame: '/games/tom',
+  pirateSurvivalGame: '/games/pirate-survival',
 } as const;

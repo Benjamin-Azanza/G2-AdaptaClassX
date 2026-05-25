@@ -38,7 +38,7 @@ export const BombGamePage: React.FC = () => {
     let isMounted = true;
 
     const handleGameQuit = () => {
-      navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/tasks');
+      navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
     };
 
     window.addEventListener('game:quit', handleGameQuit);
@@ -126,7 +126,7 @@ export const BombGamePage: React.FC = () => {
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
 
       <button
-        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/tasks')}
+        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games')}
         className="absolute left-md top-md z-20 flex items-center gap-xs border-4 border-on-background bg-surface px-md py-sm font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
       >
         <span className="material-symbols-outlined">arrow_back</span>

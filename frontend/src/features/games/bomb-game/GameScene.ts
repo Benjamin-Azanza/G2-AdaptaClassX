@@ -64,18 +64,18 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('sky', '/games/bomb-game/sky.png');
-        this.load.image('ground', '/games/bomb-game/platform.png');
-        this.load.image('star', '/games/bomb-game/star.png');
-        this.load.image('bomb', '/games/bomb-game/bomb.png');
-        this.load.spritesheet('dude', '/games/bomb-game/dude2.png', { frameWidth: 32, frameHeight: 48 });
+        this.load.image('sky', '/assets/games/bomb-game/sky.png');
+        this.load.image('ground', '/assets/games/bomb-game/platform.png');
+        this.load.image('star', '/assets/games/bomb-game/star.png');
+        this.load.image('bomb', '/assets/games/bomb-game/bomb.png');
+        this.load.spritesheet('dude', '/assets/games/bomb-game/dude2.png', { frameWidth: 32, frameHeight: 48 });
 
         // Nuevos recursos
-        this.load.image('heart', '/games/bomb-game/heart.png');
-        this.load.image('aid', '/games/bomb-game/firstaid.png');
-        this.load.spritesheet('baddie', '/games/bomb-game/baddie.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.audio('badboom', '/games/bomb-game/badboom.mp3');
-        this.load.audio('aidboom', '/games/bomb-game/aidboom.mp3');
+        this.load.image('heart', '/assets/games/bomb-game/heart.png');
+        this.load.image('aid', '/assets/games/bomb-game/firstaid.png');
+        this.load.spritesheet('baddie', '/assets/games/bomb-game/baddie.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.audio('badboom', '/assets/games/bomb-game/badboom.mp3');
+        this.load.audio('aidboom', '/assets/games/bomb-game/aidboom.mp3');
     }
 
     create() {

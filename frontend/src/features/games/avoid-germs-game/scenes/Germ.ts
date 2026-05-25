@@ -63,6 +63,10 @@ export default class Germ extends Phaser.Physics.Arcade.Sprite
     preUpdate (time, delta)
     {
         super.preUpdate(time, delta);
+        if (this.scene.isQuestionMode) {
+            this.body.stop();
+            return;
+        }
 
         if (this.isChasing)
         {

@@ -15,6 +15,18 @@ export default class Preloader extends Phaser.Scene
         this.loadText = this.add.bitmapText(400, 300, 'slime', 'Loading ...', 80).setOrigin(0.5);
 
         this.load.setPath('/assets/games/germs/');
+
+        this.load.image('background', 'background.png');
+        this.load.image('germ', 'germ.png');
+        this.load.image('ring', 'ring.png');
+
+        this.load.setPath('/assets/games/germs/items/');
+        this.load.image('item-VIDA', 'VIDA.png');
+        this.load.image('item-VELOCIDAD', 'VELOCIDAD.png');
+        this.load.image('item-INMUNITY', 'INMUNITY.png');
+
+        this.load.setPath('/assets/games/germs/');
+
         this.load.atlas('assets', 'germs.png', 'germs.json');
         this.load.glsl('goo', 'goo.frag');
 

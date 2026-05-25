@@ -23,6 +23,8 @@ export default class Player extends Phaser.Physics.Arcade.Image
     {
         this.isAlive = true;
 
+        this.speedMultiplier = 1;
+
         this.scene.input.on('pointermove', (pointer) =>
         {
             if (this.isAlive)
@@ -31,9 +33,18 @@ export default class Player extends Phaser.Physics.Arcade.Image
                 this.target.y = pointer.y;
                 
                 //  Add 90 degrees because the sprite is drawn facing up
-                this.rotation = this.scene.physics.moveToObject(this, this.target, this.speed) + 1.5707963267948966;
+                this.rotation = this.scene.physics.moveToObject(this, this.target, this.speed * this.speedMultiplier) + 1.5707963267948966;
             }
         });
+    }
+
+    setSpeedMultiplier(multiplier)
+    {
+        this.speedMultiplier = multiplier;
+        if (this.isAlive && this.body.speed > 0)
+        {
+            this.scene.physics.moveToObject(this, this.target, this.speed * this.speedMultiplier);
+        }
     }
 
     kill ()
