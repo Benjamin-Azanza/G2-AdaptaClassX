@@ -447,7 +447,7 @@ export class GameScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 120,
-      correct ? '¡CORRECTO! +1 HP' : 'INCORRECTO', {
+      correct ? '¡CORRECTO! +1 HP' : 'INCORRECTO! -1 HP', {
         fontFamily: 'monospace',
         fontSize: '28px',
         color: correct ? '#22c55e' : '#ef4444',
@@ -457,7 +457,23 @@ export class GameScene extends Phaser.Scene {
     this.questionOverlayObjects.push(resultText);
 
     if (correct) {
-      this.playerHealth = Math.min(PLAYER_MAX_HEALTH, this.playerHealth + 1);
+      this.playerHealth = Math.min(10, this.playerHealth + 1);
+      this.sound.play('sfx-player-heal', { volume: 0.8 }); // Wait, let's play a heal sfx if exists, or simple match sfx
+    } else {
+      this.playerHealth = Math.max(0, this.playerHealth - 1);
+    }
+
+    if (this.playerHealth <= 0) {
+      this.sound.play('sfx-death', { volume: 1.0 });
+      this.playerState = 'dead';
+      this.player.setAlpha(1);
+      this.player.play('lobit-pirate-death');
+      this.time.delayedCall(1600, () => {
+        this._clearQuestionOverlay();
+        this.isQuestionMode = false;
+        this._showGameOver();
+      });
+      return;
     }
 
     this.time.delayedCall(1600, () => {

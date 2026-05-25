@@ -126,7 +126,7 @@ export default class Door extends Phaser.GameObjects.Container
 
         if (this.isBandit)
         {
-            this.timeToKill = time + (duration * this.scene.killDelay);
+            this.timeToKill = time + 1500;
         }
 
         this.scene.sound.play('door');
@@ -268,7 +268,7 @@ export default class Door extends Phaser.GameObjects.Container
             delay: 200,
             ease: 'Power2',
             onComplete: () => {
-                this.scene.killed(this.x, this.y);
+                this.scene.killed(this.x, this.y, this);
             }
         });
 

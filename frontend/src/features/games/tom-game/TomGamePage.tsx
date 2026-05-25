@@ -7,6 +7,7 @@ import Play from './scenes/Play';
 import UI from './scenes/UI';
 import api from '../../../services/api';
 import { useAuthStore } from '../../auth/store/authStore';
+import { questions as fallbackQuestions } from '../../questions/questions';
 
 type BackendRow = { preguntas_json: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }> };
 
@@ -34,6 +35,13 @@ export const TomGamePage: React.FC = () => {
             (r.preguntas_json ?? []).map((q) => ({ q: q.texto, options: q.opciones, answer: q.respuestaCorrecta })),
           );
         } catch { /* sin preguntas */ }
+      }
+      if (questions.length === 0) {
+        questions = fallbackQuestions.map((q) => ({
+          q: q.q,
+          options: q.options,
+          answer: q.answer,
+        }));
       }
       if (!isMounted) return;
 

@@ -35,6 +35,7 @@ export default class MainGame extends Phaser.Scene
         this.questionTimer = 10;
         this.isQuestionMode = false;
         this.pendingBuff = null;
+        this.ringsSinceLastQuestion = 0;
 
         this.questions = this.registry.get('preguntasDelNivel') || [];
         this.hasQuestions = this.questions.length > 0;
@@ -56,22 +57,8 @@ export default class MainGame extends Phaser.Scene
         this.introText = this.add.bitmapText(400, 300, 'slime', 'Avoid the Germs\nCollect the Rings', 60).setOrigin(0.5).setCenterAlign().setDepth(1);
 
         this.pickups.start();
-
-        this.input.once('pointerdown', () => {
-
-            this.player.start();
-            this.germs.start();
-
-            this.sound.play('start');
-
-            this.tweens.add({
-                targets: this.introText,
-                alpha: 0,
-                duration: 300
-            });
-
-        });
-
+        this.showInstructionsCard();
+        
         this.physics.add.overlap(this.player, this.pickups, (player, pickup) => this.playerHitPickup(player, pickup));
         this.physics.add.overlap(this.player, this.germs, (player, germ) => this.playerHitGerm(player, germ));
     }
@@ -82,14 +69,18 @@ export default class MainGame extends Phaser.Scene
         {
             if (this.immunityTimer > 0) return;
             
-            this.lives--;
-            this.livesText.setText(`Vidas   ${this.lives}`);
-            
-            if (this.lives <= 0) {
-                this.gameOver();
+            if (this.hasQuestions) {
+                this.pendingBuff = 'GERM';
+                this._showQuestion();
             } else {
-                this.immunityTimer = 3;
-                this.sound.play('fail');
+                this.lives--;
+                this.livesText.setText(`Vidas   ${this.lives}`);
+                if (this.lives <= 0) {
+                    this.gameOver();
+                } else {
+                    this.immunityTimer = 1.5;
+                    this.sound.play('fail');
+                }
             }
         }
     }
@@ -120,6 +111,17 @@ export default class MainGame extends Phaser.Scene
         }
 
         this.pickups.collect(pickup);
+
+        if (this.hasQuestions) {
+            this.ringsSinceLastQuestion++;
+            if (this.ringsSinceLastQuestion >= 30) {
+                this.ringsSinceLastQuestion = 0;
+                this.pendingBuff = 'PERIODIC';
+                this.time.delayedCall(300, () => {
+                    this._showQuestion();
+                });
+            }
+        }
     }
 
     gameOver ()
@@ -175,14 +177,7 @@ export default class MainGame extends Phaser.Scene
             if (this.speedTimer <= 0) this.player.setSpeedMultiplier(1);
         }
 
-        if (this.hasQuestions) {
-            this.questionTimer -= dt;
-            if (this.questionTimer <= 0) {
-                this.questionTimer = 10;
-                this.pendingBuff = 'PERIODIC';
-                this._showQuestion();
-            }
-        }
+        // Periodic question timer removed, now triggers every 30 rings.
     }
 
     _tickItems(dt) {
@@ -241,6 +236,7 @@ export default class MainGame extends Phaser.Scene
 
     _showQuestion() {
         this.isQuestionMode = true;
+        this.physics.pause();
         this.player.body.stop();
 
         const cam = this.cameras.main;
@@ -258,6 +254,7 @@ export default class MainGame extends Phaser.Scene
 
         let title = "¡PREGUNTA POR PODER!";
         if (this.pendingBuff === 'PERIODIC') title = "¡RESPONDE PARA SEGUIR JUGANDO!";
+        if (this.pendingBuff === 'GERM') title = "¡RESPONDE PARA SALVAR TU VIDA!";
         
         const titleText = this.add.text(cx, cy - 180, title, {
             fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
@@ -313,9 +310,11 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects.push(resultText);
 
         if (correct) {
-            if (this.pendingBuff !== 'PERIODIC') this._applyBuff(this.pendingBuff);
+            if (this.pendingBuff !== 'PERIODIC' && this.pendingBuff !== 'GERM') {
+                this._applyBuff(this.pendingBuff);
+            }
         } else {
-            if (this.pendingBuff === 'PERIODIC') {
+            if (this.pendingBuff === 'PERIODIC' || this.pendingBuff === 'GERM') {
                 this.lives--;
                 this.livesText.setText(`Vidas   ${this.lives}`);
                 if (this.lives <= 0) {
@@ -329,13 +328,84 @@ export default class MainGame extends Phaser.Scene
             }
         }
 
-        this.immunityTimer = 3;
+        this.immunityTimer = 1.5;
         this.pendingBuff = null;
 
         this.time.delayedCall(1600, () => {
             this.questionOverlayObjects.forEach(o => o.destroy());
             this.questionOverlayObjects = [];
             this.isQuestionMode = false;
+            this.physics.resume();
+        });
+    }
+
+    showInstructionsCard()
+    {
+        this.physics.pause();
+        
+        const cx = 400;
+        const cy = 300;
+        
+        const overlay = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(200);
+        
+        const cardBg = this.add.graphics().setDepth(201);
+        cardBg.fillStyle(0x1e293b, 0.95);
+        cardBg.fillRoundedRect(cx - 280, cy - 220, 560, 440, 12);
+        cardBg.lineStyle(4, 0x475569, 1);
+        cardBg.strokeRoundedRect(cx - 280, cy - 220, 560, 440, 12);
+        
+        const titleText = this.add.text(cx, cy - 180, '¿CÓMO JUGAR?', {
+            fontFamily: 'monospace', fontSize: '28px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(202);
+        
+        const rules = 
+            "Evita los gérmenes. Muévete usando tu dedo o el mouse.\n\n" +
+            "Tú serás el germen amarillo y deberás evitar tocar a los demás. Si uno de ellos te toca, tendrás que responder una pregunta para seguir jugando o perderás una vida.\n\n" +
+            "Tienes 3 vidas, pero puedes ganar más respondiendo preguntas.\n\n" +
+            "¡Hay más bonificaciones, descúbrelas por ti mismo!";
+            
+        const text = this.add.text(cx, cy - 40, rules, {
+            fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
+            align: 'left', wordWrap: { width: 500 }, lineSpacing: 4
+        }).setOrigin(0.5).setDepth(202);
+        
+        const btnBg = this.add.graphics().setDepth(202);
+        btnBg.fillStyle(0x22c55e, 1);
+        btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+        
+        const btnText = this.add.text(cx, cy + 165, 'JUGAR', {
+            fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(203);
+        
+        const hitZone = this.add.rectangle(cx, cy + 165, 200, 50)
+            .setDepth(204).setInteractive({ useHandCursor: true });
+            
+        hitZone.on('pointerover', () => {
+            btnBg.clear();
+            btnBg.fillStyle(0x16a34a, 1);
+            btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+        });
+        
+        hitZone.on('pointerout', () => {
+            btnBg.clear();
+            btnBg.fillStyle(0x22c55e, 1);
+            btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+        });
+        
+        hitZone.on('pointerdown', () => {
+            overlay.destroy();
+            cardBg.destroy();
+            titleText.destroy();
+            text.destroy();
+            btnBg.destroy();
+            btnText.destroy();
+            hitZone.destroy();
+            
+            this.introText.alpha = 0;
+            this.physics.resume();
+            this.player.start();
+            this.germs.start();
+            this.sound.play('start');
         });
     }
 }

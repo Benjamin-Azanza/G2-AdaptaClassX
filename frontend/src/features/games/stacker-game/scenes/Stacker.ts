@@ -39,14 +39,13 @@ export class Instructions extends Phaser.Scene {
         this.add.text(720, 0, 'S\n t\na\n c\nk\n e\nr', { fontFamily: 'bebas', fontSize: 74, color: '#ffffff', lineSpacing: -10 }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(20, 40, 'Instructions', { fontFamily: 'bebas', fontSize: 70, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         const help = [
-            'Build a tower all the way to the top of the screen',
-            'to win big "prizes"! Place rows of blocks on top',
-            'of each other, but be careful: it gets faster each',
-            'time, you lose blocks if you don\'t land perfectly,',
-            'and you automatically shrink after rows 5 and 10!',
+            'Construye una torre hasta la parte superior de la pantalla.',
+            'Alinea las filas de bloques. ¡Cuidado: se vuelve mas rapido,',
+            'pierdes bloques si no aterrizas perfectamente,',
+            'pero puedes salvarlos y mantener tu tamano respondiendo preguntas!',
         ];
-        this.add.text(20, 180, help, { fontFamily: 'bebas', fontSize: 30, color: '#ffffff', lineSpacing: 6 }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(20, 450, 'Space Bar or Click to Place a Row', { fontFamily: 'bebas', fontSize: 40, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(20, 180, help, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', lineSpacing: 6 }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(20, 450, 'Barra Espaciadora o Clic para colocar una fila', { fontFamily: 'bebas', fontSize: 32, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         this.input.keyboard.once('keydown-SPACE', this.start, this);
         this.input.once('pointerdown', this.start, this);
     }
@@ -68,12 +67,17 @@ export class StackerGame extends Phaser.Scene {
         this.currentY = 0;
         this.timer = null;
         this.offset = { x: this.gridSize * 6, y: this.gridSize * 2 };
+        this.isQuestionMode = false;
+        this.questions = [];
+        this.questionOverlayObjects = [];
     }
     init() {
         this.grid = [];
         this.speed = 250;
         this.direction = 0;
         this.currentY = this.gridHeight;
+        this.isQuestionMode = false;
+        this.questionOverlayObjects = [];
     }
     create() {
         const ox = this.offset.x;
@@ -89,12 +93,16 @@ export class StackerGame extends Phaser.Scene {
         this.add.text(ox - 32, oy, rows, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(ox + (gw * size) + size/2, oy, prizes, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.grid(ox, oy, gw * size, gh * size, size, size, 0x999999, 1, 0x666666).setOrigin(0);
-        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+
         this.block1 = this.add.rectangle(ox + size * 2, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0);
         this.block2 = this.add.rectangle(ox + size * 3, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0);
         this.block3 = this.add.rectangle(ox + size * 4, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0);
         for (let y = 0; y < gh; y++) this.grid.push([0,0,0,0,0,0,0]);
+        
         this.timer = this.time.addEvent({ delay: this.speed, callback: this.moveBlocks, callbackScope: this, loop: true });
+        
         this.input.keyboard.on('keydown-SPACE', this.drop, this);
         this.input.on('pointerdown', this.drop, this);
     }
@@ -108,6 +116,7 @@ export class StackerGame extends Phaser.Scene {
         return total;
     }
     moveBlocks() {
+        if (this.isQuestionMode) return;
         const size = this.gridSize;
         const gw = this.gridWidth;
         if (this.direction === 0) {
@@ -121,48 +130,260 @@ export class StackerGame extends Phaser.Scene {
         }
     }
     drop() {
+        if (this.isQuestionMode) return;
         this.timer.remove(false);
+        
         const pos1 = this.block1 ? this.getGridX(this.block1) : -1;
         const pos2 = this.block2 ? this.getGridX(this.block2) : -1;
         const pos3 = this.block3 ? this.getGridX(this.block3) : -1;
         const mapY = this.currentY - 1;
+
         if (this.currentY === this.gridHeight) {
             this.grid[mapY][pos1] = 1; this.grid[mapY][pos2] = 1; this.grid[mapY][pos3] = 1;
             this.sound.play('place'); this.nextRow();
         } else {
-            let droppedOne = false;
-            if (!this.hasBlockBelow(this.block1) && !this.hasBlockBelow(this.block2) && !this.hasBlockBelow(this.block3)) {
-                this.gameOver();
+            // Check if any block is lost or if it triggers a Game Over
+            const b1Active = !!this.block1;
+            const b2Active = !!this.block2;
+            const b3Active = !!this.block3;
+            
+            const b1Fits = b1Active ? this.hasBlockBelow(this.block1) : false;
+            const b2Fits = b2Active ? this.hasBlockBelow(this.block2) : false;
+            const b3Fits = b3Active ? this.hasBlockBelow(this.block3) : false;
+
+            const droppedOne = (b1Active && !b1Fits) || (b2Active && !b2Fits) || (b3Active && !b3Fits);
+            const totalFits = (b1Fits ? 1 : 0) + (b2Fits ? 1 : 0) + (b3Fits ? 1 : 0);
+            const wouldGameOver = (totalFits === 0);
+
+            if (droppedOne || wouldGameOver) {
+                // Misalignment! Trigger salvation quiz (comodín)
+                this.isQuestionMode = true;
+                this.triggerSalvationQuiz(wouldGameOver, () => {
+                    // Correct: RESTORE/RETAIN block size! We force them to align with block below
+                    // Find where the block below is to place them correctly
+                    this.alignBlocksToGridBelow(mapY, b1Active, b2Active, b3Active);
+                    this.sound.play('place');
+                    this.nextRow();
+                }, () => {
+                    // Incorrect: apply normal penalty
+                    if (wouldGameOver) {
+                        this.gameOver();
+                    } else {
+                        // Apply normal cut
+                        if (this.block1) { if (b1Fits) this.grid[mapY][pos1] = 1; else { this.block1.visible = false; this.block1 = null; } }
+                        if (this.block2) { if (b2Fits) this.grid[mapY][pos2] = 1; else { this.block2.visible = false; this.block2 = null; } }
+                        if (this.block3) { if (b3Fits) this.grid[mapY][pos3] = 1; else { this.block3.visible = false; this.block3 = null; } }
+                        
+                        this.sound.play('miss');
+                        if (this.currentY === 1) {
+                            this.currentY--;
+                            this.gameOver();
+                        } else {
+                            this.nextRow();
+                        }
+                    }
+                });
             } else {
-                if (this.block1) { if (this.hasBlockBelow(this.block1)) this.grid[mapY][pos1] = 1; else { this.block1.visible = false; this.block1 = null; droppedOne = true; } }
-                if (this.block2) { if (this.hasBlockBelow(this.block2)) this.grid[mapY][pos2] = 1; else { this.block2.visible = false; this.block2 = null; droppedOne = true; } }
-                if (this.block3) { if (this.hasBlockBelow(this.block3)) this.grid[mapY][pos3] = 1; else { this.block3.visible = false; this.block3 = null; droppedOne = true; } }
-                if (this.block1 || this.block2 || this.block3) {
-                    if (this.currentY === 1) { this.currentY--; this.gameOver(); }
-                    else { if (droppedOne) this.sound.play('miss'); else this.sound.play('place'); this.nextRow(); }
-                } else this.gameOver();
+                // Perfect alignment
+                if (this.block1) this.grid[mapY][pos1] = 1;
+                if (this.block2) this.grid[mapY][pos2] = 1;
+                if (this.block3) this.grid[mapY][pos3] = 1;
+                
+                if (this.currentY === 1) {
+                    this.currentY--;
+                    this.gameOver();
+                } else {
+                    this.sound.play('place');
+                    this.nextRow();
+                }
             }
         }
     }
+
+    alignBlocksToGridBelow(mapY, b1, b2, b3) {
+        // Look at the row below (currentY) to find where blocks exist
+        const rowBelow = this.grid[this.currentY];
+        const validXIndices = [];
+        for (let x = 0; x < this.gridWidth; x++) {
+            if (rowBelow[x] === 1) validXIndices.push(x);
+        }
+
+        // Place our active blocks on those valid indices
+        let placedCount = 0;
+        const size = this.gridSize;
+        const ox = this.offset.x;
+
+        if (b1 && placedCount < validXIndices.length) {
+            const gx = validXIndices[placedCount++];
+            this.block1.x = ox + gx * size;
+            this.grid[mapY][gx] = 1;
+        } else if (b1) {
+            this.block1.visible = false;
+            this.block1 = null;
+        }
+
+        if (b2 && placedCount < validXIndices.length) {
+            const gx = validXIndices[placedCount++];
+            this.block2.x = ox + gx * size;
+            this.grid[mapY][gx] = 1;
+        } else if (b2) {
+            this.block2.visible = false;
+            this.block2 = null;
+        }
+
+        if (b3 && placedCount < validXIndices.length) {
+            const gx = validXIndices[placedCount++];
+            this.block3.x = ox + gx * size;
+            this.grid[mapY][gx] = 1;
+        } else if (b3) {
+            this.block3.visible = false;
+            this.block3 = null;
+        }
+    }
+
     nextRow() {
         this.currentY--;
+        
+        // Milestone verification at Row 5 (currentY === 10) and Row 10 (currentY === 5)
         if (this.currentY === 10 || this.currentY === 5) {
-            this.speed -= (this.currentY === 10) ? 100 : 50;
-            if (this.currentY === 10 && this.totalBlocks() === 3) this.block1 = null;
-            else if (this.currentY === 5 && this.totalBlocks() === 2) {
-                if ((this.block1 && this.block2) || (this.block1 && this.block3)) this.block1 = null;
-                else this.block2 = null;
-            }
+            this.isQuestionMode = true;
+            this.triggerMilestoneQuiz(this.currentY === 10 ? 5 : 10, () => {
+                // Correct: maintain size, do NOT shrink blocks! We just increase speed.
+                this.speed -= (this.currentY === 10) ? 100 : 50;
+                this.spawnNextRowBlocks();
+            }, () => {
+                // Incorrect: normal shrinkage!
+                this.speed -= (this.currentY === 10) ? 100 : 50;
+                if (this.currentY === 10 && this.totalBlocks() === 3) this.block1 = null;
+                else if (this.currentY === 5 && this.totalBlocks() === 2) {
+                    if ((this.block1 && this.block2) || (this.block1 && this.block3)) this.block1 = null;
+                    else this.block2 = null;
+                }
+                this.spawnNextRowBlocks();
+            });
+        } else {
+            this.spawnNextRowBlocks();
         }
+    }
+
+    spawnNextRowBlocks() {
         let side = 0; const size = this.gridSize; let shift = size;
         const ox = this.offset.x; const oy = this.offset.y;
         if (Math.random() >= 0.5) { this.direction = 1; side = (this.gridWidth - 1) * size; shift = -size; }
         else this.direction = 0;
+        
         if (this.block1) { this.block1 = this.add.rectangle(ox + side, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0); side += shift; }
         if (this.block2) { this.block2 = this.add.rectangle(ox + side, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0); side += shift; }
         if (this.block3) { this.block3 = this.add.rectangle(ox + side, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0); }
+        
+        this.isQuestionMode = false;
         this.timer = this.time.addEvent({ delay: this.speed, callback: this.moveBlocks, callbackScope: this, loop: true });
     }
+
+    triggerSalvationQuiz(wouldGameOver, onCorrect, onIncorrect) {
+        const fallbacks = [
+            { q: "¿Qué palabra está escrita correctamente?", options: ["haber", "aver", "aberr", "havia"], answer: 0 },
+            { q: "Sinónimo de 'rápido':", options: ["lento", "veloz", "pesado", "quieto"], answer: 1 },
+            { q: "El sujeto en 'El tren llegó tarde' es:", options: ["El tren", "llegó", "tarde", "no hay"], answer: 0 }
+        ];
+        const source = this.questions.length > 0 ? this.questions : fallbacks;
+        const qData = Phaser.Utils.Array.GetRandom(source);
+
+        this.showQuizOverlay("¡COMODÍN ORTOGRÁFICO!", "¡Responde bien para recuperar tu bloque!", qData, onCorrect, onIncorrect);
+    }
+
+    triggerMilestoneQuiz(rowNum, onCorrect, onIncorrect) {
+        const fallbacks = [
+            { q: "Completa la oración: 'Ella ___ una gran idea.'", options: ["tuvo", "tubo", "tumbo", "tubo'"], answer: 0 },
+            { q: "Identifica el adjetivo en 'La manzana roja':", options: ["manzana", "roja", "La", "no hay"], answer: 1 },
+            { q: "¿Cuál es el antónimo de 'limpio'?", options: ["sucio", "aseado", "brillante", "nuevo"], answer: 0 }
+        ];
+        const source = this.questions.length > 0 ? this.questions : fallbacks;
+        const qData = Phaser.Utils.Array.GetRandom(source);
+
+        this.showQuizOverlay(`¡RETO FILA ${rowNum}!`, "¡Responde bien para evitar que se achiquen tus bloques!", qData, onCorrect, onIncorrect);
+    }
+
+    showQuizOverlay(title, subtitle, qData, onCorrect, onIncorrect) {
+        const cx = 400;
+        const cy = 300;
+
+        const overlay = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(200).setInteractive();
+        this.questionOverlayObjects.push(overlay);
+
+        const titleTxt = this.add.text(cx, cy - 180, title, {
+            fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(titleTxt);
+
+        const subTxt = this.add.text(cx, cy - 140, subtitle, {
+            fontFamily: 'monospace', fontSize: '15px', color: '#ffd700'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(subTxt);
+
+        const questionTxt = this.add.text(cx, cy - 80, qData.q, {
+            fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 680 }, align: 'center'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(questionTxt);
+
+        const options = [...qData.options];
+        const correctString = options[qData.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        const correctIdx = options.indexOf(correctString);
+
+        const btnW = 300, btnH = 50, gapX = 20, gapY = 16;
+        const gridX = cx - btnW - gapX / 2, gridY = cy + 10;
+
+        options.forEach((option, i) => {
+            const col = i % 2, row = Math.floor(i / 2);
+            const bx = gridX + col * (btnW + gapX), by = gridY + row * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(201);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(202);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH)
+                .setDepth(203).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => {
+                this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+                const correct = i === correctIdx;
+                btnGfx.clear();
+                btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+                btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+                btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+                btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+                const feedbackText = this.add.text(cx, cy + 180, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+                    fontFamily: 'monospace', fontSize: '26px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+                }).setOrigin(0.5).setDepth(202);
+                this.questionOverlayObjects.push(feedbackText);
+
+                this.time.delayedCall(1600, () => {
+                    this.questionOverlayObjects.forEach(o => o.destroy());
+                    this.questionOverlayObjects = [];
+                    
+                    if (correct) {
+                        onCorrect();
+                    } else {
+                        onIncorrect();
+                    }
+                });
+            });
+        });
+    }
+
     gameOver() {
         this.timer.remove(false);
         this.input.keyboard.off('keydown-SPACE', this.drop);
@@ -178,25 +399,27 @@ export class GameOver extends Phaser.Scene {
     create() {
         this.add.rectangle(400, 300, 640, 500, 0x000000, 0.7);
         const list = ['Tiny Bonus:', '', 'Minor Prize:', '', 'Major Prize:'];
-        const prizes1 = ['A Paperclip', 'Half-eaten Sandwich', 'A Boiled Egg', 'Used Gum', 'A Goldfish'];
-        const prizes2 = ['Mario Stickers', 'SNES Joypad', 'Superman Cape', 'Bubble Machine', 'Skateboard'];
-        const prizes3 = ['Playstation 5', 'A Tardis', 'An X-Wing', 'Arcade Machine', 'Dragon Egg'];
+        const prizes1 = ['Un clip', 'Medio sandwich', 'Un huevo duro', 'Un chicle', 'Un pez dorado'];
+        const prizes2 = ['Stickers de Mario', 'SNES Joypad', 'Capa de Superman', 'Maquina burbujas', 'Skateboard'];
+        const prizes3 = ['Playstation 5', 'Una Tardis', 'Un X-Wing', 'Maquina de Arcade', 'Huevo de Dragon'];
         const score = this.registry.get('score');
         const prizelist = [
-            'Nothing (Complete 5 rows)', '',
-            'Nothing (Complete 10 rows)', '',
-            'Nothing (Complete 15 rows)',
+            'Nada (Completa 5 filas)', '',
+            'Nada (Completa 10 filas)', '',
+            'Nada (Completa 15 filas)',
         ];
         let title = 'GAME OVER!';
         if (score >= 5) prizelist[0] = Phaser.Utils.Array.GetRandom(prizes1);
         if (score >= 10) prizelist[2] = Phaser.Utils.Array.GetRandom(prizes2);
-        if (score === 15) { prizelist[4] = Phaser.Utils.Array.GetRandom(prizes3); title = 'GAME WON!'; }
+        if (score === 15) { prizelist[4] = Phaser.Utils.Array.GetRandom(prizes3); title = '¡GANASTE!'; }
         if (score < 5) this.sound.play('gamelost'); else this.sound.play('gamewon');
+        
         this.add.text(400, 120, title, { fontFamily: 'bebas', fontSize: 80, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
-        this.add.text(400, 200, 'Let\'s see what you have won:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(400, 200, 'Premio obtenido:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
         this.add.text(100, 270, list, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(260, 270, prizelist, { fontFamily: 'bebas', fontSize: 26, color: '#ffff00' }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(400, 500, 'Space or Click to try again', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(400, 500, 'Espacio o Clic para volver a intentar', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        
         this.input.keyboard.once('keydown-SPACE', this.restart, this);
         this.input.once('pointerdown', this.restart, this);
     }

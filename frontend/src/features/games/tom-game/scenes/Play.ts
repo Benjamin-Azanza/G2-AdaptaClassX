@@ -63,8 +63,14 @@ class Play extends Phaser.Scene
         });
 
         this.physics.add.collider([this.tomato, this.bombsGroup], this.wall_floor);
-        this.physics.add.overlap(this.tomato, this.bombsGroup, () => {
-            this.tomato.bombCollision();
+        
+        // Bomb collision now triggers salvation question
+        this.physics.add.overlap(this.tomato, this.bombsGroup, (tomato, bomb) => {
+            if (!this.isQuestionMode && !this.tomato.hitDelay) {
+                this.collidedBomb = bomb;
+                this.pendingBuff = 'BOMB';
+                this._showQuestion();
+            }
         });
 
         this.physics.add.overlap(this.itemsGroup, this.tomato, () => {
@@ -73,12 +79,167 @@ class Play extends Phaser.Scene
             this.itemsGroup.destroyItem();
             this.bombsGroup.addBomb();
         });
+
+        // Periodic question timer every 25s
+        this.isQuestionMode = false;
+        this.questionOverlayObjects = [];
+        this.periodicQuestionTimer = this.time.addEvent({
+            delay: 25000,
+            callback: () => {
+                if (this.tomato && this.tomato.life > 0 && !this.isQuestionMode) {
+                    this.pendingBuff = 'PERIODIC';
+                    this._showQuestion();
+                }
+            },
+            loop: true
+        });
+
+        // Clean up on scene shutdown
+        this.events.on('shutdown', () => {
+            if (this.periodicQuestionTimer) {
+                this.periodicQuestionTimer.destroy();
+            }
+        });
     }
 
     update ()
     {
+        if (this.isQuestionMode) return;
         this.tomato.update();
         this.bombsGroup.update();
+    }
+
+    _showQuestion() {
+        this.isQuestionMode = true;
+        this.physics.pause();
+        
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        if (this.questions.length === 0) {
+            this.questions = [
+                { q: "María llevó un paraguas aunque el cielo estaba despejado. ¿Por qué?", options: ["Porque le gusta", "Porque previó lluvia", "Porque estaba roto"], answer: 1 }
+            ];
+        }
+        
+        const cx = 320;
+        const cy = 180;
+        const idx = Phaser.Math.Between(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[idx];
+
+        const options = [...this.currentQuestion.options];
+        const correctOption = options[this.currentQuestion.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        this.correctAnswerIndex = options.indexOf(correctOption);
+
+        this.questionOverlayObjects = [];
+
+        // Black translucent overlay
+        const bg = this.add.rectangle(cx, cy, 640, 360, 0x000000, 0.85).setDepth(100).setInteractive();
+        this.questionOverlayObjects.push(bg);
+
+        let title = "¡PREGUNTA DE SALVACIÓN!";
+        if (this.pendingBuff === 'PERIODIC') {
+            title = "¡DESAFÍO PERIODICO BOMB!";
+        }
+
+        const titleText = this.add.text(cx, cy - 120, title, {
+            fontFamily: 'monospace', fontSize: '18px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 70, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 560 }, align: 'center'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 500;
+        const btnH = 34;
+        const gapY = 8;
+        const startY = cy - 10;
+
+        options.forEach((option, i) => {
+            const by = startY + i * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(101);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(cx - btnW / 2, by, btnW, btnH, 6);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(cx - btnW / 2, by, btnW, btnH, 6);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(102);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(cx, by + btnH / 2, btnW, btnH)
+                .setDepth(103).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerQuestion(i, cx - btnW / 2, by, btnW, btnH, btnGfx));
+        });
+    }
+
+    _answerQuestion(selectedIndex, bx, by, btnW, btnH, btnGfx) {
+        this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+        const correct = selectedIndex === this.correctAnswerIndex;
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 6);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 6);
+
+        const resultText = this.add.text(320, 315, correct ? '¡CORRECTO!' : 'FALLASTE', {
+            fontFamily: 'monospace', fontSize: '16px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(102);
+        this.questionOverlayObjects.push(resultText);
+
+        if (correct) {
+            this.sound.play('pop');
+            if (this.pendingBuff === 'BOMB') {
+                if (this.collidedBomb) {
+                    this.collidedBomb.destroy();
+                }
+                // Give 3s of immunity to tomato
+                this.tomato.hitDelay = true;
+                this.tomato.setTint(0x1abc9c);
+                this.tomato.setAlpha(0.6);
+                this.time.delayedCall(3000, () => {
+                    this.tomato.hitDelay = false;
+                    this.tomato.clearTint();
+                    this.tomato.setAlpha(1.0);
+                });
+            } else if (this.pendingBuff === 'PERIODIC') {
+                // Destroy up to 4 bombs
+                const activeBombs = this.bombsGroup.getChildren();
+                const toDestroy = activeBombs.slice(0, 4);
+                toDestroy.forEach(b => b.destroy());
+            }
+        } else {
+            this.sound.play('draw');
+            if (this.pendingBuff === 'BOMB' || this.pendingBuff === 'PERIODIC') {
+                this.tomato.life--;
+                this.registry.events.emit('remove_life');
+                if (this.tomato.life <= 0) {
+                    this.time.delayedCall(1500, () => {
+                        this.questionOverlayObjects.forEach(o => o.destroy());
+                        this.questionOverlayObjects = [];
+                        this.registry.events.emit('game_over');
+                    });
+                    return;
+                }
+            }
+        }
+
+        this.pendingBuff = null;
+
+        this.time.delayedCall(1600, () => {
+            this.questionOverlayObjects.forEach(o => o.destroy());
+            this.questionOverlayObjects = [];
+            this.isQuestionMode = false;
+            this.physics.resume();
+        });
     }
 }
 

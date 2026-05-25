@@ -98,7 +98,7 @@ export default class MainGame extends Phaser.Scene
 
     selectEmoji (pointer, emoji)
     {
-        if (this.matched)
+        if (this.matched || this.isQuestionMode)
         {
             return;
         }
@@ -131,7 +131,7 @@ export default class MainGame extends Phaser.Scene
                     ease: 'sine.inout',
                     duration: 200,
                     completeDelay: 200,
-                    onComplete: () => this.newRound()
+                    onComplete: () => this.startQuestionSequence()
                 });
         
                 this.sound.play('match');
@@ -216,6 +216,7 @@ export default class MainGame extends Phaser.Scene
 
     update ()
     {
+        if (this.isQuestionMode) return;
         if (this.timer)
         {
             if (this.timer.getProgress() === 1)
@@ -269,5 +270,131 @@ export default class MainGame extends Phaser.Scene
 
             }
         });
+    }
+
+    startQuestionSequence() {
+        this.isQuestionMode = true;
+        if (this.timer) {
+            this.timer.paused = true;
+        }
+        this.sequenceIndex = 0;
+        this.questionOverlayObjects = [];
+        this._showSequenceQuestion();
+    }
+
+    _showSequenceQuestion() {
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        if (this.questions.length === 0) {
+            this.questions = [
+                { q: "María llevó un paraguas aunque el cielo estaba despejado. ¿Por qué?", options: ["Porque le gusta", "Porque previó lluvia", "Porque estaba roto"], answer: 1 }
+            ];
+        }
+
+        const cx = 400;
+        const cy = 300;
+        const idx = Phaser.Math.Between(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[idx];
+
+        const options = [...this.currentQuestion.options];
+        const correctOption = options[this.currentQuestion.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        this.correctAnswerIndex = options.indexOf(correctOption);
+
+        if (this.questionOverlayObjects) {
+            this.questionOverlayObjects.forEach(o => o.destroy());
+        }
+        this.questionOverlayObjects = [];
+
+        // Dark background overlay
+        const bg = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(100).setInteractive();
+        this.questionOverlayObjects.push(bg);
+
+        const titleText = this.add.text(cx, cy - 150, `DESAFÍO FIN DE NIVEL (${this.sequenceIndex + 1}/3)`, {
+            fontFamily: 'monospace', fontSize: '24px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 80, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 700 }, align: 'center'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 560;
+        const btnH = 46;
+        const gapY = 12;
+        const startY = cy - 10;
+
+        options.forEach((option, i) => {
+            const by = startY + i * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(101);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(102);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(cx, by + btnH / 2, btnW, btnH)
+                .setDepth(103).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerSequenceQuestion(i, cx - btnW / 2, by, btnW, btnH, btnGfx));
+        });
+    }
+
+    _answerSequenceQuestion(selectedIndex, bx, by, btnW, btnH, btnGfx) {
+        this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+        const correct = selectedIndex === this.correctAnswerIndex;
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+        const resultText = this.add.text(400, 480, correct ? '¡CORRECTO! (+4s)' : 'FALLASTE (-2s)', {
+            fontFamily: 'monospace', fontSize: '20px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(102);
+        this.questionOverlayObjects.push(resultText);
+
+        if (correct) {
+            this.adjustTimer(4000);
+            this.sound.play('match');
+        } else {
+            this.adjustTimer(-2000);
+        }
+
+        this.sequenceIndex++;
+
+        this.time.delayedCall(1600, () => {
+            if (this.sequenceIndex < 3) {
+                this._showSequenceQuestion();
+            } else {
+                this.questionOverlayObjects.forEach(o => o.destroy());
+                this.questionOverlayObjects = [];
+                this.isQuestionMode = false;
+                if (this.timer) {
+                    this.timer.paused = false;
+                }
+                this.newRound();
+            }
+        });
+    }
+
+    adjustTimer(timeDeltaMs) {
+        if (!this.timer) return;
+        const remaining = 30000 - this.timer.elapsed;
+        let newRemaining = remaining + timeDeltaMs;
+        if (newRemaining <= 0) {
+            this.timer.elapsed = 30000;
+        } else {
+            this.timer.elapsed = 30000 - newRemaining;
+        }
     }
 }

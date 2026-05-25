@@ -85,6 +85,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         this.play('throwEnd');
 
         this.currentTrack.throwPlayerSnowball(this.x);
+
+        if (this.scene.doubleThrowActive)
+        {
+            this.scene.time.delayedCall(100, () => {
+                this.currentTrack.throwPlayerSnowball(this.x);
+            });
+        }
     }
 
     throwComplete ()
@@ -107,7 +114,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
     {
         super.preUpdate(time, delta);
 
-        if (!this.isAlive)
+        if (!this.isAlive || this.scene.isQuestionMode)
         {
             return;
         }

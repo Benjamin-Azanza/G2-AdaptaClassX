@@ -1,46 +1,70 @@
 // @ts-nocheck
 import Phaser from 'phaser';
 
-/**
- * Create a card game object.
- * Uses a 2D image with a scaleX tween to simulate card flipping,
- * replacing the unavailable scene.add.plane() (Phaser 3.60+ 3D object).
- */
 export const createCard = ({
     scene,
     x,
     y,
-    frontTexture,
-    cardName
+    textString,
+    cardName,
+    pairId,
+    scale = 1.0
 }) => {
 
     let isFlipping = false;
     let isFaceUp = false;
 
     const backTexture = "card-back";
+    const frontTexture = "card-0";
 
-    const card = scene.add.image(x, y, backTexture)
-        .setName(cardName)
-        .setInteractive();
+    const container = scene.add.container(x, y).setName(cardName).setSize(98, 128);
+    container.setScale(scale);
+    
+    // Background sprite
+    const bg = scene.add.sprite(0, 0, backTexture).setInteractive();
+    container.add(bg);
+
+    // Dynamically adjust font size based on text length to fit nicely on the card
+    let fontSizeVal = '11px';
+    if (textString.length > 25) {
+        fontSizeVal = '9px';
+    } else if (textString.length > 18) {
+        fontSizeVal = '10px';
+    }
+
+    // Text label (hidden by default)
+    const label = scene.add.text(0, 0, textString, {
+        fontFamily: 'Arial',
+        fontSize: fontSizeVal,
+        color: '#2d3748',
+        fontStyle: 'bold',
+        wordWrap: { width: 82 },
+        align: 'center'
+    }).setOrigin(0.5).setVisible(false);
+    container.add(label);
+
+    // Make container interactive by forwarding events from background sprite
+    bg.on('pointerdown', (pointer) => {
+        container.emit('pointerdown', pointer);
+    });
 
     const flipCard = (callbackComplete) => {
         if (isFlipping) return;
         isFlipping = true;
         scene.sound.play("card-flip");
 
-        // First half: scale X to 0
         scene.tweens.add({
-            targets: card,
+            targets: container,
             scaleX: 0,
             duration: 150,
             ease: 'Linear',
             onComplete: () => {
                 isFaceUp = !isFaceUp;
-                card.setTexture(isFaceUp ? frontTexture : backTexture);
-                // Second half: scale X back to 1
+                bg.setTexture(isFaceUp ? frontTexture : backTexture);
+                label.setVisible(isFaceUp);
                 scene.tweens.add({
-                    targets: card,
-                    scaleX: 1,
+                    targets: container,
+                    scaleX: scale,
                     duration: 150,
                     ease: 'Linear',
                     onComplete: () => {
@@ -54,20 +78,22 @@ export const createCard = ({
 
     const destroy = () => {
         scene.tweens.add({
-            targets: card,
-            y: card.y - 1000,
+            targets: container,
+            y: container.y - 1000,
             duration: 500,
             ease: Phaser.Math.Easing.Elastic.In,
             onComplete: () => {
-                card.destroy();
+                container.destroy();
             }
         });
     };
 
     return {
-        gameObject: card,
+        gameObject: container,
         flip: flipCard,
         destroy,
-        cardName
+        cardName,
+        pairId,
+        textString
     };
 };

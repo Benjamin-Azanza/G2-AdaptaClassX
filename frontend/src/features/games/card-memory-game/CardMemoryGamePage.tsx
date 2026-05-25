@@ -37,7 +37,7 @@ export const CardMemoryGamePage: React.FC = () => {
 
       phaserGame.current = new Phaser.Game({
         type: Phaser.AUTO,
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 549, height: 480 },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
         backgroundColor: '#192a56',
         parent: gameRef.current,
         render: { pixelArt: true },
@@ -72,7 +72,7 @@ export const CardMemoryGamePage: React.FC = () => {
         <span className="material-symbols-outlined">arrow_back</span>
         Salir
       </button>
-      <div className="z-10 flex w-full max-w-[600px] flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]">
+      <div className="z-10 flex w-full max-w-[860px] flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]">
         <div className="flex items-center justify-center border-b-8 border-on-background bg-primary px-sm py-md text-on-primary">
           <h2 className="flex items-center gap-sm font-headline text-2xl font-bold uppercase tracking-widest">
             <span className="material-symbols-outlined text-[32px]">style</span>
@@ -80,7 +80,7 @@ export const CardMemoryGamePage: React.FC = () => {
           </h2>
         </div>
         <div className="flex w-full justify-center bg-[#192a56] p-sm">
-          <div className="relative w-full overflow-hidden border-4 border-on-background" style={{ aspectRatio: '549/480' }}>
+          <div className="relative w-full overflow-hidden border-4 border-on-background" style={{ aspectRatio: '4/3' }}>
             <div ref={gameRef} className="absolute inset-0 z-10 flex h-full w-full items-center justify-center" />
           </div>
         </div>

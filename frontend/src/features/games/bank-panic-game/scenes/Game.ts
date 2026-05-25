@@ -277,18 +277,20 @@ export default class MainGame extends Phaser.Scene
         this.isPaused = false;
     }
 
-    killed (x, y)
+    killed (x, y, doorObj)
     {
-        //  Bullet holes on the screen
+        this.offendingDoor = doorObj;
+        this.bulletHoles = [];
 
         let offsetX = 100;
 
         for (let i = 0; i < 3; i++)
         {
-            let x = Phaser.Math.RND.between(offsetX, offsetX + 200);
-            let y = Phaser.Math.RND.between(200, 600);
+            let xPos = Phaser.Math.RND.between(offsetX, offsetX + 200);
+            let yPos = Phaser.Math.RND.between(200, 600);
 
-            let hole = this.add.image(x, y, 'bulletHole').setAlpha(0);
+            let hole = this.add.image(xPos, yPos, 'bulletHole').setAlpha(0);
+            this.bulletHoles.push(hole);
 
             this.tweens.add({
                 targets: hole,
@@ -300,7 +302,120 @@ export default class MainGame extends Phaser.Scene
             offsetX += 340;
         }
 
-        this.levelFail();
+        // Show salvation question modal instead of failing immediately
+        this.time.delayedCall(1000, () => {
+            this.startSalvationQuestion();
+        });
+    }
+
+    startSalvationQuestion() {
+        this.isQuestionMode = true;
+        this.questionOverlayObjects = [];
+        
+        // Retrieve questions
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        if (this.questions.length === 0) {
+            this.questions = [
+                { q: "María llevó un paraguas aunque el cielo estaba despejado. ¿Por qué?", options: ["Porque le gusta", "Porque previó lluvia", "Porque estaba roto"], answer: 1 }
+            ];
+        }
+
+        const cx = 512;
+        const cy = 384;
+        const idx = Phaser.Math.Between(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[idx];
+
+        const options = [...this.currentQuestion.options];
+        const correctOption = options[this.currentQuestion.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        this.correctAnswerIndex = options.indexOf(correctOption);
+
+        // Dark background overlay
+        const bg = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.85).setDepth(200).setInteractive();
+        this.questionOverlayObjects.push(bg);
+
+        const titleText = this.add.text(cx, cy - 180, "¡PREGUNTA DE SALVACIÓN!", {
+            fontFamily: 'Courier', fontSize: '28px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 100, this.currentQuestion.q, {
+            fontFamily: 'Courier', fontSize: '20px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 600;
+        const btnH = 50;
+        const gapY = 16;
+        const startY = cy;
+
+        options.forEach((option, i) => {
+            const by = startY + i * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(201);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'Courier', fontSize: '16px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(202);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(cx, by + btnH / 2, btnW, btnH)
+                .setDepth(203).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerSalvationQuestion(i, cx - btnW / 2, by, btnW, btnH, btnGfx));
+        });
+    }
+
+    _answerSalvationQuestion(selectedIndex, bx, by, btnW, btnH, btnGfx) {
+        this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+        const correct = selectedIndex === this.correctAnswerIndex;
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+        const resultText = this.add.text(512, 630, correct ? '¡CORRECTO! CONSERVAS TU VIDA' : 'FALLASTE', {
+            fontFamily: 'Courier', fontSize: '22px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(202);
+        this.questionOverlayObjects.push(resultText);
+
+        if (correct) {
+            this.sound.play('levelComplete');
+            this.time.delayedCall(1600, () => {
+                this.questionOverlayObjects.forEach(o => o.destroy());
+                this.questionOverlayObjects = [];
+                
+                // Clear bullet holes
+                if (this.bulletHoles) {
+                    this.bulletHoles.forEach(h => h.destroy());
+                    this.bulletHoles = [];
+                }
+
+                // Reset the offending door
+                if (this.offendingDoor) {
+                    this.offendingDoor.reset(this.time.now);
+                }
+
+                this.isQuestionMode = false;
+                this.isPaused = false;
+            });
+        } else {
+            this.sound.play('gameOver');
+            this.time.delayedCall(1600, () => {
+                this.questionOverlayObjects.forEach(o => o.destroy());
+                this.questionOverlayObjects = [];
+                this.levelFail();
+            });
+        }
     }
 
     startQuestionEvent(time)
@@ -359,8 +474,8 @@ export default class MainGame extends Phaser.Scene
             
             door.showOption(options[index]);
             
-            // Set a generous time for them to answer before they are shot by the bandit
-            door.timeToKill = time + 15000; 
+            // Generous 30 seconds limit to shoot the door of the correct answer
+            door.timeToKill = time + 30000; 
         });
     }
 
