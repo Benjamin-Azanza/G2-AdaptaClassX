@@ -5,6 +5,7 @@ import { TeacherShell } from '../components/TeacherShell';
 import { aiService, type GeneratedQuestionPreview } from '../services/ai.service';
 import { useParalelos } from '../hooks/useParalelos';
 import { useGames } from '../hooks/useGames';
+import { ManualQuestionForm } from '../components/ManualQuestionForm';
 
 export function TeacherQuestionGeneratorPage() {
   const [questions, setQuestions] = useState<GeneratedQuestionPreview[]>([]);
@@ -48,6 +49,20 @@ export function TeacherQuestionGeneratorPage() {
     }
   };
 
+  const handleSaveManual = async (targetGameId: string, paraleloId: string, manualQuestions: any[]) => {
+    try {
+      await aiService.saveQuestions({
+        game_id: targetGameId,
+        paralelo_id: paraleloId,
+        questions: manualQuestions,
+      });
+      alert('Preguntas manuales guardadas exitosamente.');
+    } catch (error) {
+      console.error('Error saving manual questions', error);
+      alert('Hubo un error al guardar las preguntas manuales.');
+    }
+  };
+
   return (
     <TeacherShell title="IA Docente">
       <div className="grid grid-cols-1 items-start gap-lg md:grid-cols-3">
@@ -62,6 +77,15 @@ export function TeacherQuestionGeneratorPage() {
           questions={questions}
           onSave={handleSave}
           onQuestionsChange={setQuestions}
+        />
+      </div>
+      
+      <div className="mt-xl">
+        <ManualQuestionForm 
+          onSave={handleSaveManual}
+          paralelos={paralelos}
+          games={games}
+          gamesLoading={gamesLoading}
         />
       </div>
     </TeacherShell>

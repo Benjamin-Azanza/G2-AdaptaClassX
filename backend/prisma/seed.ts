@@ -136,6 +136,7 @@ async function main() {
       grado_max: 5,
       descripcion: 'Responde preguntas sobre textos y mejora tu velocidad lectora.',
       config_default: {
+        rutaJuego: '/games/bomb-game',
         tiempoLimitePreguntaSegundos: 30,
         cantidadPreguntasPorSesion: 10,
         xpPorSesionLibre: 0,
@@ -144,6 +145,119 @@ async function main() {
     },
   });
   console.log('  1 juego creado');
+
+  // ─── 10 juegos importados desde examples-master ──────────
+  const juegosImportados = [
+    {
+      titulo: 'Avoid the Germs',
+      tema: Tema.LENGUA_CULTURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 7,
+      descripcion: 'Esquiva los germenes y mantente sano el mayor tiempo posible.',
+      config_default: { rutaJuego: '/games/avoid-germs' },
+    },
+    {
+      titulo: 'Bank Panic',
+      tema: Tema.COMUNICACION_ORAL,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 3,
+      grado_max: 7,
+      descripcion: 'Dispara a los bandidos y evita a los inocentes en este clasico arcade.',
+      config_default: { rutaJuego: '/games/bank-panic' },
+    },
+    {
+      titulo: 'Breakout',
+      tema: Tema.LECTURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 6,
+      descripcion: 'Rompe todos los bloques rebotando la pelota con tu plataforma.',
+      config_default: { rutaJuego: '/games/breakout' },
+    },
+    {
+      titulo: 'Card Memory',
+      tema: Tema.LITERATURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 5,
+      descripcion: 'Encuentra las parejas de cartas iguales y entrena tu memoria.',
+      config_default: { rutaJuego: '/games/card-memory' },
+    },
+    {
+      titulo: 'Emoji Match',
+      tema: Tema.LENGUA_CULTURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 6,
+      descripcion: 'Empareja emojis identicos en este desafio visual.',
+      config_default: { rutaJuego: '/games/emoji-match' },
+    },
+    {
+      titulo: 'Sliding Puzzle',
+      tema: Tema.ESCRITURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 3,
+      grado_max: 7,
+      descripcion: 'Desliza las piezas para reconstruir la imagen completa.',
+      config_default: { rutaJuego: '/games/sliding-puzzle' },
+    },
+    {
+      titulo: 'Snake',
+      tema: Tema.LECTURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 6,
+      descripcion: 'El clasico Snake: come y crece sin chocar contigo mismo.',
+      config_default: { rutaJuego: '/games/snake' },
+    },
+    {
+      titulo: 'Snowmen Attack',
+      tema: Tema.COMUNICACION_ORAL,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 3,
+      grado_max: 7,
+      descripcion: 'Defiendete de los munecos de nieve lanzando bolas con puntería.',
+      config_default: { rutaJuego: '/games/snowmen-attack' },
+    },
+    {
+      titulo: 'Stacker',
+      tema: Tema.ESCRITURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 4,
+      grado_max: 7,
+      descripcion: 'Apila bloques con precision y llega lo mas alto posible.',
+      config_default: { rutaJuego: '/games/stacker' },
+    },
+    {
+      titulo: 'Tom',
+      tema: Tema.LITERATURA,
+      tipo: TipoJuego.CAMBIANTE,
+      acepta_preguntas_ia: true,
+      grado_min: 2,
+      grado_max: 6,
+      descripcion: 'Una demo interactiva con animaciones y sonidos divertidos.',
+      config_default: { rutaJuego: '/games/tom' },
+    },
+  ];
+
+  for (const juegoData of juegosImportados) {
+    await prisma.game.upsert({
+      where: { titulo: juegoData.titulo },
+      update: { config_default: juegoData.config_default },
+      create: juegoData,
+    });
+  }
+  console.log(`  ${juegosImportados.length} juegos importados desde examples-master`);
 
   const defaultQuestions = [
     {

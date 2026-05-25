@@ -68,7 +68,8 @@ export class AssignmentsService {
     for (const task of assignments) {
       const studentProgress = task.progress[0];
       const isCompleted = studentProgress?.completado ?? false;
-      const route = `/games/bomb-game?assignmentId=${task.id}&gameId=${task.game.id}`;
+      const gameBase = (task.game.config_default as Record<string, string> | null)?.rutaJuego ?? '/games/bomb-game';
+      const route = `${gameBase}?assignmentId=${task.id}&gameId=${task.game.id}`;
 
       const formattedTask = {
         id: task.id,
