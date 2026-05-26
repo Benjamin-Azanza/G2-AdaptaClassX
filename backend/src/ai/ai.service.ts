@@ -94,6 +94,7 @@ REGLAS:
 - 4 opciones por pregunta, solo una correcta.
 - Lenguaje claro y simple para niños.
 - No inventes información que no esté en el texto.
+- IMPORTANTE: Limita tu pensamiento o razonamiento interno (thinking/reasoning process) a un máximo de 1 o 2 oraciones muy breves. No expliques el proceso, genera el array JSON válido inmediatamente en el primer token posible para no exceder los límites de tokens de salida.
 
 RESPONDE SOLO con un array JSON válido, sin markdown, sin explicaciones:
 [{"texto":"...","opciones":["A","B","C","D"],"respuestaCorrecta":0},...]
@@ -205,6 +206,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta.`;
           data: {
             preguntas_json: normalizedQuestions,
             tipo_fuente: TipoFuente.IA,
+            created_by: userId,
           }
         });
       } else {

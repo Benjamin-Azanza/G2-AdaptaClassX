@@ -4,7 +4,7 @@ import { StudentShell } from '../components/StudentShell';
 import { studentGamesService } from '../services/student.service';
 import type { StudentGame } from '../types/student.types';
 
-const CATEGORIES = ['Lectura', 'Escritura', 'Literatura', 'Lengua y Cultura'];
+const CATEGORIES = ['Lectura', 'Escritura', 'Literatura', 'Lengua y Cultura', 'Comunicacion Oral'];
 
 export function StudentGameCatalogPage() {
   const [games, setGames] = useState<StudentGame[]>([]);

@@ -11,6 +11,17 @@ import { TeacherDashboardPage } from '../../features/teacher/pages/TeacherDashbo
 import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassroomPage';
 import { TeacherQuestionGeneratorPage } from '../../features/teacher/pages/TeacherQuestionGeneratorPage';
 import { BombGamePage } from '../../features/games/bomb-game/BombGamePage';
+import { AvoidGermsGamePage } from '../../features/games/avoid-germs-game/AvoidGermsGamePage';
+import { BankPanicGamePage } from '../../features/games/bank-panic-game/BankPanicGamePage';
+import { BreakoutGamePage } from '../../features/games/breakout-game/BreakoutGamePage';
+import { CardMemoryGamePage } from '../../features/games/card-memory-game/CardMemoryGamePage';
+import { EmojiMatchGamePage } from '../../features/games/emoji-match-game/EmojiMatchGamePage';
+import { SlidingPuzzleGamePage } from '../../features/games/sliding-puzzle-game/SlidingPuzzleGamePage';
+import { SnakeGamePage } from '../../features/games/snake-game/SnakeGamePage';
+import { SnowmenAttackGamePage } from '../../features/games/snowmen-attack-game/SnowmenAttackGamePage';
+import { StackerGamePage } from '../../features/games/stacker-game/StackerGamePage';
+import { TomGamePage } from '../../features/games/tom-game/TomGamePage';
+import { PirateSurvivalGamePage } from '../../features/games/pirate-survival-game/PirateSurvivalGamePage';
 
 export function AppRouter() {
   return (
@@ -80,14 +91,18 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path={routePaths.bombGame}
-        element={
-          <ProtectedRoute>
-            <BombGamePage />
-          </ProtectedRoute>
-        }
-      />
+      <Route path={routePaths.bombGame} element={<ProtectedRoute><BombGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.avoidGermsGame} element={<ProtectedRoute><AvoidGermsGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.bankPanicGame} element={<ProtectedRoute><BankPanicGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.breakoutGame} element={<ProtectedRoute><BreakoutGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.cardMemoryGame} element={<ProtectedRoute><CardMemoryGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.emojiMatchGame} element={<ProtectedRoute><EmojiMatchGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.slidingPuzzleGame} element={<ProtectedRoute><SlidingPuzzleGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.snakeGame} element={<ProtectedRoute><SnakeGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.snowmenAttackGame} element={<ProtectedRoute><SnowmenAttackGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.stackerGame} element={<ProtectedRoute><StackerGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.tomGame} element={<ProtectedRoute><TomGamePage /></ProtectedRoute>} />
+      <Route path={routePaths.pirateSurvivalGame} element={<ProtectedRoute><PirateSurvivalGamePage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={routePaths.login} replace />} />
     </Routes>
   );

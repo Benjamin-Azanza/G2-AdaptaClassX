@@ -6,10 +6,28 @@ import { Role } from '@prisma/client';
 export class GamesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.game.findMany({
+  async findAllForUser(userId: string, role: Role) {
+    const games = await this.prisma.game.findMany({
       orderBy: { titulo: 'asc' },
     });
+
+    const gamesWithCount = await Promise.all(
+      games.map(async (game) => {
+        const questions = await this.getQuestionsForUser(game.id, userId, role);
+        let questionsCount = 0;
+        for (const q of questions) {
+          if (q.preguntas_json && Array.isArray(q.preguntas_json)) {
+            questionsCount += q.preguntas_json.length;
+          }
+        }
+        return {
+          ...game,
+          questionsCount,
+        };
+      }),
+    );
+
+    return gamesWithCount;
   }
 
   async getQuestionsForUser(gameId: string, userId: string, role: Role) {
@@ -21,8 +39,35 @@ export class GamesService {
       throw new NotFoundException('Juego no encontrado');
     }
 
-    if (game.tipo === 'BASE') {
-      return this.prisma.gameQuestion.findMany({
+    let questions: any[] = [];
+
+    if (role === Role.STUDENT) {
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: userId },
+      });
+
+      if (student && student.paralelo_id) {
+        questions = await this.prisma.gameQuestion.findMany({
+          where: {
+            game_id: gameId,
+            paralelo_id: student.paralelo_id,
+          },
+        });
+      }
+    } else if (role === Role.TEACHER) {
+      questions = await this.prisma.gameQuestion.findMany({
+        where: {
+          game_id: gameId,
+          OR: [
+            { created_by: userId },
+            { paralelo: { teacher_id: userId } },
+          ],
+        },
+      });
+    }
+
+    if (questions.length === 0) {
+      questions = await this.prisma.gameQuestion.findMany({
         where: {
           game_id: gameId,
           paralelo_id: null,
@@ -30,26 +75,6 @@ export class GamesService {
       });
     }
 
-    if (role === Role.STUDENT) {
-      const student = await this.prisma.student.findUnique({
-        where: { user_id: userId },
-      });
-
-      if (!student || !student.paralelo_id) {
-        // Estudiante sin paralelo no tiene acceso a preguntas de juegos cambiantes
-        return [];
-      }
-
-      return this.prisma.gameQuestion.findMany({
-        where: {
-          game_id: gameId,
-          paralelo_id: student.paralelo_id,
-        },
-      });
-    }
-
-    // Si es profe, podría necesitar un query param para el paralelo, 
-    // pero por defecto para previsualizar no hay contexto de paralelo aún.
-    return [];
+    return questions;
   }
 }

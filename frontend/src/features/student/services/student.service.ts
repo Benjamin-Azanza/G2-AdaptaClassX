@@ -9,6 +9,7 @@ interface BackendGame {
   tema: string;
   tipo: 'BASE' | 'CAMBIANTE';
   thumbnail_url?: string | null;
+  config_default?: { rutaJuego?: string } | null;
 }
 
 const temaLabels: Record<string, string> = {
@@ -19,10 +20,11 @@ const temaLabels: Record<string, string> = {
   LITERATURA: 'Literatura',
 };
 
-function getBombGameRoute(params?: Record<string, string>) {
+function getGameRoute(game: BackendGame, params?: Record<string, string>) {
+  const base = game.config_default?.rutaJuego ?? '/games/bomb-game';
   const search = new URLSearchParams(params);
   const query = search.toString();
-  return query ? `/games/bomb-game?${query}` : '/games/bomb-game';
+  return query ? `${base}?${query}` : base;
 }
 
 function mapTemaToLabel(tema: string) {
@@ -37,7 +39,7 @@ function mapBackendGame(game: BackendGame): StudentGame {
     category: mapTemaToLabel(game.tema),
     tipo: game.tipo,
     imageUrl: game.thumbnail_url ?? undefined,
-    route: getBombGameRoute({ gameId: game.id }),
+    route: getGameRoute(game, { gameId: game.id }),
     locked: false,
   };
 }
@@ -78,12 +80,6 @@ export const studentAssignmentsService = {
     const normalizeTask = (task: StudentAssignment): StudentAssignment => ({
       ...task,
       gameCategory: mapTemaToLabel(task.gameCategory),
-      gameRoute: task.gameRoute.startsWith('/games/bomb-game')
-        ? task.gameRoute
-        : getBombGameRoute({
-            assignmentId: task.id,
-            gameId: task.gameId,
-          }),
     });
 
     return {
