@@ -7,6 +7,8 @@ export default class Breakout extends Phaser.Scene {
     private consecutiveHits: number = 1;
     private lives: number = 8;
     private isQuestionMode: boolean = false;
+    private ballSpeedMultiplier: number = 1.0;
+    private levelBreakout: number = 1;
     
     private bricks: Phaser.Physics.Arcade.StaticGroup | null = null;
     private paddle: Phaser.Physics.Arcade.Image | null = null;
@@ -15,6 +17,7 @@ export default class Breakout extends Phaser.Scene {
     private scoreText: Phaser.GameObjects.Text | null = null;
     private livesText: Phaser.GameObjects.Text | null = null;
     private multiplierText: Phaser.GameObjects.Text | null = null;
+    private levelText: Phaser.GameObjects.Text | null = null;
     private wordQuestionText: Phaser.GameObjects.Text | null = null;
     
     private questions: any[] = [];
@@ -46,6 +49,8 @@ export default class Breakout extends Phaser.Scene {
         this.consecutiveHits = 1;
         this.lives = 8;
         this.isQuestionMode = false;
+        this.ballSpeedMultiplier = 1.0;
+        this.levelBreakout = 1;
         this.questionOverlayObjects = [];
         this.wordLabels = [];
         
@@ -75,6 +80,7 @@ export default class Breakout extends Phaser.Scene {
         this.scoreText = this.add.text(16, 16, 'Puntos: 0', { fontFamily: 'monospace', fontSize: '24px', color: '#ffffff', fontStyle: 'bold' });
         this.livesText = this.add.text(620, 16, 'Pelotas: 8', { fontFamily: 'monospace', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' });
         this.multiplierText = this.add.text(16, 50, 'Mult: x1', { fontFamily: 'monospace', fontSize: '18px', color: '#60a5fa' });
+        this.levelText = this.add.text(320, 16, 'Nivel: 1', { fontFamily: 'monospace', fontSize: '24px', color: '#ffd700', fontStyle: 'bold' });
         
         this.wordQuestionText = this.add.text(400, 95, '', { 
             fontFamily: 'monospace', 
@@ -95,7 +101,7 @@ export default class Breakout extends Phaser.Scene {
         this.input.on('pointerup', () => {
             if (this.isQuestionMode) return;
             if (this.ball.getData('onPaddle')) {
-                this.ball.setVelocity(-75, -350);
+                this.ball.setVelocity(-75 * this.ballSpeedMultiplier, -350 * this.ballSpeedMultiplier);
                 this.ball.setData('onPaddle', false);
             }
         }, this);
@@ -129,10 +135,11 @@ export default class Breakout extends Phaser.Scene {
             // Render text label over brick
             const label = this.add.text(brick.x, brick.y, this.currentWordQuestion.options[index], {
                 fontFamily: 'Arial',
-                fontSize: '12px',
+                fontSize: '15px',
                 color: '#ffffff',
                 fontStyle: 'bold',
-                shadow: { color: '#000000', fill: true, offsetX: 1, offsetY: 1, blur: 2 }
+                stroke: '#000000',
+                strokeThickness: 3
             }).setOrigin(0.5).setDepth(10);
             
             this.wordLabels.push(label);
@@ -195,12 +202,12 @@ export default class Breakout extends Phaser.Scene {
         let diff = 0;
         if (ball.x < paddle.x) {
             diff = paddle.x - ball.x;
-            ball.setVelocityX(-10 * diff);
+            ball.setVelocityX(-10 * diff * this.ballSpeedMultiplier);
         } else if (ball.x > paddle.x) {
             diff = ball.x - paddle.x;
-            ball.setVelocityX(10 * diff);
+            ball.setVelocityX(10 * diff * this.ballSpeedMultiplier);
         } else {
-            ball.setVelocityX(2 + Math.random() * 8);
+            ball.setVelocityX((2 + Math.random() * 8) * this.ballSpeedMultiplier);
         }
     }
 
@@ -213,9 +220,14 @@ export default class Breakout extends Phaser.Scene {
     }
 
     resetLevel() {
+        this.levelBreakout++;
+        if (this.levelText) {
+            this.levelText.setText(`Nivel: ${this.levelBreakout}`);
+        }
+        this.ballSpeedMultiplier += 0.3; // Increase velocity by 30% each time all blocks are broken
         this.resetBall();
-        this.bricks.children.each((brick) => {
-            brick.enableBody(false, 0, 0, true, true);
+        this.bricks.getChildren().forEach((brick) => {
+            brick.enableBody(true, brick.x, brick.y, true, true);
             brick.setData('isWordBrick', false);
         });
         this.setupWordBricks();

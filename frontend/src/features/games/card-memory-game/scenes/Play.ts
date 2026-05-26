@@ -17,8 +17,10 @@ export class Play extends Phaser.Scene
     lives = 10;
     maxLives = 10;
     level = 1;
+    score = 0;
     hearts = [];
     searchingText = null;
+    scoreText = null;
 
     // Word Concept pairs database
     pairsDatabase = {
@@ -71,9 +73,14 @@ export class Play extends Phaser.Scene
         
         if (data && data.level) {
             this.level = data.level;
+            this.lives = data.lives !== undefined ? data.lives : 10;
+            this.score = data.score !== undefined ? data.score : 0;
+            this.maxLives = data.maxLives !== undefined ? data.maxLives : 10;
         } else {
             this.level = 1;
             this.lives = 10;
+            this.score = 0;
+            this.maxLives = 10;
         }
         
         this.volumeButton();
@@ -166,11 +173,16 @@ export class Play extends Phaser.Scene
         const winnerText = this.add.text(400, -1000, "¡NIVEL COMPLETADO!",
             { align: "center", strokeThickness: 4, fontSize: '42px', fontStyle: "bold", color: "#22c55e", fontFamily: 'monospace' }
         ).setOrigin(.5).setDepth(15).setInteractive();
-
+ 
         const gameOverText = this.add.text(400, -1000,
-            "FIN DEL JUEGO\nClick para reiniciar",
+            "¡HAS PERDIDO!\nClick para REINICIAR",
             { align: "center", strokeThickness: 4, fontSize: '42px', fontStyle: "bold", color: "#ff0000", fontFamily: 'monospace' }
         ).setName("gameOverText").setDepth(15).setOrigin(.5).setInteractive();
+
+        // Score display
+        this.scoreText = this.add.text(620, 16, `Puntos: ${this.score}`, {
+            fontFamily: 'monospace', fontSize: '22px', color: '#22c55e', fontStyle: 'bold'
+        });
 
         // Render hearts
         this.hearts = this.createHearts();
@@ -205,6 +217,8 @@ export class Play extends Phaser.Scene
                         if (this.cardOpened.pairId === card.pairId) {
                             // MATCH!
                             this.sound.play("card-match");
+                            this.score += 100;
+                            this.scoreText.setText(`Puntos: ${this.score}`);
                             
                             const o1 = this.cardOpened;
                             const o2 = card;
@@ -289,11 +303,17 @@ export class Play extends Phaser.Scene
                 onComplete: () => {
                     this.cards.forEach(c => c.gameObject.destroy());
                     this.cards = [];
-                    this.scene.start('Play', { level: this.level + 1, lives: Math.min(this.maxLives, this.lives + 2) });
+                    const nextMaxLives = this.maxLives + 2;
+                    this.scene.start('Play', { 
+                        level: this.level + 1, 
+                        lives: Math.min(nextMaxLives, this.lives + 2),
+                        score: this.score,
+                        maxLives: nextMaxLives
+                    });
                 }
             });
         });
-
+ 
         // Game Over click: restarts game
         gameOverText.on('pointerdown', () => {
             this.add.tween({
@@ -303,7 +323,7 @@ export class Play extends Phaser.Scene
                 onComplete: () => {
                     this.cards.forEach(c => c.gameObject.destroy());
                     this.cards = [];
-                    this.scene.start('Play', { level: 1, lives: 10 });
+                    this.scene.start('Play', { level: 1, lives: 10, score: 0, maxLives: 10 });
                 }
             });
         });

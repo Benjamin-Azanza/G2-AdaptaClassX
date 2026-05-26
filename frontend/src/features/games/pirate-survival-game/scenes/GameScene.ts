@@ -458,7 +458,11 @@ export class GameScene extends Phaser.Scene {
 
     if (correct) {
       this.playerHealth = Math.min(10, this.playerHealth + 1);
-      this.sound.play('sfx-player-heal', { volume: 0.8 }); // Wait, let's play a heal sfx if exists, or simple match sfx
+      try {
+        this.sound.play('bgm-right', { volume: 0.6 });
+      } catch (err) {
+        console.warn("Could not play correct sfx", err);
+      }
     } else {
       this.playerHealth = Math.max(0, this.playerHealth - 1);
     }

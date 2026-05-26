@@ -1,9 +1,6 @@
 // @ts-nocheck
 import Phaser from 'phaser';
 
-import FilterShine from './FilterShine';
-import FilterWipe from './FilterWipe';
-
 export default class MainMenu extends Phaser.Scene
 {
     constructor ()
@@ -15,46 +12,52 @@ export default class MainMenu extends Phaser.Scene
     {
         this.add.image(512, 384, 'background');
 
-        const box = this.add.image(512, 384, 'box');
+        const box = this.add.image(512, 384, 'box').setAlpha(0);
         const logo = this.add.image(512, -384, 'logo');
 
-        box.enableFilters();
-        const wipe = new FilterWipe.Controller(this.cameras.main);
-        box.filters.internal.add(wipe);
-        wipe.setTopToBottom();
-        wipe.setRevealEffect();
-
-        logo.enableFilters();
-        logo.filters.internal.add(new FilterShine.Controller(this.cameras.main));
-
+        // Fade in the box
         this.tweens.add({
-            targets: wipe,
-            progress: 1,
-            duration: 3000
+            targets: box,
+            alpha: 1,
+            duration: 1500,
+            ease: 'Power2'
         });
 
+        // Slide and bounce the logo down
         this.tweens.add({
             targets: logo,
             y: 384,
-            delay: 1500,
-            duration: 2000,
-            ease: 'sine.out',
+            delay: 1000,
+            duration: 1800,
+            ease: 'Bounce.easeOut',
             onComplete: () => {
+                // Add a blinking helper text to click/tap to play
+                const playText = this.add.text(512, 650, 'Haz click para jugar', {
+                    fontFamily: 'Arial',
+                    fontSize: '28px',
+                    color: '#ffffff',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 5
+                }).setOrigin(0.5);
+
+                this.tweens.add({
+                    targets: playText,
+                    alpha: 0.3,
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1
+                });
+
                 this.input.once('pointerdown', () => {
-                    wipe.setWipeEffect();
-                    wipe.setTexture('box-inside');
-
+                    playText.destroy();
+                    
+                    // Fade out logo and box, then start Game scene
                     this.tweens.add({
-                        targets: logo,
+                        targets: [logo, box],
                         alpha: 0,
-                        duration: 1000,
-                        ease: 'sine.out'
-                    });
-
-                    this.tweens.add({
-                        targets: wipe,
-                        progress: 1,
-                        duration: 2500,
+                        duration: 800,
+                        ease: 'Power2',
                         onComplete: () => {
                             this.scene.start('Game');
                         }

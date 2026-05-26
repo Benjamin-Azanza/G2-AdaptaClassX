@@ -1,8 +1,7 @@
 // @ts-nocheck
 import Phaser from 'phaser';
 
-import FilterShine from './FilterShine';
-import FilterWipe from './FilterWipe';
+// No custom filters needed
 
 const SlidingPuzzle = {
     ALLOW_CLICK: 0,
@@ -72,17 +71,30 @@ export default class Game extends Phaser.Scene
         this.slices = [];
 
         this.action = SlidingPuzzle.ALLOW_CLICK;
+        
+        this.movesCount = 0;
+        this.questions = [];
+        this.questionOverlayObjects = [];
+        this.movesText = null;
     }
 
     create ()
     {
         this.add.image(512, 384, 'background');
         this.add.image(512, 384, 'box-inside');
+ 
+        this.movesCount = 0;
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        this.questionOverlayObjects = [];
+        this.movesText = this.add.text(20, 20, 'MOVIMIENTOS: 0', {
+            fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        });
 
         window.solve = () => {
             this.nextRound();
         };
-
+ 
         this.startPuzzle('pic1', 3, 3);
     }
 
@@ -177,9 +189,14 @@ export default class Game extends Phaser.Scene
         //  The last piece will be our 'spacer' to slide in to
         this.spacer = this.pieces.getAt(this.pieces.length - 1);
         this.spacer.alpha = 0;
-
+ 
         this.lastMove = null;
-
+        
+        this.movesCount = 0;
+        if (this.movesText) {
+            this.movesText.setText('MOVIMIENTOS: 0');
+        }
+ 
         this.shufflePieces();
     }
 
@@ -421,9 +438,13 @@ export default class Game extends Phaser.Scene
     slidePiece (piece, x, y)
     {
         this.action = SlidingPuzzle.TWEENING;
-
+        this.movesCount++;
+        if (this.movesText) {
+            this.movesText.setText('MOVIMIENTOS: ' + this.movesCount);
+        }
+ 
         this.sound.play('move');
-
+ 
         this.tweens.add({
             targets: piece,
             x,
@@ -456,7 +477,11 @@ export default class Game extends Phaser.Scene
         if (outOfSequence)
         {
             //  Not correct, so let the player carry on.
-            this.action = SlidingPuzzle.ALLOW_CLICK;
+            if (this.movesCount > 0 && this.movesCount % 10 === 0) {
+                this.triggerMoveQuestion();
+            } else {
+                this.action = SlidingPuzzle.ALLOW_CLICK;
+            }
         }
         else
         {
@@ -476,9 +501,15 @@ export default class Game extends Phaser.Scene
                 }
             });
 
-            this.pieces.each(piece => {
-                piece.enableFilters();
-                piece.filters.internal.add(new FilterShine.Controller(this.cameras.main));
+            // Pulse effect to celebrate the solved puzzle
+            this.tweens.add({
+                targets: this.pieces.getChildren(),
+                scaleX: '*=1.05',
+                scaleY: '*=1.05',
+                duration: 200,
+                yoyo: true,
+                repeat: 1,
+                ease: 'Quad.easeInOut'
             });
         }
     }
@@ -516,28 +547,127 @@ export default class Game extends Phaser.Scene
             size = 3;
         }
 
-        this.reveal = this.add.image(this.pieces.x, this.pieces.y, nextPhoto).setOrigin(0, 0);
-
-        this.reveal.enableFilters();
-        const wipe = new FilterWipe.Controller(this.cameras.main);
-        this.reveal.filters.internal.add(wipe);
-
-        wipe.setTopToBottom();
-        wipe.setRevealEffect();
+        this.reveal = this.add.image(this.pieces.x, this.pieces.y, nextPhoto).setOrigin(0, 0).setAlpha(0);
 
         this.tweens.add({
-            targets: wipe,
-            progress: 1,
-            duration: 2000,
+            targets: this.reveal,
+            alpha: 1,
+            duration: 1500,
+            ease: 'Power2',
             onComplete: () => {
-
                 this.photo = nextPhoto;
                 this.iterations = iterations;
                 this.reveal.destroy();
-
                 this.startPuzzle(nextPhoto, size, size);
-
             }
+        });
+    }
+
+    triggerMoveQuestion() {
+        const fallbacks = [
+            { q: "¿Qué palabra es un sustantivo?", options: ["mesa", "cantar", "azul", "rápidamente"], answer: 0 },
+            { q: "Sinónimo de 'estudiante':", options: ["alumno", "profesor", "aula", "libro"], answer: 0 },
+            { q: "Antónimo de 'silencio':", options: ["ruido", "paz", "tranquilidad", "calma"], answer: 0 },
+            { q: "¿Cuál es el plural de 'sofá'?", options: ["sofás", "sofases", "sofaes", "sofáses"], answer: 0 }
+        ];
+        const source = this.questions.length > 0 ? this.questions : fallbacks;
+        const qData = Phaser.Utils.Array.GetRandom(source);
+
+        const cx = 512;
+        const cy = 384;
+
+        const overlay = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.9).setDepth(200).setInteractive();
+        this.questionOverlayObjects.push(overlay);
+
+        const titleTxt = this.add.text(cx, cy - 180, "¡RETO DE ORTOGRAFÍA!", {
+            fontFamily: 'Arial', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(titleTxt);
+
+        const subTxt = this.add.text(cx, cy - 140, "Cada 10 movimientos debes responder correctamente para continuar", {
+            fontFamily: 'Arial', fontSize: '18px', color: '#ffd700'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(subTxt);
+
+        const questionTxt = this.add.text(cx, cy - 60, qData.q, {
+            fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(questionTxt);
+
+        const options = [...qData.options];
+        const correctString = options[qData.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        const correctIdx = options.indexOf(correctString);
+
+        const btnW = 360, btnH = 60, gapX = 30, gapY = 20;
+        const gridX = cx - btnW - gapX / 2, gridY = cy + 40;
+
+        options.forEach((option, i) => {
+            const col = i % 2, row = Math.floor(i / 2);
+            const bx = gridX + col * (btnW + gapX), by = gridY + row * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(201);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'Arial', fontSize: '16px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(202);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH)
+                .setDepth(203).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => {
+                this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+                const correct = i === correctIdx;
+                btnGfx.clear();
+                btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+                btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+                btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+                btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+                const feedbackText = this.add.text(cx, cy + 220, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+                    fontFamily: 'Arial', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+                }).setOrigin(0.5).setDepth(202);
+                this.questionOverlayObjects.push(feedbackText);
+
+                this.time.delayedCall(1600, () => {
+                    this.questionOverlayObjects.forEach(o => o.destroy());
+                    this.questionOverlayObjects = [];
+                    
+                    if (correct) {
+                        this.action = 0; // SlidingPuzzle.ALLOW_CLICK
+                    } else {
+                        this.triggerGameOver();
+                    }
+                });
+            });
+        });
+    }
+
+    triggerGameOver() {
+        const cx = 512;
+        const cy = 384;
+
+        const overlay = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.95).setDepth(300).setInteractive();
+        
+        const lossText = this.add.text(cx, cy - 80, "¡HAS PERDIDO!", {
+            fontFamily: 'Arial', fontSize: '64px', color: '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(301);
+
+        const restartText = this.add.text(cx, cy + 40, "Haz click para REINICIAR", {
+            fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(301);
+
+        overlay.on('pointerdown', () => {
+            this.scene.restart();
         });
     }
 }

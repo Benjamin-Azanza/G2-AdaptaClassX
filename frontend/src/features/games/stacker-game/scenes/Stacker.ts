@@ -70,6 +70,9 @@ export class StackerGame extends Phaser.Scene {
         this.isQuestionMode = false;
         this.questions = [];
         this.questionOverlayObjects = [];
+        this.placedBlocks = [];
+        this.score = 0;
+        this.scoreText = null;
     }
     init() {
         this.grid = [];
@@ -78,6 +81,8 @@ export class StackerGame extends Phaser.Scene {
         this.currentY = this.gridHeight;
         this.isQuestionMode = false;
         this.questionOverlayObjects = [];
+        this.placedBlocks = [];
+        this.score = 0;
     }
     create() {
         const ox = this.offset.x;
@@ -93,6 +98,8 @@ export class StackerGame extends Phaser.Scene {
         this.add.text(ox - 32, oy, rows, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(ox + (gw * size) + size/2, oy, prizes, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.grid(ox, oy, gw * size, gh * size, size, size, 0x999999, 1, 0x666666).setOrigin(0);
+        
+        this.scoreText = this.add.text(20, 20, 'PUNTOS: 0', { fontFamily: 'bebas', fontSize: 36, color: '#22c55e' }).setShadow(2, 2, '#333333', 2, false, true);
         
         this.questions = this.registry.get('preguntasDelNivel') || [];
 
@@ -140,9 +147,17 @@ export class StackerGame extends Phaser.Scene {
 
         if (this.currentY === this.gridHeight) {
             this.grid[mapY][pos1] = 1; this.grid[mapY][pos2] = 1; this.grid[mapY][pos3] = 1;
+            
+            this.score += 10;
+            this.scoreText.setText('PUNTOS: ' + this.score);
+            this.showFloatingText('+10', 400, 300);
+
+            if (this.block1) this.placedBlocks.push(this.block1);
+            if (this.block2) this.placedBlocks.push(this.block2);
+            if (this.block3) this.placedBlocks.push(this.block3);
+
             this.sound.play('place'); this.nextRow();
         } else {
-            // Check if any block is lost or if it triggers a Game Over
             const b1Active = !!this.block1;
             const b2Active = !!this.block2;
             const b3Active = !!this.block3;
@@ -156,23 +171,35 @@ export class StackerGame extends Phaser.Scene {
             const wouldGameOver = (totalFits === 0);
 
             if (droppedOne || wouldGameOver) {
-                // Misalignment! Trigger salvation quiz (comodín)
+                this.score = Math.max(0, this.score - 5);
+                this.scoreText.setText('PUNTOS: ' + this.score);
+                this.showFloatingText('-5', 400, 300, '#ef4444');
+
                 this.isQuestionMode = true;
                 this.triggerSalvationQuiz(wouldGameOver, () => {
-                    // Correct: RESTORE/RETAIN block size! We force them to align with block below
-                    // Find where the block below is to place them correctly
                     this.alignBlocksToGridBelow(mapY, b1Active, b2Active, b3Active);
+                    
+                    this.score += 10;
+                    this.scoreText.setText('PUNTOS: ' + this.score);
+                    this.showFloatingText('+10', 400, 300);
+
+                    if (this.block1) this.placedBlocks.push(this.block1);
+                    if (this.block2) this.placedBlocks.push(this.block2);
+                    if (this.block3) this.placedBlocks.push(this.block3);
+
                     this.sound.play('place');
-                    this.nextRow();
+                    if (this.currentY === 1) {
+                        this.handleWinTransition();
+                    } else {
+                        this.nextRow();
+                    }
                 }, () => {
-                    // Incorrect: apply normal penalty
                     if (wouldGameOver) {
                         this.gameOver();
                     } else {
-                        // Apply normal cut
-                        if (this.block1) { if (b1Fits) this.grid[mapY][pos1] = 1; else { this.block1.visible = false; this.block1 = null; } }
-                        if (this.block2) { if (b2Fits) this.grid[mapY][pos2] = 1; else { this.block2.visible = false; this.block2 = null; } }
-                        if (this.block3) { if (b3Fits) this.grid[mapY][pos3] = 1; else { this.block3.visible = false; this.block3 = null; } }
+                        if (this.block1) { if (b1Fits) { this.grid[mapY][pos1] = 1; this.placedBlocks.push(this.block1); } else { this.block1.visible = false; this.block1 = null; } }
+                        if (this.block2) { if (b2Fits) { this.grid[mapY][pos2] = 1; this.placedBlocks.push(this.block2); } else { this.block2.visible = false; this.block2 = null; } }
+                        if (this.block3) { if (b3Fits) { this.grid[mapY][pos3] = 1; this.placedBlocks.push(this.block3); } else { this.block3.visible = false; this.block3 = null; } }
                         
                         this.sound.play('miss');
                         if (this.currentY === 1) {
@@ -184,14 +211,16 @@ export class StackerGame extends Phaser.Scene {
                     }
                 });
             } else {
-                // Perfect alignment
-                if (this.block1) this.grid[mapY][pos1] = 1;
-                if (this.block2) this.grid[mapY][pos2] = 1;
-                if (this.block3) this.grid[mapY][pos3] = 1;
+                this.score += 10;
+                this.scoreText.setText('PUNTOS: ' + this.score);
+                this.showFloatingText('+10', 400, 300);
+
+                if (this.block1) { this.grid[mapY][pos1] = 1; this.placedBlocks.push(this.block1); }
+                if (this.block2) { this.grid[mapY][pos2] = 1; this.placedBlocks.push(this.block2); }
+                if (this.block3) { this.grid[mapY][pos3] = 1; this.placedBlocks.push(this.block3); }
                 
                 if (this.currentY === 1) {
-                    this.currentY--;
-                    this.gameOver();
+                    this.handleWinTransition();
                 } else {
                     this.sound.play('place');
                     this.nextRow();
@@ -201,7 +230,6 @@ export class StackerGame extends Phaser.Scene {
     }
 
     alignBlocksToGridBelow(mapY, b1, b2, b3) {
-        // Look at the row below (currentY) to find where blocks exist
         const rowBelow = this.grid[this.currentY];
         const validXIndices = [];
         for (let x = 0; x < this.gridWidth; x++) {
@@ -249,11 +277,14 @@ export class StackerGame extends Phaser.Scene {
             this.isQuestionMode = true;
             this.triggerMilestoneQuiz(this.currentY === 10 ? 5 : 10, () => {
                 // Correct: maintain size, do NOT shrink blocks! We just increase speed.
-                this.speed -= (this.currentY === 10) ? 100 : 50;
+                this.speed = Math.max(50, this.speed - ((this.currentY === 10) ? 100 : 50));
                 this.spawnNextRowBlocks();
             }, () => {
-                // Incorrect: normal shrinkage!
-                this.speed -= (this.currentY === 10) ? 100 : 50;
+                // Incorrect: normal shrinkage and lose 5 points!
+                this.score = Math.max(0, this.score - 5);
+                this.scoreText.setText('PUNTOS: ' + this.score);
+                this.showFloatingText('-5', 400, 300, '#ef4444');
+                this.speed = Math.max(50, this.speed - ((this.currentY === 10) ? 100 : 50));
                 if (this.currentY === 10 && this.totalBlocks() === 3) this.block1 = null;
                 else if (this.currentY === 5 && this.totalBlocks() === 2) {
                     if ((this.block1 && this.block2) || (this.block1 && this.block3)) this.block1 = null;
@@ -384,11 +415,88 @@ export class StackerGame extends Phaser.Scene {
         });
     }
 
+    showFloatingText(text, x, y, color = '#22c55e', fontSize = 24) {
+        const txt = this.add.text(x, y, text, {
+            fontFamily: 'bebas', fontSize: fontSize, color: color
+        }).setOrigin(0.5).setDepth(20).setShadow(2, 2, '#333333', 2, false, true);
+
+        this.tweens.add({
+            targets: txt,
+            y: y - 50,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => txt.destroy()
+        });
+    }
+
+    handleWinTransition() {
+        this.sound.play('gamewon');
+        this.score += 100; // Big bonus for completing the tower
+        this.scoreText.setText('PUNTOS: ' + this.score);
+        this.showFloatingText('+100 TOWER BONUS!', 400, 200, '#eab308', 32);
+
+        // Find the block objects that are at the top (mapY === 0, y ~ offset.y)
+        const winBlocks = [];
+        const otherBlocks = [];
+        const topY = this.offset.y;
+        
+        if (this.block1) this.placedBlocks.push(this.block1);
+        if (this.block2) this.placedBlocks.push(this.block2);
+        if (this.block3) this.placedBlocks.push(this.block3);
+
+        this.placedBlocks.forEach(block => {
+            if (block && block.y !== undefined && Math.abs(block.y - topY) < 5) {
+                winBlocks.push(block);
+            } else if (block && block.destroy) {
+                otherBlocks.push(block);
+            }
+        });
+
+        // Destroy all other blocks to clear the tower visually
+        otherBlocks.forEach(b => b.destroy());
+
+        // Move winBlocks to the bottom row
+        const bottomY = this.offset.y + (this.gridHeight - 1) * this.gridSize;
+        winBlocks.forEach(block => {
+            block.y = bottomY;
+            block.setFillStyle(0xeab308); // Golden color for victory blocks
+        });
+
+        // Clear grid and populate bottom row
+        this.grid = [];
+        for (let y = 0; y < this.gridHeight; y++) {
+            this.grid.push([0, 0, 0, 0, 0, 0, 0]);
+        }
+        
+        winBlocks.forEach(block => {
+            const gx = Math.round((block.x - this.offset.x) / this.gridSize);
+            if (gx >= 0 && gx < this.gridWidth) {
+                this.grid[this.gridHeight - 1][gx] = 1;
+            }
+        });
+
+        this.placedBlocks = winBlocks;
+
+        const b1Active = !!this.block1;
+        const b2Active = !!this.block2;
+        const b3Active = !!this.block3;
+
+        this.currentY = 14;
+        this.isQuestionMode = true; // Pause movement
+        
+        this.time.delayedCall(1500, () => {
+            this.block1 = b1Active ? {} : null;
+            this.block2 = b2Active ? {} : null;
+            this.block3 = b3Active ? {} : null;
+            this.spawnNextRowBlocks();
+        });
+    }
+
     gameOver() {
         this.timer.remove(false);
         this.input.keyboard.off('keydown-SPACE', this.drop);
         this.input.off('pointerdown', this.drop);
-        this.registry.set('score', this.gridHeight - this.currentY);
+        this.registry.set('score', this.score); // Save custom score
         this.scene.pause();
         this.scene.run('gameOver');
     }
@@ -409,13 +517,16 @@ export class GameOver extends Phaser.Scene {
             'Nada (Completa 15 filas)',
         ];
         let title = 'GAME OVER!';
-        if (score >= 5) prizelist[0] = Phaser.Utils.Array.GetRandom(prizes1);
-        if (score >= 10) prizelist[2] = Phaser.Utils.Array.GetRandom(prizes2);
-        if (score === 15) { prizelist[4] = Phaser.Utils.Array.GetRandom(prizes3); title = '¡GANASTE!'; }
-        if (score < 5) this.sound.play('gamelost'); else this.sound.play('gamewon');
+        // Fallback prize checks (using estimation of completed rows based on score threshold if necessary, or just keep it)
+        const estRows = Math.floor(score / 10);
+        if (estRows >= 5 || score >= 50) prizelist[0] = Phaser.Utils.Array.GetRandom(prizes1);
+        if (estRows >= 10 || score >= 100) prizelist[2] = Phaser.Utils.Array.GetRandom(prizes2);
+        if (estRows >= 15 || score >= 150) { prizelist[4] = Phaser.Utils.Array.GetRandom(prizes3); title = '¡GANASTE!'; }
+        if (score < 50) this.sound.play('gamelost'); else this.sound.play('gamewon');
         
-        this.add.text(400, 120, title, { fontFamily: 'bebas', fontSize: 80, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
-        this.add.text(400, 200, 'Premio obtenido:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(400, 100, title, { fontFamily: 'bebas', fontSize: 80, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(400, 160, `PUNTAJE FINAL: ${score} PUNTOS`, { fontFamily: 'bebas', fontSize: 32, color: '#22c55e' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(400, 220, 'Premio obtenido:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
         this.add.text(100, 270, list, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(260, 270, prizelist, { fontFamily: 'bebas', fontSize: 26, color: '#ffff00' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(400, 500, 'Espacio o Clic para volver a intentar', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);

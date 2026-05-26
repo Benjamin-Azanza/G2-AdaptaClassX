@@ -8,8 +8,11 @@ export class GamesController {
   constructor(private readonly gamesService: GamesService) {}
 
   @Get()
-  async findAll() {
-    return this.gamesService.findAll();
+  async findAll(@Request() req: any) {
+    return this.gamesService.findAllForUser(
+      req.user.sub,
+      req.user.role,
+    );
   }
 
   @Get(':id/questions')

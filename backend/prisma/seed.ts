@@ -307,32 +307,43 @@ async function main() {
     },
   ];
 
-  const existingQuestionSet = await prisma.gameQuestion.findFirst({
-    where: {
-      game_id: juegoPrincipal.id,
-      paralelo_id: null,
-    },
-  });
-
-  if (existingQuestionSet) {
-    await prisma.gameQuestion.update({
-      where: { id: existingQuestionSet.id },
-      data: {
-        preguntas_json: defaultQuestions,
-        tipo_fuente: TipoFuente.DEFAULT,
-      },
-    });
-  } else {
-    await prisma.gameQuestion.create({
-      data: {
-        game_id: juegoPrincipal.id,
+  const allGames = await prisma.game.findMany();
+  for (const g of allGames) {
+    const existingQuestionSet = await prisma.gameQuestion.findFirst({
+      where: {
+        game_id: g.id,
         paralelo_id: null,
-        preguntas_json: defaultQuestions,
-        tipo_fuente: TipoFuente.DEFAULT,
       },
     });
+
+    if (existingQuestionSet) {
+      await prisma.gameQuestion.update({
+        where: { id: existingQuestionSet.id },
+        data: {
+          preguntas_json: defaultQuestions.map((q) => ({
+            texto: q.texto,
+            opciones: q.opciones,
+            respuestaCorrecta: q.respuestaCorrecta,
+          })),
+          tipo_fuente: TipoFuente.DEFAULT,
+        },
+      });
+    } else {
+      await prisma.gameQuestion.create({
+        data: {
+          game_id: g.id,
+          paralelo_id: null,
+          preguntas_json: defaultQuestions.map((q) => ({
+            texto: q.texto,
+            opciones: q.opciones,
+            respuestaCorrecta: q.respuestaCorrecta,
+          })),
+          tipo_fuente: TipoFuente.DEFAULT,
+        },
+      });
+    }
   }
-  console.log('  Preguntas por defecto creadas para el juego principal');
+  console.log('  Preguntas por defecto creadas para TODOS los juegos');
 
   const assignment = await prisma.assignment.create({
     data: {

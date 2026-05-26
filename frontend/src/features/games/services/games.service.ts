@@ -9,6 +9,8 @@ interface BackendGame {
   tipo: 'BASE' | 'CAMBIANTE';
   acepta_preguntas_ia: boolean;
   thumbnail_url?: string | null;
+  config_default?: { rutaJuego?: string } | null;
+  questionsCount?: number;
 }
 
 interface TeacherGamesResponse {
@@ -26,14 +28,15 @@ const temaLabels: Record<string, string> = {
 };
 
 function mapBackendGame(game: BackendGame): TeacherGame {
+  const baseRoute = game.config_default?.rutaJuego ?? '/games/bomb-game';
   return {
     id: game.id,
     title: game.titulo,
     description: game.descripcion ?? 'Juego educativo disponible.',
     category: temaLabels[game.tema] ?? game.tema.replaceAll('_', ' '),
     imageUrl: game.thumbnail_url ?? undefined,
-    route: `/games/bomb-game?gameId=${game.id}`,
-    questionsCount: 0,
+    route: `${baseRoute}?gameId=${game.id}`,
+    questionsCount: game.questionsCount ?? 0,
     status: game.tipo === 'CAMBIANTE' ? 'published' : 'draft',
     aceitaIA: game.acepta_preguntas_ia,
   };

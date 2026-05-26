@@ -15,7 +15,7 @@ export const createCard = ({
     let isFaceUp = false;
 
     const backTexture = "card-back";
-    const frontTexture = "card-0";
+    const frontTexture = `card-${pairId % 6}`;
 
     const container = scene.add.container(x, y).setName(cardName).setSize(98, 128);
     container.setScale(scale);
@@ -24,21 +24,23 @@ export const createCard = ({
     const bg = scene.add.sprite(0, 0, backTexture).setInteractive();
     container.add(bg);
 
-    // Dynamically adjust font size based on text length to fit nicely on the card
-    let fontSizeVal = '11px';
+    // Dynamically adjust font size based on text length to make it larger and fit nicely
+    let fontSizeVal = '17px';
     if (textString.length > 25) {
-        fontSizeVal = '9px';
-    } else if (textString.length > 18) {
-        fontSizeVal = '10px';
+        fontSizeVal = '12px';
+    } else if (textString.length > 15) {
+        fontSizeVal = '14px';
     }
 
-    // Text label (hidden by default)
+    // Text label (hidden by default) - White text with black outline for maximum visibility on illustrations
     const label = scene.add.text(0, 0, textString, {
         fontFamily: 'Arial',
         fontSize: fontSizeVal,
-        color: '#2d3748',
+        color: '#ffffff',
         fontStyle: 'bold',
-        wordWrap: { width: 82 },
+        stroke: '#000000',
+        strokeThickness: 4,
+        wordWrap: { width: 88 },
         align: 'center'
     }).setOrigin(0.5).setVisible(false);
     container.add(label);
