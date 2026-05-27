@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @IsString()
@@ -12,9 +13,10 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  cedula?: string;
+  @Transform(({ value }) => value === true || value === 'true')
+  isDocente?: boolean;
 }
 
 export class LoginDto {

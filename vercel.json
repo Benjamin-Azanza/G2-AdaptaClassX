@@ -23,10 +23,6 @@
       "dest": "frontend/assets/$1"
     },
     {
-      "src": "/games/(.*)",
-      "dest": "frontend/games/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "frontend/index.html"
     }

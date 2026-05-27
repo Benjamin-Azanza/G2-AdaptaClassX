@@ -77,18 +77,11 @@ model Student {
 model Teacher {
   user_id String @id
   nombre  String
-  cedula  String @unique
+  cedula  String? @unique
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("teachers")
-}
-
-model CedulaAutorizada {
-  cedula           String @id
-  nombre_referencia String
-
-  @@map("cedulas_autorizadas")
 }
 
 // ─── Paralelos ───────────────────────────────────────────

@@ -1,8 +1,6 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -123,82 +121,23 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const password_hash = await bcrypt.hash(dto.password, 10);
-    const cedula = dto.cedula?.trim();
-    let role: Role = Role.STUDENT;
+    const role: Role = dto.isDocente ? Role.TEACHER : Role.STUDENT;
 
-    if (cedula) {
-      const authorizedCedula = await this.prisma.cedulaAutorizada.findUnique({
-        where: { cedula },
-      });
-      if (!authorizedCedula) {
-        throw new ForbiddenException(
-          'La cedula ingresada no esta autorizada para crear cuentas docentes',
-        );
-      }
-      role = Role.TEACHER;
-    }
-
-    // 1. Check if there is an existing teacher with this cedula
-    if (role === Role.TEACHER && cedula) {
-      const existingTeacher = await this.prisma.teacher.findUnique({
-        where: { cedula },
-        include: { user: true },
-      });
-
-      if (existingTeacher) {
-        // If the email we want to set is already used by ANOTHER user, delete that user first
-        if (existingTeacher.user.email !== dto.email) {
-          const conflictingEmailUser = await this.prisma.user.findUnique({
-            where: { email: dto.email },
-          });
-          if (conflictingEmailUser) {
-            await this.deleteUserAndRelations(conflictingEmailUser.id);
-          }
-        }
-
-        // We update the existing user associated with this teacher
-        // (This preserves the user ID and prevents foreign key constraint issues for its relations)
-        const updatedUser = await this.prisma.user.update({
-          where: { id: existingTeacher.user_id },
-          data: {
-            email: dto.email,
-            password_hash,
-            teacher: {
-              update: {
-                nombre: dto.nombre,
-              },
-            },
-          },
-          include: {
-            student: true,
-            teacher: true,
-          },
-        });
-
-        return this.getAuthResponse(updatedUser);
-      }
-    }
-
-    // 2. Check if there is an existing user with this email
+    // 1. Check if there is an existing user with this email
     const existingUserByEmail = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { student: true, teacher: true },
     });
 
     if (existingUserByEmail) {
-      // If the role matches, we update the existing user
       if (existingUserByEmail.role === role) {
+        // Same role — update password and name
         if (role === Role.TEACHER) {
           const updatedUser = await this.prisma.user.update({
             where: { id: existingUserByEmail.id },
             data: {
               password_hash,
-              teacher: {
-                update: {
-                  nombre: dto.nombre,
-                  cedula: cedula!,
-                },
-              },
+              teacher: { update: { nombre: dto.nombre } },
             },
             include: { student: true, teacher: true },
           });
@@ -208,50 +147,29 @@ export class AuthService {
             where: { id: existingUserByEmail.id },
             data: {
               password_hash,
-              student: {
-                update: {
-                  nombre: dto.nombre,
-                },
-              },
+              student: { update: { nombre: dto.nombre } },
             },
             include: { student: true, teacher: true },
           });
           return this.getAuthResponse(updatedUser);
         }
       } else {
-        // Role changed (e.g. Student -> Teacher or vice versa).
-        // Let's delete the old user and its relations to allow re-registration with a new role
+        // Role changed — delete old user and recreate
         await this.deleteUserAndRelations(existingUserByEmail.id);
       }
     }
 
-    // 3. Create a brand new user
+    // 2. Create a brand new user
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         password_hash,
         role,
         ...(role === Role.TEACHER
-          ? {
-              teacher: {
-                create: {
-                  nombre: dto.nombre,
-                  cedula: cedula!,
-                },
-              },
-            }
-          : {
-              student: {
-                create: {
-                  nombre: dto.nombre,
-                },
-              },
-            }),
+          ? { teacher: { create: { nombre: dto.nombre } } }
+          : { student: { create: { nombre: dto.nombre } } }),
       },
-      include: {
-        student: true,
-        teacher: true,
-      },
+      include: { student: true, teacher: true },
     });
 
     return this.getAuthResponse(user);

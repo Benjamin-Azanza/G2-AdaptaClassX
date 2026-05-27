@@ -9,24 +9,6 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Seeding database...');
 
-  const cedulas = await Promise.all([
-    prisma.cedulaAutorizada.upsert({
-      where: { cedula: '1712345678' },
-      update: {},
-      create: { cedula: '1712345678', nombre_referencia: 'Prof. Maria Garcia' },
-    }),
-    prisma.cedulaAutorizada.upsert({
-      where: { cedula: '1798765432' },
-      update: {},
-      create: { cedula: '1798765432', nombre_referencia: 'Prof. Carlos Lopez' },
-    }),
-    prisma.cedulaAutorizada.upsert({
-      where: { cedula: '1750706572' },
-      update: {},
-      create: { cedula: '1750706572', nombre_referencia: 'Prof. Gatitos' },
-    }),
-  ]);
-  console.log(`  ${cedulas.length} cedulas autorizadas creadas`);
 
   const passwordHash = await bcrypt.hash('Password123!', 10);
 

@@ -12,7 +12,7 @@ export function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    cedula: '',
+    isDocente: false,
   });
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -34,7 +34,7 @@ export function RegisterPage() {
         nombre: form.nombre.trim(),
         email: form.email.trim(),
         password: form.password,
-        cedula: form.cedula.trim() || undefined,
+        isDocente: form.isDocente,
       });
       navigate(routePaths.login);
     } catch {
@@ -115,18 +115,37 @@ export function RegisterPage() {
             />
           </label>
 
-          <label className="flex flex-col gap-xs text-sm font-bold uppercase md:col-span-2">
-            Cedula de docente <span className="font-normal normal-case text-on-surface-variant">(opcional)</span>
-            <input
-              className="border-2 border-on-background bg-surface px-sm py-sm font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-              value={form.cedula}
-              onChange={(event) => setForm({ ...form, cedula: event.target.value })}
-              placeholder="1712345678"
-            />
-            <span className="font-normal normal-case text-on-surface-variant">
-              Si eres docente, ingresa tu cedula autorizada para obtener acceso de profesor.
-            </span>
-          </label>
+          <div className="flex flex-col gap-sm md:col-span-2">
+            <span className="text-sm font-bold uppercase">Tipo de cuenta</span>
+            <div className="grid grid-cols-2 gap-sm">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isDocente: false })}
+                className={[
+                  'flex flex-col items-center gap-xs border-2 border-on-background p-md transition-all',
+                  !form.isDocente
+                    ? 'bg-primary text-on-primary shadow-none translate-x-0.5 translate-y-0.5'
+                    : 'bg-surface-container-lowest shadow-[4px_4px_0_0_#1d1c17] hover:bg-surface-variant',
+                ].join(' ')}
+              >
+                <span className="material-symbols-outlined text-[32px]">school</span>
+                <span className="font-headline text-lg font-bold uppercase">Estudiante</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isDocente: true })}
+                className={[
+                  'flex flex-col items-center gap-xs border-2 border-on-background p-md transition-all',
+                  form.isDocente
+                    ? 'bg-primary text-on-primary shadow-none translate-x-0.5 translate-y-0.5'
+                    : 'bg-surface-container-lowest shadow-[4px_4px_0_0_#1d1c17] hover:bg-surface-variant',
+                ].join(' ')}
+              >
+                <span className="material-symbols-outlined text-[32px]">person_book</span>
+                <span className="font-headline text-lg font-bold uppercase">Docente</span>
+              </button>
+            </div>
+          </div>
 
           <button
             type="submit"

@@ -5,7 +5,7 @@ export interface RegisterPayload {
   nombre: string;
   email: string;
   password: string;
-  cedula?: string;
+  isDocente?: boolean;
 }
 
 export interface LoginPayload {

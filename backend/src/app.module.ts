@@ -22,7 +22,9 @@ import { AiModule } from './ai/ai.module';
         PORT: Joi.number().default(3000),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         FRONTEND_URL: Joi.string().uri().optional(),
-        OPENAI_API_KEY: Joi.string().optional(),
+        OPENAI_API_KEY: Joi.string().optional(), // alias for AI_API_KEY
+        AI_API_KEY: Joi.string().optional(),     // preferred key name (OpenRouter / any provider)
+        AI_API_URL: Joi.string().uri().optional().default('https://api.openai.com/v1'),
         AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'), // Override to swap models without code changes
       }),
     }),
