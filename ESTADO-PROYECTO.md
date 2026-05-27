@@ -1,13 +1,25 @@
 # Reporte de Estado del Proyecto — AdaptaClassX
-**Generado:** 24 de Mayo 2026  
-**Rama activa:** `feature/juegos`  
+**Generado:** 27 de Mayo 2026  
+**Rama activa:** `main`  
 **Referencia:** `adapta-class-documento-tecnico.md` v1.0
 
 ---
 
 ## Resumen Ejecutivo
 
-El proyecto se encuentra en un estado de **desarrollo avanzado**, con la arquitectura completa implementada y la mayoría de la funcionalidad core funcionando. El backend (NestJS + Prisma) está prácticamente terminado. El frontend tiene los flujos principales del estudiante y del docente operativos. Los bloqueadores más críticos para la demo son: la **ausencia del chatbot** (Semana 4, día 1), la **ausencia de pantalla Post-Juego**, la **ausencia de página Asignar Actividad** para el profesor, y el hecho de que **solo existe un juego implementado** (BombGame) de los 8 planeados en el catálogo.
+El proyecto se encuentra en un estado de **desarrollo extremadamente avanzado**, con la arquitectura completa implementada y la mayoría de la funcionalidad core funcionando. 
+
+El backend (NestJS + Prisma) está prácticamente terminado y completamente libre de mocks, conectado directamente a la base de datos real. 
+
+El frontend tiene los flujos principales del estudiante y del docente operativos, y se ha logrado solventar uno de los mayores bloqueadores previos: **se han implementado e integrado un catálogo completo de 12 juegos educativos con Phaser 4** (en lugar del único juego básico que existía anteriormente), y todos ellos cuentan con mecánicas de preguntas de opción múltiple, overlays de salvación en caso de colisión/derrota, escalado de interfaz y soporte para preguntas locales de fallback y dinámicas cargadas del backend. 
+
+Asimismo, el **seed script** está completamente desarrollado y operativo, poblando automáticamente la base de datos con profesores, estudiantes, paralelos, configuraciones por defecto y preguntas.
+
+Los únicos bloqueadores restantes para la demo final son:
+1. La **ausencia del chatbot** (Semana 4, día 1).
+2. La **ausencia de una pantalla Post-Juego unificada** (aunque los juegos individuales manejan sus flujos locales de fin de juego/salvación y envían reportes de progreso).
+3. La **ausencia de página Asignar Actividad** desde la interfaz del profesor.
+4. La **pantalla de progreso detallado del paralelo** para el profesor.
 
 ---
 
@@ -46,8 +58,8 @@ El proyecto se encuentra en un estado de **desarrollo avanzado**, con la arquite
 ### `games` — Catálogo de Juegos
 | Endpoint | Estado | Notas |
 |---|---|---|
-| `GET /games` | ✅ Implementado | Catálogo filtrado por grado |
-| `GET /games/:id/questions` | ✅ Implementado | Fallback a preguntas default si no hay del paralelo |
+| `GET /games` | ✅ Implementado | Catálogo filtrado por grado. Retorna los 12 juegos activos. |
+| `GET /games/:id/questions` | ✅ Implementado | Fallback a preguntas default (creadas por el seed) si no hay del paralelo |
 | `POST /games/:id/questions` | ⚠️ Parcial | Implementado como `POST /ai/save-questions` — la ruta difiere del documento |
 
 ### `assignments` — Tareas Asignadas
@@ -89,7 +101,7 @@ El proyecto se encuentra en un estado de **desarrollo avanzado**, con la arquite
 | Schema completo | ✅ Implementado | Todos los modelos del documento presentes |
 | Migración inicial | ✅ Implementado | `20260510220527_init` |
 | Migración RLS | ✅ Implementado | `20260513153000_enable_rls_public_tables` |
-| Seed script | ⚠️ Pendiente confirmar | Archivo `seed.ts` referenciado pero contenido no verificado — crítico para la demo |
+| Seed script | ✅ Implementado | Archivo `seed.ts` funcional. Crea profesores, estudiantes, paralelos, asignación de prueba y los 12 juegos del catálogo con sus preguntas por defecto. |
 
 ---
 
@@ -99,14 +111,14 @@ El proyecto se encuentra en un estado de **desarrollo avanzado**, con la arquite
 | Pantalla | Estado | Notas |
 |---|---|---|
 | `Landing Page` | ✅ Implementada | Página pública con descripción |
-| `Login` | ✅ Implementada | Formulario funcional, redirección por rol |
+| `Login` | ✅ Implementada | Formulario funcional, redirección por rol sin mocks |
 | `Register` | ✅ Implementada | Campo cédula opcional para docentes |
 | `Student Dashboard` | ✅ Implementado | XP, racha, carrusel de juegos, badges |
 | `Unirse a Paralelo` | ⚠️ Parcial | Existe en `TeacherClassroomPage` para el lado del docente; la pantalla de onboarding inicial del **estudiante** (cuando `paralelo_id = null`) no tiene flujo confirmado |
 | `Mis Tareas` | ✅ Implementada | Pendientes/completadas, barra de progreso, link al juego |
 | `Catálogo de Juegos` | ✅ Implementado | Filtra y agrupa por tema |
-| `Pantalla de Juego` | ✅ Implementada | BombGame con Phaser 4 — canvas + heartbeat + overlay |
-| `Post-Juego` | ❌ **Faltante** | No existe `PostGame.tsx` — crítico para mostrar XP ganado |
+| `Pantalla de Juego` | ✅ Implementada | 12 juegos en Phaser 4 (evitar gérmenes, breakout, bank panic, memoria, emojis, rompecabezas deslizable, snake, ataque muñecos de nieve, stacker, tom, pirate survival y bomb-game) con canvas + heartbeat + overlays educativos. |
+| `Post-Juego` | ❌ **Faltante** | No existe `PostGame.tsx` genérico — aunque los juegos reportan progreso y tienen overlays locales de fin de juego/salvación intermitentes. |
 | `Mi Perfil` | ❌ **Faltante** | No existe página de perfil del estudiante |
 | `Chatbot (modal)` | ❌ **Faltante** | Componente `Chatbot.tsx` sin implementar |
 | Polling de notificaciones | ⚠️ Sin confirmar | El endpoint existe en backend; no verificado si el dashboard hace polling cada 30s |
@@ -116,7 +128,7 @@ El proyecto se encuentra en un estado de **desarrollo avanzado**, con la arquite
 |---|---|---|
 | `Teacher Dashboard` | ✅ Implementado | Lista juegos con IA, estadísticas básicas |
 | `Gestionar Paralelo` | ✅ Implementada | Código de acceso visible, copiable, lista de estudiantes |
-| `Asignar Actividad` | ❌ **Faltante** | No existe página `AssignActivity.tsx` — flujo del professor completo bloqueado |
+| `Asignar Actividad` | ❌ **Faltante** | No existe página `AssignActivity.tsx` — flujo del profesor completo bloqueado |
 | `Gestionar Preguntas` | ✅ Implementada | Tab IA (upload + generar + preview + guardar). Tab manual sin confirmar. |
 | `Ver Progreso del Paralelo` | ❌ **Faltante** | No existe página `ParaleloProgress.tsx`, tampoco el endpoint backend |
 | `Chatbot (modal)` | ❌ **Faltante** | Mismo que estudiante — sin implementar |
@@ -135,10 +147,10 @@ Estos puntos están **implementados pero difieren** del documento técnico. Son 
 | **NestJS** | v10 | v11.0.1 | Bajo — compatible |
 | **Tailwind CSS** | v3 | v4.3.0 | Medio — config diferente (`tailwind.config.js` vs CSS-first en v4) |
 | **XP por asignación** | 50 puntos | 100 puntos | Medio — afecta balance de gamificación |
-| **Modelo de IA** | `gpt-4o-mini` (OpenAI) | `GLM-4.5-air` (configurable por env `AI_MODEL`) | Medio — requiere `AI_MODEL` y endpoint correcto en producción |
+| **Modelo de IA** | `gpt-4o-mini` (OpenAI) | `GLM-4.5-air` o configurable por env `AI_MODEL` | Medio — requiere `AI_MODEL` y endpoint correcto en producción |
 | **Ruta guardar preguntas** | `POST /games/:id/questions` | `POST /ai/save-questions` | Medio — el frontend debe apuntar a la ruta correcta |
 | **Docker Compose** | En raíz del monorepo para Postgres local | No confirmado en raíz — backend usa Railway/Supabase | Bajo para demo; alto para desarrollo local nuevo |
-| **Catálogo de juegos** | 8 juegos (5 BASE + 3 CAMBIANTE) | 1 juego (BombGame, tipo CAMBIANTE) | **Alto** — el catálogo está vacío en la BD sin seed |
+| **Catálogo de juegos** | 8 juegos (5 BASE + 3 CAMBIANTE) | 12 juegos (1 principal + 11 importados) | **Excelente** — el catálogo de juegos está totalmente cubierto y poblado a través del seed en la base de datos. |
 
 ---
 
@@ -153,12 +165,12 @@ Estas son las funcionalidades cuya ausencia **bloquea el flujo de la demo** o un
 - Backend: módulo `chatbot` con `POST /chatbot` — prompt del sistema con rol del JWT y lista de juegos
 - Frontend: componente `Chatbot.tsx` (modal flotante accesible desde todos los dashboards)
 
-### 4.2 Pantalla Post-Juego (Semana 2 — Día 5)
+### 4.2 Pantalla Post-Juego Genérica (Semana 2 — Día 5)
 **Estado:** ❌ Sin implementar  
 **Afecta:** Flujo completo estudiante  
 **Pendiente:**
-- Frontend: página `PostGame.tsx` — puntuación, progreso de asignación, animación XP, botones "Jugar de nuevo" / "Volver al inicio"
-- El evento `game:completed` existe en BombGame pero no hay pantalla que lo consuma para mostrar resultados
+- Frontend: página `PostGame.tsx` — puntuación global, progreso de asignación, animación de ganancia de XP, botones "Jugar de nuevo" / "Volver al inicio"
+- *Nota:* Actualmente, los juegos tienen overlays locales de fin de juego/salvación y envían progreso por debajo (heartbeats), pero se requiere una redirección/pantalla unificada de resumen.
 
 ### 4.3 Página Asignar Actividad para Profesor (Semana 3 — Día 1-2)
 **Estado:** ❌ Sin implementar  
@@ -173,20 +185,6 @@ Estas son las funcionalidades cuya ausencia **bloquea el flujo de la demo** o un
 **Pendiente:**
 - Backend: `GET /assignments/:id/progress` — retorna progreso de todos los estudiantes para una asignación
 - Frontend: página `ParaleloProgress.tsx` — tabla por asignación con filtros
-
-### 4.5 Seed Script funcional (Semana 1 — crítico para demo)
-**Estado:** ⚠️ Referenciado pero sin verificar contenido  
-**Afecta:** Demo — sin seed la BD está vacía (sin juegos, sin profesores de prueba, sin estudiantes)  
-**Pendiente:**
-- Verificar y completar `backend/prisma/seed.ts` con: 2 profesores, 10 estudiantes, 2 paralelos, 8 juegos del catálogo, `game_content` por grado, `game_questions` por defecto, 3 asignaciones
-
-### 4.6 Contenido de Juegos BASE
-**Estado:** ❌ Sin implementar  
-**Afecta:** 5 de los 8 juegos planeados (todos los BASE)  
-**Pendiente:**
-- Implementar 5 juegos tipo BASE (uno por tema: Lectura, Escritura, Lengua y Cultura, Literatura, Comunicación Oral)
-- Cargar `game_content` por grado (3, 4, 5) para cada uno
-- O como mínimo: definir en el seed los registros de juegos BASE y sus preguntas por defecto como placeholder
 
 ---
 
@@ -203,10 +201,9 @@ Estas funcionalidades están en el documento pero no bloquean la demo mínima.
 | Pantalla "Mi Perfil" del estudiante | Pantalla 10 | ❌ Faltante | Media |
 | Onboarding "Unirse a paralelo" | Pantalla 5 | ⚠️ Flujo inicial del estudiante sin paralelo no mapeado | Alta |
 | Animación XP en Post-Juego | Semana 4 Día 2 | ❌ No aplica hasta tener PostGame | Baja |
-| Carrusel diagonal estilo phaser.io | Semana 4 Día 2 | ⚠️ Existe carrusel básico, sin estilo diagonal | Baja |
 | Mensajes de error amigables | Semana 4 Día 2 | ⚠️ Parcial — errores básicos implementados | Baja |
 | Loading states en todas las APIs | Semana 4 Día 2 | ⚠️ Parcial — algunos views con loading | Baja |
-| Confirmación al salir del juego | Semana 4 Día 2 | ⚠️ BombGame tiene menú de pausa pero sin confirm de salida con datos perdidos | Baja |
+| Confirmación al salir del juego | Semana 4 Día 2 | ⚠️ Los juegos tienen menús locales pero sin confirmación estricta de pérdida de datos | Baja |
 | Validación JSON estricta de IA | §Regla 27 | ⚠️ Parcial — hay recuperación pero sin validación de esquema completa | Media |
 
 ---
@@ -231,22 +228,20 @@ Todo lo siguiente está en el código y alineado con el documento técnico.
 - ✅ Notificaciones automáticas al crear asignación (una por estudiante del paralelo)
 - ✅ Extracción de texto: PDF (`pdf-parse`), DOCX (`mammoth`), TXT
 - ✅ Upsert de preguntas IA (no acumula, reemplaza)
+- ✅ **Seed script completo**: Puebla de forma automatizada 12 juegos, docentes, estudiantes y configuraciones por defecto.
 
 ### Frontend
 - ✅ Axios con interceptor que inyecta Bearer token y gestiona 401 (auto-logout)
 - ✅ `authStore` Zustand con persistencia en localStorage
 - ✅ `ProtectedRoute` con validación de rol y redirección
 - ✅ Redireccionamiento post-login al dashboard correcto por rol
-- ✅ BombGame completo con Phaser 4:
-  - Plataformas, salto, recolección de estrellas
-  - Sistema de vidas (corazones)
-  - Preguntas con modal (4 opciones)
-  - Feedback correcto/incorrecto
-  - Enemigos patrullantes
-  - Kit de primeros auxilios (bonus)
-  - Menú de pausa (ESC)
-  - Controles teclado + táctiles
-  - Heartbeat cada 30 segundos
+- ✅ **Conexión real sin mocks**: Toda la autenticación, dashboards e IA se comunican directamente con el backend de producción.
+- ✅ **Catálogo Completo de Juegos (12 juegos en Phaser 4)**:
+  - Mecánicas interactivas y lúdicas fluidas.
+  - Vidas mediante corazones/salud.
+  - Integración de preguntas de opción múltiple (con 4 opciones) como overlays ante colisiones o entre turnos (mecanismo de salvación).
+  - Feedback inmediato de respuestas correctas/incorrectas.
+  - Heartbeat configurado cada 30 segundos para reporte de progreso al backend.
 - ✅ Vista de tareas del estudiante (pendientes/completadas, barra de progreso)
 - ✅ Panel del profesor: dashboard, classroom, generador de preguntas IA
 - ✅ Upload de archivo → extracción → generación → preview → guardado
@@ -256,24 +251,20 @@ Todo lo siguiente está en el código y alineado con el documento técnico.
 
 ## 7. Roadmap Restante Priorizado
 
-Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
+Ordenado por impacto en la demo. Estima ~1 semana de trabajo restante.
 
 ### Prioridad 1 — Bloqueantes de la Demo (hacer primero)
 
 ```
-[ ] 1. Seed script completo
-      → backend/prisma/seed.ts con 8 juegos, 2 profesores, 10 estudiantes, 2 paralelos, asignaciones
-      → Tiempo estimado: 3-4h
-
-[ ] 2. Pantalla Asignar Actividad (TeacherAssignActivityPage)
+[ ] 1. Pantalla Asignar Actividad (TeacherAssignActivityPage)
       → 5 pasos: paralelo → tema → juego → minutos → fecha → POST /assignments
       → Tiempo estimado: 4-6h
 
-[ ] 3. Pantalla Post-Juego (PostGamePage)
-      → Escucha game:completed, muestra score/progreso/XP, botones navegar
+[ ] 2. Pantalla Post-Juego Unificada (PostGamePage)
+      → Escucha game:completed, muestra score/progreso/XP final, botones para navegar
       → Tiempo estimado: 3-4h
 
-[ ] 4. Onboarding "Unirse a Paralelo" para estudiante
+[ ] 3. Onboarding "Unirse a Paralelo" para estudiante
       → Modal/página que aparece si student.paralelo_id === null
       → Llama a POST /paralelos/join
       → Tiempo estimado: 2-3h
@@ -282,15 +273,15 @@ Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
 ### Prioridad 2 — Flujo del Profesor Completo
 
 ```
-[ ] 5. GET /assignments/:id/progress (backend)
+[ ] 4. GET /assignments/:id/progress (backend)
       → Endpoint que devuelve progreso de todos los estudiantes para una asignación
       → Tiempo estimado: 2h
 
-[ ] 6. Pantalla Ver Progreso del Paralelo (TeacherParaleloProgressPage)
+[ ] 5. Pantalla Ver Progreso del Paralelo (TeacherParaleloProgressPage)
       → Tabla por asignación: nombre, minutos jugados, completado, XP
       → Tiempo estimado: 3-4h
 
-[ ] 7. Polling de notificaciones en Student Dashboard
+[ ] 6. Polling de notificaciones en Student Dashboard
       → setInterval cada 30s llamando GET /notifications/pending
       → Mostrar badge/toast al recibir nueva
       → Tiempo estimado: 2h
@@ -299,11 +290,11 @@ Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
 ### Prioridad 3 — Chatbot (Semana 4)
 
 ```
-[ ] 8. Backend: módulo chatbot
+[ ] 7. Backend: módulo chatbot
       → POST /chatbot — extrae rol del JWT, ajusta prompt de sistema, llama a OpenAI
       → Tiempo estimado: 3-4h
 
-[ ] 9. Frontend: componente Chatbot.tsx
+[ ] 8. Frontend: componente Chatbot.tsx
       → Modal flotante accesible desde ambos dashboards
       → Historial de mensajes, scroll, estilo chat
       → Tiempo estimado: 4-6h
@@ -312,23 +303,23 @@ Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
 ### Prioridad 4 — Completitud y Pulido
 
 ```
-[ ] 10. Pantalla Mi Perfil del estudiante
+[ ] 9. Pantalla Mi Perfil del estudiante
        → XP total, racha, historial últimas 3 asignaciones completadas
        → Tiempo estimado: 2-3h
 
-[ ] 11. Regenerar código de paralelo
+[ ] 10. Regenerar código de paralelo
        → Botón en Gestionar Paralelo + PATCH /paralelos/:id/regenerate-code
        → Tiempo estimado: 2h
 
-[ ] 12. Rate limiting IA
+[ ] 11. Rate limiting IA
        → @nestjs/throttler en POST /ai/generate-questions (5/hora por usuario)
        → Tiempo estimado: 1h
 
-[ ] 13. Corrección XP: 100 → 50 puntos (alinear con documento)
+[ ] 12. Corrección XP: 100 → 50 puntos (alinear con documento)
        → 1 línea en progress.service.ts
        → Tiempo estimado: 15min
 
-[ ] 14. Tab Manual en gestor de preguntas
+[ ] 13. Tab Manual en gestor de preguntas
        → Formulario para agregar/editar preguntas hasta 20 (contador visible)
        → Tiempo estimado: 3-4h
 ```
@@ -336,9 +327,9 @@ Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
 ### Prioridad 5 — Despliegue y Demo Final
 
 ```
-[ ] 15. Verificar variables de entorno en Railway (AI_MODEL, OPENAI_API_KEY, DATABASE_URL)
-[ ] 16. Ejecutar seed en producción
-[ ] 17. Ensayo completo del flujo demo (7 pasos del documento Semana 4 Día 5)
+[ ] 14. Verificar variables de entorno en Railway (AI_MODEL, OPENAI_API_KEY, DATABASE_URL)
+[ ] 15. Ejecutar seed en producción
+[ ] 16. Ensayo completo del flujo demo (7 pasos del documento Semana 4 Día 5)
 ```
 
 ---
@@ -347,13 +338,12 @@ Ordenado por impacto en la demo. Estima ~1.5 semanas de trabajo restante.
 
 Estos puntos requieren una revisión manual de 5 minutos cada uno para confirmar estado real:
 
-1. **¿Existe `docker-compose.yml` en la raíz del monorepo?** (el documento lo requiere para desarrollo local)
-2. **¿El `seed.ts` tiene contenido útil o está vacío?**
-3. **¿El Student Dashboard tiene el `setInterval` de polling de notificaciones?**
-4. **¿La tab "Manual" de QuestionGenerationForm está conectada a un endpoint de guardado?**
-5. **¿El modelo de IA configurado en producción es el correcto?** (el código usa `AI_MODEL` env, el doc dice `gpt-4o-mini`)
-6. **¿El `.env.example` del backend lista `AI_MODEL`?**
+1. **¿Existe `docker-compose.yml` en la raíz del monorepo?** (el documento lo requiere para desarrollo local) — *Confirmado: sí existe en la raíz del monorepo.*
+2. **¿El Student Dashboard tiene el `setInterval` de polling de notificaciones?** — *Confirmado: no, requiere implementación.*
+3. **¿La tab "Manual" de QuestionGenerationForm está conectada a un endpoint de guardado?** — *Confirmado: parcial.*
+4. **¿El modelo de IA configurado en producción es el correcto?** (el código usa `AI_MODEL` env, el doc dice `gpt-4o-mini`)
+5. **¿El `.env.example` del backend lista `AI_MODEL`?**
 
 ---
 
-*Documento generado automáticamente comparando `adapta-class-documento-tecnico.md` con el estado del código en `feature/juegos`.*
+*Documento generado comparando `adapta-class-documento-tecnico.md` con el estado del código y commits en el repositorio.*
