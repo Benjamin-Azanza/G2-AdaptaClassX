@@ -40,15 +40,15 @@ export function StudentTasksPage() {
   return (
     <StudentShell title="Mis Tareas">
       <section className="mb-lg border-b-4 border-on-background pb-md">
-        <h2 className="font-headline text-4xl font-bold uppercase">Mis Tareas</h2>
-        <p className="mt-xs text-on-surface-variant">
+        <h2 className="font-headline text-2xl font-bold uppercase md:text-4xl">Mis Tareas</h2>
+        <p className="mt-xs text-sm md:text-base text-on-surface-variant">
           Aquí aparecen las actividades que tu profesor ha asignado a tu clase.
         </p>
       </section>
 
       {/* ── Pendientes ── */}
       <div className="mb-xl">
-        <h3 className="mb-md font-headline text-2xl font-bold uppercase">Pendientes</h3>
+        <h3 className="mb-md font-headline text-xl font-bold uppercase md:text-2xl">Pendientes</h3>
         {pending.length === 0 ? (
           <div className="flex flex-col items-center gap-sm border-4 border-dashed border-on-background bg-surface-container-lowest p-lg text-center">
             <span className="material-symbols-outlined text-[48px] text-outline">task_alt</span>
@@ -66,7 +66,7 @@ export function StudentTasksPage() {
               return (
                 <div
                   key={task.id}
-                  className="border-4 border-on-background bg-surface-container-lowest p-md shadow-[8px_8px_0_0_#1d1c17]"
+                  className="border-4 border-on-background bg-surface-container-lowest p-sm md:p-md shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]"
                 >
                   <div className="flex flex-col gap-sm md:flex-row md:items-start md:justify-between">
                     <div className="flex-1">
@@ -78,7 +78,7 @@ export function StudentTasksPage() {
                           En progreso
                         </span>
                       </div>
-                      <h4 className="mt-sm font-headline text-xl font-bold">{task.gameTitle}</h4>
+                      <h4 className="mt-sm font-headline text-lg md:text-xl font-bold">{task.gameTitle}</h4>
                       <p className="text-sm text-on-surface-variant">
                         Tiempo requerido:{' '}
                         <strong>{task.minutosRequeridos} min</strong> · Vence el{' '}
@@ -88,7 +88,7 @@ export function StudentTasksPage() {
                     {/* Botón que navega al juego real */}
                     <Link
                       to={task.gameRoute}
-                      className="flex items-center gap-xs border-4 border-on-background bg-primary px-lg py-sm font-headline font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
+                      className="flex items-center justify-center gap-xs border-4 border-on-background bg-primary px-lg py-sm font-headline font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] md:shadow-[6px_6px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
                     >
                       <span className="material-symbols-outlined">play_arrow</span>
                       Jugar
@@ -119,7 +119,7 @@ export function StudentTasksPage() {
 
       {/* ── Completadas ── */}
       <div>
-        <h3 className="mb-md font-headline text-2xl font-bold uppercase">Completadas</h3>
+        <h3 className="mb-md font-headline text-xl font-bold uppercase md:text-2xl">Completadas</h3>
         {completed.length === 0 ? (
           <p className="text-on-surface-variant">Aún no has completado ninguna tarea.</p>
         ) : (

@@ -62,11 +62,11 @@ export function StudentDashboardPage() {
 
   return (
     <StudentShell title="Mi Panel">
-      <section className="mb-lg grid grid-cols-1 items-stretch gap-lg md:grid-cols-3">
-        <div className="col-span-2 flex flex-col gap-md border-4 border-on-background bg-surface-container p-lg shadow-[8px_8px_0_0_#1d1c17] md:flex-row md:items-center">
+      <section className="mb-lg grid grid-cols-1 items-stretch gap-md md:gap-lg md:grid-cols-3">
+        <div className="md:col-span-2 flex flex-col gap-md border-4 border-on-background bg-surface-container p-md md:p-lg shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] md:flex-row md:items-center">
           <div className="relative flex-shrink-0">
-            <div className="flex h-32 w-32 items-center justify-center border-4 border-on-background bg-primary shadow-[8px_8px_0_0_#1d1c17]">
-              <span className="font-headline text-5xl font-bold text-on-primary">
+            <div className="flex h-20 w-20 md:h-32 md:w-32 items-center justify-center border-4 border-on-background bg-primary shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
+              <span className="font-headline text-3xl md:text-5xl font-bold text-on-primary">
                 {firstName.slice(0, 1).toUpperCase()}
               </span>
             </div>
@@ -81,7 +81,7 @@ export function StudentDashboardPage() {
                 <p className="font-mono text-xs uppercase text-on-surface-variant">
                   {profile.titulo}
                 </p>
-                <h2 className="font-headline text-3xl font-bold uppercase">
+                <h2 className="font-headline text-xl md:text-3xl font-bold uppercase">
                   Hola, {firstName}!
                 </h2>
               </div>
@@ -109,25 +109,25 @@ export function StudentDashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-lg md:grid-cols-1">
-          <div className="flex flex-col items-center justify-center border-4 border-on-background bg-secondary-container p-md text-center shadow-[8px_8px_0_0_#1d1c17]">
+        <div className="grid grid-cols-2 gap-md md:gap-lg md:grid-cols-1">
+          <div className="flex flex-col items-center justify-center border-4 border-on-background bg-secondary-container p-sm md:p-md text-center shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
             <span
               className="material-symbols-outlined mb-xs text-4xl"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
               star
             </span>
-            <h4 className="font-headline text-4xl font-bold">{games.length}</h4>
+            <h4 className="font-headline text-2xl md:text-4xl font-bold">{games.length}</h4>
             <p className="font-mono text-xs uppercase text-on-surface-variant">Juegos</p>
           </div>
-          <div className="flex flex-col items-center justify-center border-4 border-on-background bg-tertiary-fixed p-md text-center shadow-[8px_8px_0_0_#1d1c17]">
+          <div className="flex flex-col items-center justify-center border-4 border-on-background bg-tertiary-fixed p-sm md:p-md text-center shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
             <span
               className="material-symbols-outlined mb-xs text-4xl text-orange-500"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
               local_fire_department
             </span>
-            <h4 className="font-headline text-4xl font-bold">{profile.racha}</h4>
+            <h4 className="font-headline text-2xl md:text-4xl font-bold">{profile.racha}</h4>
             <p className="font-mono text-xs uppercase text-on-surface-variant">Racha dias</p>
           </div>
         </div>
@@ -165,26 +165,26 @@ export function StudentDashboardPage() {
         <div className="border-4 border-on-background bg-surface-container p-md shadow-[8px_8px_0_0_#1d1c17] lg:col-span-5">
           <div className="mb-md flex items-center gap-sm border-b-2 border-on-background pb-sm">
             <span className="material-symbols-outlined">list_alt</span>
-            <h3 className="font-headline text-xl font-bold uppercase">Misiones Recientes</h3>
+            <h2 className="font-headline text-2xl font-bold uppercase md:text-4xl">Mis Tareas</h2>
           </div>
           <div className="space-y-sm">
             {RECENT_MISSIONS.map((mission, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between border-2 border-on-background bg-surface-container-lowest p-sm shadow-[4px_4px_0_0_#1d1c17]"
+                className="flex items-center justify-between gap-sm border-2 border-on-background bg-surface-container-lowest p-sm shadow-[4px_4px_0_0_#1d1c17]"
               >
-                <div className="flex items-center gap-sm">
-                  <div className={`${mission.bg} border border-on-background p-xs`}>
+                <div className="flex items-center gap-sm min-w-0 flex-1">
+                  <div className={`${mission.bg} border border-on-background p-xs flex-shrink-0`}>
                     <span className={`material-symbols-outlined ${mission.color}`}>
                       {mission.icon}
                     </span>
                   </div>
-                  <div>
-                    <p className="font-mono text-sm font-bold uppercase">{mission.label}</p>
-                    <p className="text-xs text-on-surface-variant">{mission.sub}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-sm font-bold uppercase truncate">{mission.label}</p>
+                    <p className="text-xs text-on-surface-variant truncate">{mission.sub}</p>
                   </div>
                 </div>
-                <p className={`font-headline text-lg font-bold ${mission.xpColor}`}>{mission.xp}</p>
+                <p className={`font-headline text-lg font-bold flex-shrink-0 ${mission.xpColor}`}>{mission.xp}</p>
               </div>
             ))}
           </div>
@@ -252,7 +252,7 @@ export function StudentDashboardPage() {
         </div>
       </section>
 
-      <section className="mt-lg flex flex-wrap justify-center gap-md">
+      <section className="mt-lg flex flex-col items-stretch gap-md sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
           to={routePaths.studentGames}
           className="flex items-center gap-sm border-4 border-on-background bg-surface-container-lowest px-xl py-md font-headline text-lg font-bold uppercase shadow-[8px_8px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[4px_4px_0_0_#1d1c17]"

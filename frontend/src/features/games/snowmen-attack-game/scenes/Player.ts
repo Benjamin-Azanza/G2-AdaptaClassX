@@ -21,6 +21,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         this.spacebar = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.up = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
         this.down = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+        this.keyZ = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
 
         this.play('idle');
     }
@@ -119,6 +120,34 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
             return;
         }
 
+        // Virtual joystick support
+        const joystick = (window as any).virtualJoystick;
+        if (joystick && joystick.active)
+        {
+            const joyUp = joystick.dy < -0.4;
+            const joyDown = joystick.dy > 0.4;
+            const joyAction = false; // action is handled by the A/B buttons via keyboard emulation
+
+            // Emulate JustDown for lane switching
+            if (joyUp && !this._prevJoyUp)
+            {
+                this.moveUp();
+            }
+            else if (joyDown && !this._prevJoyDown)
+            {
+                this.moveDown();
+            }
+
+            this._prevJoyUp = joyUp;
+            this._prevJoyDown = joyDown;
+        }
+        else
+        {
+            this._prevJoyUp = false;
+            this._prevJoyDown = false;
+        }
+
+        // Keyboard controls (also triggered by virtual button emulation)
         if (Phaser.Input.Keyboard.JustDown(this.up))
         {
             this.moveUp();
@@ -127,7 +156,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         {
             this.moveDown();
         }
-        else if (Phaser.Input.Keyboard.JustDown(this.spacebar) && !this.isThrowing)
+        else if ((Phaser.Input.Keyboard.JustDown(this.spacebar) || Phaser.Input.Keyboard.JustDown(this.keyZ)) && !this.isThrowing)
         {
             this.throw();
         }

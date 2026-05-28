@@ -77,8 +77,8 @@ export function TeacherShell({ title, children, action }: TeacherShellProps) {
       </aside>
 
       <header className="fixed right-0 top-0 z-40 flex w-full items-center justify-between border-b-4 border-on-background bg-surface px-margin-mobile py-base shadow-[0_4px_0_0_#1d1c17] md:pl-[calc(16rem+48px)] md:pr-margin-desktop">
-        <h1 className="font-headline text-2xl font-bold uppercase text-primary">{title}</h1>
-        <div className="flex items-center gap-sm">
+        <h1 className="font-headline text-lg font-bold uppercase text-primary md:text-2xl truncate">{title}</h1>
+        <div className="flex items-center gap-xs md:gap-sm flex-shrink-0">
           {action}
           <Link
             to={routePaths.teacherDashboard}
@@ -88,10 +88,10 @@ export function TeacherShell({ title, children, action }: TeacherShellProps) {
           >
             home
           </Link>
-          <button className="material-symbols-outlined p-xs hover:text-secondary" type="button" aria-label="Notificaciones">
+          <button className="material-symbols-outlined p-xs hover:text-secondary hidden md:block" type="button" aria-label="Notificaciones">
             notifications
           </button>
-          <button className="material-symbols-outlined p-xs hover:text-secondary" type="button" aria-label="Ajustes">
+          <button className="material-symbols-outlined p-xs hover:text-secondary hidden md:block" type="button" aria-label="Ajustes">
             settings
           </button>
           <button className="material-symbols-outlined p-xs md:hidden" type="button" onClick={handleLogout} aria-label="Cerrar sesion">
@@ -100,9 +100,30 @@ export function TeacherShell({ title, children, action }: TeacherShellProps) {
         </div>
       </header>
 
-      <main className="min-h-screen px-margin-mobile pb-lg pt-[100px] md:ml-64 md:p-lg md:pt-[100px]">
+      <main className="min-h-screen px-margin-mobile pb-24 pt-[72px] md:ml-64 md:p-lg md:pt-[100px] md:pb-lg">
         <div className="mx-auto max-w-[1280px]">{children}</div>
       </main>
+
+      {/* Mobile bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t-4 border-on-background bg-surface px-2 py-1 shadow-[0_-4px_0_0_#1d1c17] md:hidden">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.to}
+            className={({ isActive }) =>
+              [
+                'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-bold uppercase transition-colors',
+                isActive
+                  ? 'text-primary'
+                  : 'text-on-surface-variant',
+              ].join(' ')
+            }
+          >
+            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

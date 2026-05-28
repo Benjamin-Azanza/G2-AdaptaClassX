@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Preloader from './scenes/Preloader';
@@ -8,6 +8,7 @@ import UI from './scenes/UI';
 import api from '../../../services/api';
 import { useAuthStore } from '../../auth/store/authStore';
 import { questions as fallbackQuestions } from '../../questions/questions';
+import { GameConsoleWrapper } from '../components/GameConsoleWrapper';
 
 type BackendRow = { preguntas_json: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }> };
 
@@ -20,7 +21,11 @@ export const TomGamePage: React.FC = () => {
   const assignmentId = searchParams.get('assignmentId');
   const gameId = searchParams.get('gameId');
 
+  const [gameStarted, setGameStarted] = useState(false);
+
   useEffect(() => {
+    if (!gameStarted) return;
+
     let isMounted = true;
     const handleQuit = () => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
     window.addEventListener('game:quit', handleQuit);
@@ -71,30 +76,33 @@ export const TomGamePage: React.FC = () => {
       phaserGame.current = null;
       if (heartbeat) window.clearInterval(heartbeat);
     };
-  }, [assignmentId, gameId, navigate, user?.role]);
+  }, [assignmentId, gameId, navigate, user?.role, gameStarted]);
+
+  const quitHandler = () => {
+    navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
+  };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-sm md:p-lg">
-      <button
-        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games')}
-        className="absolute left-md top-md z-20 flex items-center gap-xs border-4 border-on-background bg-surface px-md py-sm font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
-      >
-        <span className="material-symbols-outlined">arrow_back</span>
-        Salir
-      </button>
-      <div className="z-10 flex w-full max-w-[800px] flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]">
-        <div className="flex items-center justify-center border-b-8 border-on-background bg-primary px-sm py-md text-on-primary">
-          <h2 className="flex items-center gap-sm font-headline text-2xl font-bold uppercase tracking-widest">
-            <span className="material-symbols-outlined text-[32px]">music_note</span>
-            Tom
-          </h2>
-        </div>
-        <div className="flex w-full justify-center bg-black p-sm">
-          <div className="relative w-full overflow-hidden border-4 border-on-background" style={{ aspectRatio: '16/9' }}>
-            <div ref={gameRef} className="absolute inset-0 z-10 flex h-full w-full items-center justify-center" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <GameConsoleWrapper
+      title="Tom"
+      description="Ayuda a Tom a recolectar deliciosos tomates maduros mientras esquivas las bombas con pinchos."
+      objective="Recoge la mayor cantidad posible de tomates. Si colisionas con una bomba con pinchos, tendrás una pregunta de salvación para evitar perder vida."
+      controlsPc={[
+        "Moverse: Flechas Izquierda / Derecha",
+        "Saltar: Flecha Arriba o Barra Espaciadora",
+        "Pausar: Tecla ESC"
+      ]}
+      controlsMobile={[
+        "Moverse: Flechas Izquierda / Derecha en el D-Pad",
+        "Saltar: Botón A",
+        "Pausar: Botón Pausa"
+      ]}
+      hasGamepad={true}
+      phaserGameRef={phaserGame}
+      gameRef={gameRef}
+      gameStarted={gameStarted}
+      setGameStarted={setGameStarted}
+      onQuit={quitHandler}
+    />
   );
 };

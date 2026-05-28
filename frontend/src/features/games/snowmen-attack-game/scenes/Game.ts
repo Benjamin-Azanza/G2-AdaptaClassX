@@ -54,6 +54,7 @@ export default class MainGame extends Phaser.Scene
         this.input.keyboard.once('keydown-SPACE', this.start, this);
         this.input.keyboard.once('keydown-UP', this.start, this);
         this.input.keyboard.once('keydown-DOWN', this.start, this);
+        this.input.keyboard.once('keydown-Z', this.start, this);
     }
 
     start ()
@@ -137,9 +138,11 @@ export default class MainGame extends Phaser.Scene
             this.registry.set('highscore', this.score);
         }
 
-        this.input.keyboard.once('keydown-SPACE', () => {
+        const restart = () => {
             this.scene.start('MainMenu');
-        }, this);
+        };
+        this.input.keyboard.once('keydown-SPACE', restart, this);
+        this.input.keyboard.once('keydown-Z', restart, this);
 
         this.input.once('pointerdown', () => {
             this.scene.start('MainMenu');
@@ -206,19 +209,19 @@ export default class MainGame extends Phaser.Scene
         }
 
         const titleText = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'Arial', fontSize: '28px', color: '#facc15', fontStyle: 'bold'
+            fontFamily: 'Arial', fontSize: '34px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
         const questionText = this.add.text(cx, cy - 100, this.currentQuestion.q, {
-            fontFamily: 'Arial', fontSize: '22px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+            fontFamily: 'Arial', fontSize: '26px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 600;
-        const btnH = 50;
+        const btnW = 640;
+        const btnH = 64;
         const gapY = 16;
-        const startY = cy;
+        const startY = cy - 20;
 
         options.forEach((option, i) => {
             const by = startY + i * (btnH + gapY);
@@ -232,7 +235,7 @@ export default class MainGame extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'Arial', fontSize: '16px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'Arial', fontSize: '22px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 
