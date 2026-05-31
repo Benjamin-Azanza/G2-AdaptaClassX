@@ -84,13 +84,18 @@ export default class Game extends Phaser.Scene
         this.add.image(512, 384, 'box-inside');
  
         this.movesCount = 0;
+        this.lives = 4;
         this.questions = this.registry.get('preguntasDelNivel') || [];
         this.questionOverlayObjects = [];
         this.movesText = this.add.text(20, 20, 'MOVIMIENTOS: 0', {
             fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 3
         });
-
+        this.livesText = this.add.text(20, 50, 'VIDAS: ❤️❤️❤️❤️', {
+            fontFamily: 'Arial', fontSize: '24px', color: '#ff4d4d', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3
+        });
+ 
         window.solve = () => {
             this.nextRound();
         };
@@ -106,11 +111,20 @@ export default class Game extends Phaser.Scene
     startPuzzle (key, rows, columns)
     {
         this.photo = key;
-
+ 
         //  The size if the puzzle, in pieces (not pixels)
         this.rows = rows;
         this.columns = columns;
-
+ 
+        // Clean up any dynamic textures from the global texture manager to prevent restart crashes
+        for (let s = 0; s < 50; s++)
+        {
+            if (this.textures.exists(`slice${s}`))
+            {
+                this.textures.remove(`slice${s}`);
+            }
+        }
+ 
         //  The size of the source image
         const texture = this.textures.getFrame(key);
 
@@ -645,11 +659,23 @@ export default class Game extends Phaser.Scene
                     if (correct) {
                         this.action = 0; // SlidingPuzzle.ALLOW_CLICK
                     } else {
-                        this.triggerGameOver();
+                        this.lives--;
+                        this.updateLivesText();
+                        if (this.lives <= 0) {
+                            this.triggerGameOver();
+                        } else {
+                            this.action = 0; // SlidingPuzzle.ALLOW_CLICK
+                        }
                     }
                 });
             });
         });
+    }
+
+    updateLivesText() {
+        if (this.livesText) {
+            this.livesText.setText('VIDAS: ' + '❤️'.repeat(this.lives));
+        }
     }
 
     triggerGameOver() {

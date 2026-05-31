@@ -48,10 +48,10 @@ export function LandingPage() {
           </section>
 
           <Link
-            className="group relative mt-xl border-4 border-on-background bg-primary-container px-xl py-md shadow-[8px_8px_0_0_#1d1c17] transition-all duration-100 hover:-translate-x-1 hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
+            className="group relative mt-xl border-4 border-on-background bg-primary-container px-md py-sm md:px-xl md:py-md shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] transition-all duration-100 hover:-translate-x-1 hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
             to={routePaths.login}
           >
-            <span className="flex items-center gap-sm font-headline text-2xl font-bold uppercase text-on-primary">
+            <span className="flex items-center gap-sm font-headline text-lg md:text-2xl font-bold uppercase text-on-primary">
               <span className="material-symbols-outlined filled">play_arrow</span>
               Insert coin
             </span>

@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import GameScene from './GameScene';
 import { questions as fallbackQuestions } from '../../questions/questions';
 import api from '../../../services/api';
 import { useAuthStore } from '../../auth/store/authStore';
+import { GameConsoleWrapper } from '../components/GameConsoleWrapper';
 
 type GameQuestion = {
   q: string;
@@ -14,11 +15,9 @@ type GameQuestion = {
 
 type BackendQuestionRow = {
   preguntas_json: Array<{
-    // Normalized format (stored by AI service)
     texto?: string;
     opciones?: string[];
     respuestaCorrecta?: number;
-    // Legacy AI format (fallback, in case old records exist)
     prompt?: string;
     options?: string[];
     correctOptionIndex?: number;
@@ -34,7 +33,11 @@ export const BombGamePage: React.FC = () => {
   const assignmentId = searchParams.get('assignmentId');
   const gameId = searchParams.get('gameId');
 
+  const [gameStarted, setGameStarted] = useState(false);
+
   useEffect(() => {
+    if (!gameStarted) return;
+
     let isMounted = true;
 
     const handleGameQuit = () => {
@@ -69,7 +72,6 @@ export const BombGamePage: React.FC = () => {
           const response = await api.get<BackendQuestionRow[]>(`/games/${gameId}/questions`);
           const apiQuestions = response.data.flatMap((row) =>
             (row.preguntas_json ?? []).map((question) => ({
-              // Support both normalized format and legacy AI format
               q: question.texto ?? question.prompt ?? '',
               options: question.opciones ?? question.options ?? [],
               answer: question.respuestaCorrecta ?? question.correctOptionIndex ?? 0,
@@ -119,64 +121,33 @@ export const BombGamePage: React.FC = () => {
         window.clearInterval(heartbeatInterval);
       }
     };
-  }, [assignmentId, gameId, navigate, user?.role]);
+  }, [assignmentId, gameId, navigate, user?.role, gameStarted]);
+
+  const quitHandler = () => {
+    navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
+  };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-sm md:p-lg">
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
-
-      <button
-        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games')}
-        className="absolute left-md top-md z-20 flex items-center gap-xs border-4 border-on-background bg-surface px-md py-sm font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
-      >
-        <span className="material-symbols-outlined">arrow_back</span>
-        Salir
-      </button>
-
-      <div className="z-10 flex w-full max-w-[800px] flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]">
-        <div className="flex items-center justify-center border-b-8 border-on-background bg-primary px-sm py-md text-on-primary">
-          <h2 className="flex items-center gap-sm font-headline text-2xl font-bold uppercase tracking-widest text-on-primary md:text-4xl">
-            <span className="material-symbols-outlined text-[32px] md:text-[40px]">
-              stadia_controller
-            </span>
-            Arcade
-          </h2>
-        </div>
-
-        <div className="flex w-full justify-center bg-surface-container-lowest p-sm">
-          <div
-            className="relative w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner"
-            style={{
-              aspectRatio: '1 / 1',
-              maxWidth: 'min(100%, calc(100vh - 300px))',
-            }}
-          >
-            <div className="absolute inset-0 z-0 bg-[#4EC0CA]" />
-            <div
-              ref={gameRef}
-              className="absolute inset-0 z-10 flex h-full w-full items-center justify-center"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center border-t-8 border-on-background bg-surface-variant p-md">
-          <div className="flex gap-lg md:gap-xl">
-            <div className="flex flex-col items-center gap-xs">
-              <div className="flex h-12 w-12 items-center justify-center border-4 border-on-background bg-error font-bold text-on-error shadow-[4px_4px_0_0_#1d1c17]">
-                <span className="material-symbols-outlined">space_bar</span>
-              </div>
-              <span className="font-mono text-xs font-bold uppercase">Saltar</span>
-            </div>
-            <div className="flex flex-col items-center gap-xs">
-              <div className="flex h-12 w-24 items-center justify-center gap-sm border-4 border-on-background bg-secondary font-bold text-on-secondary shadow-[4px_4px_0_0_#1d1c17]">
-                <span className="material-symbols-outlined">arrow_left</span>
-                <span className="material-symbols-outlined">arrow_right</span>
-              </div>
-              <span className="font-mono text-xs font-bold uppercase">Mover</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <GameConsoleWrapper
+      title="Quiz Rápido - Lectura"
+      description="Controla al personaje para esquivar bombas, recoger estrellas y responder preguntas sobre textos y lecturas."
+      objective="Recoge todas las estrellas posibles. Si tocas un enemigo o una bomba, se te presentará una pregunta para salvar tu vida. Toca los botiquines para responder preguntas y curarte."
+      controlsPc={[
+        "Moverse: Flechas Izquierda/Derecha o A/D",
+        "Saltar: Barra Espaciadora o Flecha Arriba o W",
+        "Pausar: Tecla ESC"
+      ]}
+      controlsMobile={[
+        "Moverse: Flechas Izquierda/Derecha en el D-Pad",
+        "Saltar: Botón A",
+        "Pausar: Botón Pausa"
+      ]}
+      hasGamepad={true}
+      phaserGameRef={phaserGame}
+      gameRef={gameRef}
+      gameStarted={gameStarted}
+      setGameStarted={setGameStarted}
+      onQuit={quitHandler}
+    />
   );
 };

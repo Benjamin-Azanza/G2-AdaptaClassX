@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const */
 import Phaser from 'phaser';
 
 export default class GameScene extends Phaser.Scene {
@@ -136,6 +136,7 @@ export default class GameScene extends Phaser.Scene {
 
         if (this.input.keyboard) {
             this.cursors = this.input.keyboard.createCursorKeys();
+            this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         }
 
         this.stars = this.physics.add.group({
@@ -227,15 +228,26 @@ export default class GameScene extends Phaser.Scene {
             return;
         }
 
-        const isLeft = (this.cursors && this.cursors.left.isDown) || this.moveLeft;
-        const isRight = (this.cursors && this.cursors.right.isDown) || this.moveRight;
-        const isUp = (this.cursors && this.cursors.space.isDown) || this.jump;
+        let speedMultiplier = 1.0;
+        let isLeft = this.cursors && this.cursors.left.isDown;
+        let isRight = this.cursors && this.cursors.right.isDown;
+        const isUp = (this.cursors && (this.cursors.space.isDown || this.cursors.up.isDown)) || (this.keyZ && this.keyZ.isDown) || this.jump;
+
+        const joystick = (window as any).virtualJoystick;
+        if (joystick && joystick.active) {
+            isLeft = joystick.dx < -0.15;
+            isRight = joystick.dx > 0.15;
+            speedMultiplier = Math.abs(joystick.dx);
+        } else {
+            isLeft = isLeft || this.moveLeft;
+            isRight = isRight || this.moveRight;
+        }
 
         if (isLeft) {
-            this.player.setVelocityX(-160);
+            this.player.setVelocityX(-160 * speedMultiplier);
             this.player.anims.play('left', true);
         } else if (isRight) {
-            this.player.setVelocityX(160);
+            this.player.setVelocityX(160 * speedMultiplier);
             this.player.anims.play('right', true);
         } else {
             this.player.setVelocityX(0);
@@ -527,23 +539,25 @@ export default class GameScene extends Phaser.Scene {
         this.questionModalGroup.add(overlay);
 
         let qText = this.add.text(400, 200, qData.q, {
-            fontSize: '28px', color: '#fff', align: 'center', wordWrap: { width: 700 }
+            fontSize: '34px', color: '#fff', align: 'center', fontStyle: 'bold', wordWrap: { width: 700 },
+            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
         }).setOrigin(0.5);
         this.questionModalGroup.add(qText);
 
         for (let i = 0; i < qData.options.length; i++) {
             let yPos = 350 + (i * 80);
 
-            let btnBg = this.add.rectangle(400, yPos, 400, 60, 0x333333).setInteractive();
-            let btnText = this.add.text(400, yPos, qData.options[i], {
-                fontSize: '24px', color: '#fff'
+            let btnBg = this.add.rectangle(400, yPos, 500, 64, 0x1e293b).setInteractive();
+            let label = String.fromCharCode(65 + i);
+            let btnText = this.add.text(400, yPos, `${label}) ${qData.options[i]}`, {
+                fontSize: '26px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 480 }
             }).setOrigin(0.5);
 
             this.questionModalGroup.add(btnBg);
             this.questionModalGroup.add(btnText);
 
-            btnBg.on('pointerover', () => btnBg.setFillStyle(0x555555));
-            btnBg.on('pointerout', () => btnBg.setFillStyle(0x333333));
+            btnBg.on('pointerover', () => btnBg.setFillStyle(0x334155));
+            btnBg.on('pointerout', () => btnBg.setFillStyle(0x1e293b));
 
             btnBg.on('pointerdown', () => {
                 this.questionModalGroup.clear(true, true);

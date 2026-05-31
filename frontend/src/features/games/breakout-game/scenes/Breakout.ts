@@ -24,6 +24,7 @@ export default class Breakout extends Phaser.Scene {
     private questionOverlayObjects: any[] = [];
     private wordLabels: Phaser.GameObjects.Text[] = [];
     private currentWordQuestion: any = null;
+    private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
     
     // Default list of word bricks vocabulary questions
     private wordQuestionsList = [
@@ -55,6 +56,10 @@ export default class Breakout extends Phaser.Scene {
         this.wordLabels = [];
         
         this.questions = this.registry.get('preguntasDelNivel') || [];
+        if (this.input.keyboard) {
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+        }
 
         this.physics.world.setBoundsCollision(true, true, true, false);
 
@@ -235,8 +240,43 @@ export default class Breakout extends Phaser.Scene {
 
     update() {
         if (this.isQuestionMode) return;
+ 
+        // Keyboard movement and ball launching
+        if (this.cursors && this.paddle) {
+            let speed = 10;
+            const joystick = (window as any).virtualJoystick;
+            if (joystick && joystick.active) {
+                speed = 10 * Math.abs(joystick.dx);
+                if (joystick.dx < 0) {
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 52, 748);
+                } else if (joystick.dx > 0) {
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 52, 748);
+                }
+                if (this.ball && this.ball.getData('onPaddle')) {
+                    this.ball.x = this.paddle.x;
+                }
+            } else {
+                if (this.cursors.left.isDown) {
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 52, 748);
+                    if (this.ball && this.ball.getData('onPaddle')) {
+                        this.ball.x = this.paddle.x;
+                    }
+                } else if (this.cursors.right.isDown) {
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 52, 748);
+                    if (this.ball && this.ball.getData('onPaddle')) {
+                        this.ball.x = this.paddle.x;
+                    }
+                }
+            }
+ 
+            const isLaunchKey = this.cursors.space.isDown || this.cursors.up.isDown || (this.keyZ && this.keyZ.isDown);
+            if (isLaunchKey && this.ball && this.ball.getData('onPaddle')) {
+                this.ball.setVelocity(-75 * this.ballSpeedMultiplier, -350 * this.ballSpeedMultiplier);
+                this.ball.setData('onPaddle', false);
+            }
+        }
 
-        if (this.ball.y > 600) {
+        if (this.ball && this.ball.y > 600) {
             // Ball fell down!
             this.score = Math.max(0, this.score - 50);
             this.scoreText.setText(`Puntos: ${this.score}`);
@@ -289,12 +329,12 @@ export default class Breakout extends Phaser.Scene {
         if (reason === 'BALL_DROP') title = "¡PREGUNTA DE SALVACIÓN!";
         
         const titleText = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
+            fontFamily: 'monospace', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
         const questionText = this.add.text(cx, cy - 120, qData.q, {
-            fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 700 }, align: 'center'
+            fontFamily: 'monospace', fontSize: '26px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 700 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
@@ -303,8 +343,8 @@ export default class Breakout extends Phaser.Scene {
         Phaser.Utils.Array.Shuffle(options);
         const correctIndex = options.indexOf(correctAnswerString);
 
-        const btnW = 300, btnH = 50, gapX = 20, gapY = 16;
-        const gridX = cx - btnW - gapX / 2, gridY = cy - 30;
+        const btnW = 320, btnH = 65, gapX = 24, gapY = 20;
+        const gridX = cx - btnW - gapX / 2, gridY = cy - 40;
 
         options.forEach((option, i) => {
             const col = i % 2, row = Math.floor(i / 2);
@@ -319,7 +359,7 @@ export default class Breakout extends Phaser.Scene {
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 

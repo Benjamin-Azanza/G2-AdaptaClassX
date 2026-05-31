@@ -45,13 +45,13 @@ export function TeacherClassroomPage() {
   return (
     <TeacherShell title="Aula">
       <section className="mb-lg border-b-4 border-on-background pb-md">
-        <h2 className="font-headline text-4xl font-bold uppercase tracking-normal md:text-5xl">Paralelos</h2>
-        <p className="mt-xs max-w-3xl text-lg leading-relaxed text-on-surface-variant">
+        <h2 className="font-headline text-2xl font-bold uppercase tracking-normal md:text-5xl">Paralelos</h2>
+        <p className="mt-xs max-w-3xl text-sm md:text-lg leading-relaxed text-on-surface-variant">
           Administra tus cursos y comparte codigos de acceso para que los estudiantes se unan desde su dashboard.
         </p>
       </section>
 
-      <form onSubmit={createParalelo} className="mb-lg grid gap-sm border-4 border-on-background bg-surface-container-lowest p-md shadow-[8px_8px_0_0_#1d1c17] md:grid-cols-[1fr_180px_auto]">
+      <form onSubmit={createParalelo} className="mb-lg grid gap-md border-4 border-on-background bg-surface-container-lowest p-sm md:p-md shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] md:grid-cols-[1fr_180px_auto]">
         <label className="flex flex-col gap-xs text-sm font-bold uppercase">
           Nombre del paralelo
           <input
@@ -75,7 +75,7 @@ export function TeacherClassroomPage() {
           </select>
         </label>
         <button
-          className="self-end border-2 border-on-background bg-primary px-md py-2 font-headline text-sm font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] disabled:opacity-60"
+          className="w-full md:w-auto self-end border-2 border-on-background bg-primary px-md py-2.5 font-headline text-sm font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] md:shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
           type="submit"
           disabled={isCreating}
         >
@@ -85,13 +85,13 @@ export function TeacherClassroomPage() {
       </form>
 
       {isLoading && (
-        <div className="border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[8px_8px_0_0_#1d1c17]">
+        <div className="border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
           Cargando paralelos
         </div>
       )}
 
       {error && !isLoading && (
-        <div className="border-4 border-on-background bg-error-container p-md text-on-error-container shadow-[8px_8px_0_0_#1d1c17]">
+        <div className="border-4 border-on-background bg-error-container p-md text-on-error-container shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
           {error}
         </div>
       )}
@@ -99,7 +99,7 @@ export function TeacherClassroomPage() {
       {!isLoading && !error && (
         <div className="grid gap-md md:grid-cols-2">
           {paralelos.map((paralelo) => (
-            <article key={paralelo.id} className="border-4 border-on-background bg-surface-container-lowest p-md shadow-[8px_8px_0_0_#1d1c17]">
+            <article key={paralelo.id} className="border-4 border-on-background bg-surface-container-lowest p-sm md:p-md shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
               <div className="flex items-start justify-between gap-sm">
                 <div>
                   <h3 className="font-headline text-2xl font-bold uppercase text-primary">{paralelo.nombre}</h3>

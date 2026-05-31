@@ -142,19 +142,19 @@ class Play extends Phaser.Scene
         }
 
         const titleText = this.add.text(cx, cy - 120, title, {
-            fontFamily: 'monospace', fontSize: '18px', color: '#facc15', fontStyle: 'bold'
+            fontFamily: 'monospace', fontSize: '24px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
         const questionText = this.add.text(cx, cy - 70, this.currentQuestion.q, {
-            fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 560 }, align: 'center'
+            fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 560 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
         const btnW = 500;
-        const btnH = 34;
+        const btnH = 40;
         const gapY = 8;
-        const startY = cy - 10;
+        const startY = cy - 20;
 
         options.forEach((option, i) => {
             const by = startY + i * (btnH + gapY);
@@ -168,7 +168,7 @@ class Play extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 

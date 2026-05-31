@@ -8,13 +8,9 @@ async function bootstrap() {
   if (!cachedApp) {
     const app = await NestFactory.create(AppModule);
 
-    // Enable CORS for frontend
-    const frontendUrl = process.env.FRONTEND_URL;
-    const allowedOrigins = ['http://localhost:5173', 'http://localhost:3001'];
-    if (frontendUrl) allowedOrigins.push(frontendUrl);
-
+    // Enable CORS for frontend (allows local IP addresses and development ports)
     app.enableCors({
-      origin: allowedOrigins,
+      origin: true,
       credentials: true,
     });
 
@@ -44,8 +40,8 @@ export default async function (req: any, res: any) {
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   bootstrap().then((appInstance: any) => {
     const port = process.env.PORT ?? 3000;
-    appInstance.listen(port, () => {
-      console.log(`🚀 Backend running locally on http://localhost:${port}/api`);
+    appInstance.listen(Number(port), '0.0.0.0', () => {
+      console.log(`🚀 Backend running locally on http://0.0.0.0:${port}/api`);
     });
   });
 }

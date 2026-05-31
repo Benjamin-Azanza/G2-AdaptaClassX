@@ -199,6 +199,7 @@ export class GameScene extends Phaser.Scene {
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
     this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
       .on('down', () => this.scene.start(SCENE_KEYS.MainMenu));
@@ -359,7 +360,7 @@ export class GameScene extends Phaser.Scene {
     // Question text
     const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
       fontFamily: 'monospace',
-      fontSize: '22px',
+      fontSize: '26px',
       color: '#ffffff',
       fontStyle: 'bold',
       wordWrap: { width: cam.width - 80 },
@@ -370,19 +371,19 @@ export class GameScene extends Phaser.Scene {
 
     const instrText = this.add.text(cx, cy - 60, '¡SELECCIONA LA RESPUESTA CORRECTA!', {
       fontFamily: 'monospace',
-      fontSize: '16px',
+      fontSize: '18px',
       color: '#facc15',
       shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true },
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
     this.questionOverlayObjects.push(instrText);
 
     // 4 answer buttons in a 2×2 grid
-    const btnW  = 300;
-    const btnH  = 60;
-    const gapX  = 20;
-    const gapY  = 16;
+    const btnW  = 320;
+    const btnH  = 65;
+    const gapX  = 24;
+    const gapY  = 20;
     const gridX = cx - btnW - gapX / 2;
-    const gridY = cy - 20;
+    const gridY = cy - 40;
 
     options.forEach((option, i) => {
       const col = i % 2;
@@ -400,9 +401,9 @@ export class GameScene extends Phaser.Scene {
       const label = String.fromCharCode(65 + i); // A, B, C, D
       const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
         fontFamily: 'monospace',
-        fontSize: '15px',
+        fontSize: '18px',
         color: '#ffffff',
-        wordWrap: { width: btnW - 20 },
+        wordWrap: { width: btnW - 24 },
         align: 'center',
       }).setOrigin(0.5).setDepth(302).setScrollFactor(0);
       this.questionOverlayObjects.push(btnText);
@@ -599,29 +600,50 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const attackJustPressed = Phaser.Input.Keyboard.JustDown(this.attackKey);
+    const attackJustPressed = Phaser.Input.Keyboard.JustDown(this.attackKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
     const isAttacking = this.playerState === 'attack' && this.player.anims.isPlaying;
 
     if (!isAttacking) {
-      if (attackJustPressed) {
-        this._setPlayerState('attack');
-        this.sound.play('sfx-sword', { volume: 0.8 });
-      } else if (input.left || input.right || input.up || input.down) {
-        this._setPlayerState('walk');
-      } else {
-        this._setPlayerState('idle');
-      }
-
-      const rawDx = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-      const rawDy = (input.up   ? -1 : 0) + (input.down  ? 1 : 0);
-      const len   = Math.hypot(rawDx, rawDy);
+      let dx = 0;
+      let dy = 0;
       let speed = getPlayerSpeed(this.roundNumber);
       if (this.hasSpeedBuff) speed *= 2;
-      const dx    = len > 0 ? (rawDx / len) * speed * dt : 0;
-      const dy    = len > 0 ? (rawDy / len) * speed * dt : 0;
 
-      if (input.right) this.facingLeft = false;
-      if (input.left)  this.facingLeft = true;
+      const joystick = (window as any).virtualJoystick;
+      if (joystick && joystick.active) {
+        if (attackJustPressed) {
+          this._setPlayerState('attack');
+          this.sound.play('sfx-sword', { volume: 0.8 });
+        } else if (joystick.intensity > 0.15) {
+          this._setPlayerState('walk');
+        } else {
+          this._setPlayerState('idle');
+        }
+
+        dx = joystick.dx * speed * dt;
+        dy = joystick.dy * speed * dt;
+
+        if (joystick.dx > 0.15) this.facingLeft = false;
+        if (joystick.dx < -0.15) this.facingLeft = true;
+      } else {
+        if (attackJustPressed) {
+          this._setPlayerState('attack');
+          this.sound.play('sfx-sword', { volume: 0.8 });
+        } else if (input.left || input.right || input.up || input.down) {
+          this._setPlayerState('walk');
+        } else {
+          this._setPlayerState('idle');
+        }
+
+        const rawDx = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+        const rawDy = (input.up   ? -1 : 0) + (input.down  ? 1 : 0);
+        const len   = Math.hypot(rawDx, rawDy);
+        dx    = len > 0 ? (rawDx / len) * speed * dt : 0;
+        dy    = len > 0 ? (rawDy / len) * speed * dt : 0;
+
+        if (input.right) this.facingLeft = false;
+        if (input.left)  this.facingLeft = true;
+      }
 
       const cam      = this.cameras.main;
       const halfW    = DISPLAY_FRAME * PIRATE_ORIGIN.x;

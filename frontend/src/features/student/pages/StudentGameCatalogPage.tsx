@@ -30,8 +30,8 @@ export function StudentGameCatalogPage() {
   return (
     <StudentShell title="Catálogo de Juegos">
       <section className="mb-lg border-b-4 border-on-background pb-md">
-        <h2 className="font-headline text-4xl font-bold uppercase">Juegos disponibles</h2>
-        <p className="mt-xs text-on-surface-variant">
+        <h2 className="font-headline text-2xl font-bold uppercase md:text-4xl">Juegos disponibles</h2>
+        <p className="mt-xs text-sm md:text-base text-on-surface-variant">
           Explora todos los juegos educativos. Selecciona uno y empieza a aprender jugando.
         </p>
       </section>
@@ -45,14 +45,14 @@ export function StudentGameCatalogPage() {
           <section key={cat} className="mb-xl">
             <div className="mb-md flex items-center gap-sm">
               <span className="material-symbols-outlined text-primary">category</span>
-              <h3 className="font-headline text-2xl font-bold uppercase">{cat}</h3>
+              <h3 className="font-headline text-xl font-bold uppercase md:text-2xl">{cat}</h3>
             </div>
             <div className="grid grid-cols-1 gap-lg sm:grid-cols-2 lg:grid-cols-3">
               {catGames.map((game) => (
                 <Link
                   key={game.id}
                   to={game.route}
-                  className="group flex flex-col border-4 border-on-background bg-surface-container-lowest shadow-[8px_8px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[4px_4px_0_0_#1d1c17]"
+                  className="group flex flex-col border-4 border-on-background bg-surface-container-lowest shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] md:hover:shadow-[4px_4px_0_0_#1d1c17]"
                 >
                   <div className="relative h-44 overflow-hidden border-b-4 border-on-background bg-primary-fixed">
                     {game.imageUrl ? (

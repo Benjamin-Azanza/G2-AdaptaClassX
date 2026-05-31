@@ -104,17 +104,17 @@ export function StudentShell({ title, children }: StudentShellProps) {
       </aside>
 
       <header className="fixed right-0 top-0 z-40 flex w-full items-center justify-between border-b-4 border-on-background bg-surface px-margin-mobile py-base shadow-[0_4px_0_0_#1d1c17] md:pl-[calc(16rem+48px)] md:pr-margin-desktop">
-        <h1 className="font-headline text-2xl font-bold uppercase text-primary">{title}</h1>
-        <div className="flex items-center gap-sm">
-          <div className="flex items-center gap-xs border-2 border-on-background bg-primary-fixed px-sm py-xs md:hidden">
+        <h1 className="font-headline text-lg font-bold uppercase text-primary md:text-2xl truncate">{title}</h1>
+        <div className="flex items-center gap-xs md:gap-sm flex-shrink-0">
+          <div className="flex items-center gap-xs border-2 border-on-background bg-primary-fixed px-xs py-xs md:px-sm md:hidden">
             <span className="material-symbols-outlined text-sm">star</span>
-            <span className="font-mono text-sm font-bold">{profile.xp} XP</span>
+            <span className="font-mono text-xs font-bold md:text-sm">{profile.xp} XP</span>
           </div>
-          <div className="flex items-center gap-xs border-2 border-on-background bg-surface-container px-sm py-xs">
+          <div className="flex items-center gap-xs border-2 border-on-background bg-surface-container px-xs py-xs md:px-sm">
             <span className="material-symbols-outlined text-sm text-orange-500">
               local_fire_department
             </span>
-            <span className="font-mono text-sm font-bold text-orange-500">{profile.racha}</span>
+            <span className="font-mono text-xs font-bold text-orange-500 md:text-sm">{profile.racha}</span>
           </div>
           <button className="material-symbols-outlined p-xs md:hidden" type="button" onClick={handleLogout}>
             logout
@@ -122,9 +122,30 @@ export function StudentShell({ title, children }: StudentShellProps) {
         </div>
       </header>
 
-      <main className="min-h-screen px-margin-mobile pb-lg pt-[88px] md:ml-64 md:px-lg md:pt-[88px]">
+      <main className="min-h-screen px-margin-mobile pb-24 pt-[72px] md:ml-64 md:px-lg md:pt-[88px] md:pb-lg">
         <div className="mx-auto max-w-[1280px]">{children}</div>
       </main>
+
+      {/* Mobile bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t-4 border-on-background bg-surface px-2 py-1 shadow-[0_-4px_0_0_#1d1c17] md:hidden">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.to}
+            className={({ isActive }) =>
+              [
+                'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-bold uppercase transition-colors',
+                isActive
+                  ? 'text-primary'
+                  : 'text-on-surface-variant',
+              ].join(' ')
+            }
+          >
+            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

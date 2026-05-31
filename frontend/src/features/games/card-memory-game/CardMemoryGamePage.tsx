@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Preloader } from './scenes/Preloader';
 import { Play } from './scenes/Play';
 import api from '../../../services/api';
 import { useAuthStore } from '../../auth/store/authStore';
+import { GameConsoleWrapper } from '../components/GameConsoleWrapper';
 
 type BackendRow = { preguntas_json: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }> };
 
@@ -17,7 +18,11 @@ export const CardMemoryGamePage: React.FC = () => {
   const assignmentId = searchParams.get('assignmentId');
   const gameId = searchParams.get('gameId');
 
+  const [gameStarted, setGameStarted] = useState(false);
+
   useEffect(() => {
+    if (!gameStarted) return;
+
     let isMounted = true;
     const handleQuit = () => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
     window.addEventListener('game:quit', handleQuit);
@@ -61,30 +66,31 @@ export const CardMemoryGamePage: React.FC = () => {
       phaserGame.current = null;
       if (heartbeat) window.clearInterval(heartbeat);
     };
-  }, [assignmentId, gameId, navigate, user?.role]);
+  }, [assignmentId, gameId, navigate, user?.role, gameStarted]);
+
+  const quitHandler = () => {
+    navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
+  };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-sm md:p-lg">
-      <button
-        onClick={() => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games')}
-        className="absolute left-md top-md z-20 flex items-center gap-xs border-4 border-on-background bg-surface px-md py-sm font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"
-      >
-        <span className="material-symbols-outlined">arrow_back</span>
-        Salir
-      </button>
-      <div className="z-10 flex w-full max-w-[860px] flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]">
-        <div className="flex items-center justify-center border-b-8 border-on-background bg-primary px-sm py-md text-on-primary">
-          <h2 className="flex items-center gap-sm font-headline text-2xl font-bold uppercase tracking-widest">
-            <span className="material-symbols-outlined text-[32px]">style</span>
-            Card Memory
-          </h2>
-        </div>
-        <div className="flex w-full justify-center bg-[#192a56] p-sm">
-          <div className="relative w-full overflow-hidden border-4 border-on-background" style={{ aspectRatio: '4/3' }}>
-            <div ref={gameRef} className="absolute inset-0 z-10 flex h-full w-full items-center justify-center" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <GameConsoleWrapper
+      title="Card Memory"
+      description="Encuentra las parejas de cartas iguales y entrena tu memoria en este clásico desafío de cartas."
+      objective="Voltea las cartas de dos en dos y recuerda su ubicación para completar todas las parejas en el menor número de intentos."
+      controlsPc={[
+        "Seleccionar carta: Clic Izquierdo del mouse",
+        "Pausar: Tecla ESC"
+      ]}
+      controlsMobile={[
+        "Seleccionar carta: Toca las cartas directamente",
+        "Pausar: Botón Pausa"
+      ]}
+      hasGamepad={false}
+      phaserGameRef={phaserGame}
+      gameRef={gameRef}
+      gameStarted={gameStarted}
+      setGameStarted={setGameStarted}
+      onQuit={quitHandler}
+    />
   );
 };
