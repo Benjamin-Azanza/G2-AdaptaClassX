@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { routePaths } from '../../../app/router/routePaths';
 import { useAuthStore } from '../../auth/store/authStore';
 import { buildStudentProfile } from '../services/student.service';
+import { NotificationsBell } from '../../notifications/components/NotificationsBell';
 
 interface StudentShellProps {
   title: string;
@@ -87,14 +88,15 @@ export function StudentShell({ title, children }: StudentShellProps) {
                   local_fire_department
                 </span>
                 <span className="font-mono text-xs font-bold text-orange-500">
-                  {profile.racha} dias
+                  {profile.racha} días
                 </span>
               </div>
             </div>
             <button
               className="material-symbols-outlined text-on-surface-variant hover:text-error"
               onClick={handleLogout}
-              title="Cerrar sesion"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
               type="button"
             >
               logout
@@ -116,7 +118,13 @@ export function StudentShell({ title, children }: StudentShellProps) {
             </span>
             <span className="font-mono text-xs font-bold text-orange-500 md:text-sm">{profile.racha}</span>
           </div>
-          <button className="material-symbols-outlined p-xs md:hidden" type="button" onClick={handleLogout}>
+          <NotificationsBell />
+          <button
+            className="material-symbols-outlined p-xs md:hidden"
+            type="button"
+            onClick={handleLogout}
+            aria-label="Cerrar sesión"
+          >
             logout
           </button>
         </div>

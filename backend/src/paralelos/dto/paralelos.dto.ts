@@ -1,8 +1,18 @@
-import { IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Length,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateParaleloDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(80)
   nombre: string;
 
   @IsInt()
@@ -14,5 +24,9 @@ export class CreateParaleloDto {
 export class JoinParaleloDto {
   @IsString()
   @IsNotEmpty()
+  @Length(6, 6)
+  @Matches(/^[A-Z2-9]+$/, {
+    message: 'codigo_acceso must be 6 uppercase alphanumeric chars (no O, 0, I, 1).',
+  })
   codigo_acceso: string;
 }

@@ -13,8 +13,9 @@ export interface LoginPayload {
   password: string;
 }
 
+// The JWT now lives in an httpOnly cookie, so the response body only
+// carries the user profile the SPA needs to render.
 export interface AuthResponse {
-  access_token: string;
   user: AuthUser;
 }
 
@@ -24,4 +25,10 @@ export const authService = {
 
   login: (data: LoginPayload) =>
     api.post<AuthResponse>('/auth/login', data),
+
+  logout: () => api.post<void>('/auth/logout'),
+
+  // Used on app startup to verify the cookie session is still valid
+  // and to rehydrate the user without trusting any client-side store.
+  me: () => api.get<AuthResponse>('/auth/me'),
 };

@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateParaleloDto, JoinParaleloDto } from './dto/paralelos.dto';
 
@@ -12,14 +13,16 @@ export class ParalelosService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Generate a 6-character alphanumeric code.
-   * Excludes confusing characters: O, 0, I, 1
+   * Generate a 6-character alphanumeric access code.
+   * Excludes confusing characters: O, 0, I, 1.
+   * Uses crypto.randomInt (CSPRNG) — this code grants classroom access so
+   * Math.random would be guessable and is treated as an unprotected credential.
    */
   private generateCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars.charAt(randomInt(0, chars.length));
     }
     return code;
   }

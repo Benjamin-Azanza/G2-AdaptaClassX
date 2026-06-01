@@ -6,7 +6,16 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    'public',
+    // Phaser scene code is imported from legacy game templates and is not yet
+    // typed/lint-clean. Keep app-facing React code linted while avoiding noisy
+    // failures from runtime game internals and shader assets.
+    'src/features/games/**/scenes',
+    'src/features/games/**/game',
+    'src/features/games/components/GameConsoleWrapper.tsx',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

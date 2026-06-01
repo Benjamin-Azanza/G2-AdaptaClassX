@@ -7,6 +7,7 @@ export default class GameScene extends Phaser.Scene {
     private bombs!: Phaser.Physics.Arcade.Group;
     private platforms!: Phaser.Physics.Arcade.StaticGroup;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+    private keyZ?: Phaser.Input.Keyboard.Key;
 
     private score: number = 0;
     private scoreText!: Phaser.GameObjects.Text;

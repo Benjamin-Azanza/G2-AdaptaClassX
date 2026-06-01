@@ -1,5 +1,5 @@
-import React, { useState, useEffect, RefObject, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import Phaser from 'phaser';
 
 type GameConsoleWrapperProps = {
@@ -10,7 +10,8 @@ type GameConsoleWrapperProps = {
   controlsMobile: string[];
   hasGamepad: boolean;
   phaserGameRef: React.MutableRefObject<Phaser.Game | null>;
-  gameRef: RefObject<HTMLDivElement>;
+  // React 19's useRef<HTMLDivElement>(null) widens to T | null.
+  gameRef: RefObject<HTMLDivElement | null>;
   gameStarted: boolean;
   setGameStarted: (val: boolean) => void;
   onQuit: () => void;
@@ -35,7 +36,6 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [isBtnAPressed, setIsBtnAPressed] = useState(false);
   const [isBtnBPressed, setIsBtnBPressed] = useState(false);
-  const navigate = useNavigate();
 
   const [joystickState, setJoystickState] = useState({
     active: false,
@@ -47,7 +47,6 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   const joystickAreaRef = useRef<HTMLDivElement>(null);
   const activeKeysRef = useRef({ left: false, right: false, up: false, down: false });
-  const startPosRef = useRef({ x: 0, y: 0 });
 
   // Initialize global virtual joystick object
   useEffect(() => {
@@ -330,15 +329,9 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     };
     document.addEventListener('touchmove', preventTouchMove, { passive: false });
 
-    // 2. Lock body and html overflow/positioning
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalBodyPosition = document.body.style.position;
-    const originalBodyWidth = document.body.style.width;
-    const originalBodyHeight = document.body.style.height;
-    
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const originalHtmlHeight = document.documentElement.style.height;
-
+    // 2. Lock body and html overflow/positioning. Cleanup resets to ''
+    // (the canonical "unset" for style.*) so we don't need to snapshot
+    // the previous values.
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';

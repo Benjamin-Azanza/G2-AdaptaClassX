@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { ACCESS_COOKIE, parseCookies } from '../../common/security/cookies';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -17,7 +18,7 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = this.extractTokenFromHeader(request);
+    const token = this.extractToken(request);
 
     if (!token) {
       throw new UnauthorizedException('Token no proporcionado');
@@ -27,7 +28,6 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-      // Attach user info to request
       (request as any).user = payload;
     } catch {
       throw new UnauthorizedException('Token inválido o expirado');
@@ -36,8 +36,12 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
+  /**
+   * Source of truth is the httpOnly access_token cookie.
+   * The Authorization: Bearer header is no longer accepted — see
+   * CLAUDE.md "JWT en localStorage" for why.
+   */
+  private extractToken(request: Request): string | undefined {
+    return parseCookies(request)[ACCESS_COOKIE];
   }
 }

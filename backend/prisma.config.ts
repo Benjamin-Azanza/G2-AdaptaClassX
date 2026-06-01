@@ -5,8 +5,10 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default {
+  // Prisma 7 reads connection URLs from this config (not from `schema.prisma`).
+  // Use DIRECT_URL for Migrate so DDL doesn't go through the PgBouncer pool.
   datasource: {
-    url: process.env.DATABASE_URL,
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
   },
   migrations: {
     seed: 'ts-node ./prisma/seed.ts',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { routePaths } from '../../../app/router/routePaths';
+import { getDashboardRoute, routePaths } from '../../../app/router/routePaths';
 import { useAuthStore } from '../store/authStore';
 
 export function LoginPage() {
@@ -14,7 +14,7 @@ export function LoginPage() {
     try {
       await login(form);
       const user = useAuthStore.getState().user;
-      navigate(user?.role === 'TEACHER' ? routePaths.teacherDashboard : routePaths.studentDashboard);
+      navigate(getDashboardRoute(user?.role));
     } catch {
       // The store exposes the error for the form.
     }

@@ -28,6 +28,7 @@ export interface StudentGame {
   id: string;
   title: string;
   description: string;
+  categoryCode: string;
   category: string;
   tipo: 'BASE' | 'CAMBIANTE';
   imageUrl?: string;

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthRedirect, ProtectedRoute } from './ProtectedRoute';
 import { routePaths } from './routePaths';
@@ -10,22 +11,78 @@ import { StudentTasksPage } from '../../features/student/pages/StudentTasksPage'
 import { TeacherDashboardPage } from '../../features/teacher/pages/TeacherDashboardPage';
 import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassroomPage';
 import { TeacherQuestionGeneratorPage } from '../../features/teacher/pages/TeacherQuestionGeneratorPage';
-import { BombGamePage } from '../../features/games/bomb-game/BombGamePage';
-import { AvoidGermsGamePage } from '../../features/games/avoid-germs-game/AvoidGermsGamePage';
-import { BankPanicGamePage } from '../../features/games/bank-panic-game/BankPanicGamePage';
-import { BreakoutGamePage } from '../../features/games/breakout-game/BreakoutGamePage';
-import { CardMemoryGamePage } from '../../features/games/card-memory-game/CardMemoryGamePage';
-import { EmojiMatchGamePage } from '../../features/games/emoji-match-game/EmojiMatchGamePage';
-import { SlidingPuzzleGamePage } from '../../features/games/sliding-puzzle-game/SlidingPuzzleGamePage';
-import { SnakeGamePage } from '../../features/games/snake-game/SnakeGamePage';
-import { SnowmenAttackGamePage } from '../../features/games/snowmen-attack-game/SnowmenAttackGamePage';
-import { StackerGamePage } from '../../features/games/stacker-game/StackerGamePage';
-import { TomGamePage } from '../../features/games/tom-game/TomGamePage';
-import { PirateSurvivalGamePage } from '../../features/games/pirate-survival-game/PirateSurvivalGamePage';
+
+const BombGamePage = lazy(() =>
+  import('../../features/games/bomb-game/BombGamePage').then((module) => ({
+    default: module.BombGamePage,
+  })),
+);
+const AvoidGermsGamePage = lazy(() =>
+  import('../../features/games/avoid-germs-game/AvoidGermsGamePage').then((module) => ({
+    default: module.AvoidGermsGamePage,
+  })),
+);
+const BankPanicGamePage = lazy(() =>
+  import('../../features/games/bank-panic-game/BankPanicGamePage').then((module) => ({
+    default: module.BankPanicGamePage,
+  })),
+);
+const BreakoutGamePage = lazy(() =>
+  import('../../features/games/breakout-game/BreakoutGamePage').then((module) => ({
+    default: module.BreakoutGamePage,
+  })),
+);
+const CardMemoryGamePage = lazy(() =>
+  import('../../features/games/card-memory-game/CardMemoryGamePage').then((module) => ({
+    default: module.CardMemoryGamePage,
+  })),
+);
+const EmojiMatchGamePage = lazy(() =>
+  import('../../features/games/emoji-match-game/EmojiMatchGamePage').then((module) => ({
+    default: module.EmojiMatchGamePage,
+  })),
+);
+const SlidingPuzzleGamePage = lazy(() =>
+  import('../../features/games/sliding-puzzle-game/SlidingPuzzleGamePage').then((module) => ({
+    default: module.SlidingPuzzleGamePage,
+  })),
+);
+const SnakeGamePage = lazy(() =>
+  import('../../features/games/snake-game/SnakeGamePage').then((module) => ({
+    default: module.SnakeGamePage,
+  })),
+);
+const SnowmenAttackGamePage = lazy(() =>
+  import('../../features/games/snowmen-attack-game/SnowmenAttackGamePage').then((module) => ({
+    default: module.SnowmenAttackGamePage,
+  })),
+);
+const StackerGamePage = lazy(() =>
+  import('../../features/games/stacker-game/StackerGamePage').then((module) => ({
+    default: module.StackerGamePage,
+  })),
+);
+const TomGamePage = lazy(() =>
+  import('../../features/games/tom-game/TomGamePage').then((module) => ({
+    default: module.TomGamePage,
+  })),
+);
+const PirateSurvivalGamePage = lazy(() =>
+  import('../../features/games/pirate-survival-game/PirateSurvivalGamePage').then((module) => ({
+    default: module.PirateSurvivalGamePage,
+  })),
+);
 
 export function AppRouter() {
   return (
-    <Routes>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-on-surface">
+          <p className="font-headline text-xl font-bold uppercase text-primary">Cargando...</p>
+        </div>
+      }
+    >
+      <Routes>
       <Route path={routePaths.home} element={<LandingPage />} />
       <Route
         path={routePaths.login}
@@ -103,7 +160,8 @@ export function AppRouter() {
       <Route path={routePaths.stackerGame} element={<ProtectedRoute><StackerGamePage /></ProtectedRoute>} />
       <Route path={routePaths.tomGame} element={<ProtectedRoute><TomGamePage /></ProtectedRoute>} />
       <Route path={routePaths.pirateSurvivalGame} element={<ProtectedRoute><PirateSurvivalGamePage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to={routePaths.login} replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to={routePaths.login} replace />} />
+      </Routes>
+    </Suspense>
   );
 }

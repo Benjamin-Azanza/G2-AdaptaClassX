@@ -3,7 +3,8 @@ import type { FormEvent } from 'react';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { TeacherShell } from '../components/TeacherShell';
 import { useParalelos } from '../hooks/useParalelos';
-import { paralelosService } from '../services/paralelos.service';
+import { paralelosService } from '../../paralelos/services/paralelos.service';
+import { AssignTaskForm } from '../../assignments/components/AssignTaskForm';
 
 function formatGrade(grade: number) {
   const labels: Record<number, string> = {
@@ -16,11 +17,30 @@ function formatGrade(grade: number) {
 }
 
 export function TeacherClassroomPage() {
-  const { paralelos, isLoading, error } = useParalelos();
+  const { paralelos, isLoading, error, refresh } = useParalelos();
   const [copiedCode, setCopiedCode] = useState('');
   const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ nombre: '', grado: 3 });
+  // Track which paralelo is currently archiving so we can disable its button.
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  // The "Asignar tarea" form is collapsed by default to keep the card clean.
+  const [openAssignFor, setOpenAssignFor] = useState<string | null>(null);
+
+  const handleArchive = async (id: string) => {
+    setArchiveError(null);
+    setArchivingId(id);
+    try {
+      await paralelosService.archive(id);
+      await refresh();
+    } catch (requestError: unknown) {
+      setArchiveError(getApiErrorMessage(requestError, 'No se pudo archivar el paralelo.'));
+    } finally {
+      setArchivingId(null);
+    }
+  };
 
   const copyAccessCode = async (code: string) => {
     await navigator.clipboard.writeText(code);
@@ -30,11 +50,14 @@ export function TeacherClassroomPage() {
   const createParalelo = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError('');
+    setCreateSuccess('');
     setIsCreating(true);
 
     try {
       await paralelosService.create(form);
-      window.location.reload();
+      setForm({ nombre: '', grado: 3 });
+      setCreateSuccess('Paralelo creado.');
+      await refresh();
     } catch (requestError: unknown) {
       setCreateError(getApiErrorMessage(requestError, 'No se pudo crear el paralelo'));
     } finally {
@@ -82,6 +105,9 @@ export function TeacherClassroomPage() {
           {isCreating ? 'Creando' : 'Crear paralelo'}
         </button>
         {createError && <p className="text-sm font-bold text-error md:col-span-3">{createError}</p>}
+        {createSuccess && !createError && (
+          <p className="text-sm font-bold text-primary md:col-span-3">{createSuccess}</p>
+        )}
       </form>
 
       {isLoading && (
@@ -127,9 +153,41 @@ export function TeacherClassroomPage() {
               <p className="mt-md text-sm font-medium text-on-surface-variant">
                 {paralelo._count?.students ?? 0} estudiantes registrados
               </p>
+
+              {paralelo.activo && (
+                <div className="mt-md flex flex-wrap items-center gap-sm">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenAssignFor((current) => (current === paralelo.id ? null : paralelo.id))
+                    }
+                    className="border-2 border-on-background bg-secondary px-sm py-xs text-sm font-bold uppercase text-on-secondary shadow-[2px_2px_0_0_#1d1c17]"
+                  >
+                    {openAssignFor === paralelo.id ? 'Cerrar' : 'Asignar tarea'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleArchive(paralelo.id)}
+                    disabled={archivingId === paralelo.id}
+                    className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
+                  >
+                    {archivingId === paralelo.id ? 'Archivando…' : 'Archivar'}
+                  </button>
+                </div>
+              )}
+
+              {openAssignFor === paralelo.id && (
+                <AssignTaskForm paraleloId={paralelo.id} onAssigned={() => setOpenAssignFor(null)} />
+              )}
             </article>
           ))}
         </div>
+      )}
+
+      {archiveError && (
+        <p className="mt-md border-2 border-error bg-error-container px-sm py-2 text-sm font-bold text-on-error-container">
+          {archiveError}
+        </p>
       )}
     </TeacherShell>
   );

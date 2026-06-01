@@ -14,7 +14,7 @@ interface BackendGame {
 
 const temaLabels: Record<string, string> = {
   LENGUA_CULTURA: 'Lengua y Cultura',
-  COMUNICACION_ORAL: 'Comunicacion Oral',
+  COMUNICACION_ORAL: 'Comunicación Oral',
   LECTURA: 'Lectura',
   ESCRITURA: 'Escritura',
   LITERATURA: 'Literatura',
@@ -36,6 +36,7 @@ function mapBackendGame(game: BackendGame): StudentGame {
     id: game.id,
     title: game.titulo,
     description: game.descripcion ?? 'Juego educativo disponible.',
+    categoryCode: game.tema,
     category: mapTemaToLabel(game.tema),
     tipo: game.tipo,
     imageUrl: game.thumbnail_url ?? undefined,
@@ -44,12 +45,27 @@ function mapBackendGame(game: BackendGame): StudentGame {
   };
 }
 
+// 1000 XP per level keeps the dashboard's `xpProgress = (xp % 1000) / 10`
+// calculation consistent with the level number we expose.
+const XP_PER_LEVEL = 1000;
+
+function buildLevelTitle(nivel: number): string {
+  if (nivel >= 10) return 'Maestro de Lengua';
+  if (nivel >= 5) return 'Lector avanzado';
+  if (nivel >= 2) return 'Explorador en progreso';
+  return 'Aprendiz';
+}
+
 export function buildStudentProfile(user: AuthUser | null | undefined): StudentProfile {
+  const xp = user?.puntos_xp ?? 0;
+  const racha = user?.racha_dias ?? 0;
+  const nivel = Math.floor(xp / XP_PER_LEVEL) + 1;
+
   return {
-    xp: 0,
-    racha: 0,
-    nivel: 1,
-    titulo: 'Explorador en progreso',
+    xp,
+    racha,
+    nivel,
+    titulo: buildLevelTitle(nivel),
     paralelo: user?.paralelo_id
       ? {
           id: user.paralelo_id,

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import type { Paralelo } from '../types/paralelo.types';
+import { useState } from 'react';
+import type { Paralelo } from '../../paralelos/types/paralelo.types';
 import type { TeacherGame } from '../../games/types/game.types';
 
 interface ManualQuestion {
@@ -22,18 +22,13 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
   const [targetGameId, setTargetGameId] = useState('');
   const [selectedParaleloId, setSelectedParaleloId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (paralelos.length > 0 && !selectedParaleloId) {
-      setSelectedParaleloId(paralelos[0].id);
-    }
-  }, [paralelos, selectedParaleloId]);
-
-  useEffect(() => {
-    if (games.length > 0 && !targetGameId) {
-      setTargetGameId(games[0].id);
-    }
-  }, [games, targetGameId]);
+  const [validationError, setValidationError] = useState('');
+  const selectedParaleloValue = paralelos.some((p) => p.id === selectedParaleloId)
+    ? selectedParaleloId
+    : (paralelos[0]?.id ?? '');
+  const targetGameValue = games.some((game) => game.id === targetGameId)
+    ? targetGameId
+    : (games[0]?.id ?? '');
 
   const handleAddQuestion = () => {
     setQuestions([...questions, { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
@@ -58,26 +53,30 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
   };
 
   const handleSave = async () => {
-    if (!targetGameId || !selectedParaleloId) {
-      alert('Selecciona un paralelo y un juego destino.');
+    setValidationError('');
+    if (!targetGameValue || !selectedParaleloValue) {
+      setValidationError('Selecciona un paralelo y un juego destino.');
       return;
     }
 
-    // Validation
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.texto.trim() || q.opciones.some(opt => !opt.trim())) {
-        alert(`La pregunta ${i + 1} está incompleta. Asegúrate de llenar la pregunta y todas sus opciones.`);
+      if (!q.texto.trim() || q.opciones.some((opt) => !opt.trim())) {
+        setValidationError(
+          `La pregunta ${i + 1} está incompleta. Llena la pregunta y todas sus opciones.`,
+        );
         return;
       }
     }
 
     try {
       setIsSaving(true);
-      await onSave(targetGameId, selectedParaleloId, questions);
+      await onSave(targetGameValue, selectedParaleloValue, questions);
       // Reset after save
       setQuestions([{ texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
     } catch (error) {
+      // The parent component shows the network error in its banner —
+      // here we just stop the spinner.
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -96,7 +95,7 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
           Paralelo de destino
           <select
             className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-            value={selectedParaleloId}
+            value={selectedParaleloValue}
             onChange={(event) => setSelectedParaleloId(event.target.value)}
           >
             <option value="">Selecciona un paralelo...</option>
@@ -112,7 +111,7 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
           Juego destino
           <select
             className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            value={targetGameId}
+            value={targetGameValue}
             onChange={(event) => setTargetGameId(event.target.value)}
             disabled={gamesLoading || games.length === 0}
           >
@@ -180,6 +179,12 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
           </div>
         ))}
       </div>
+
+      {validationError && (
+        <p className="border-2 border-error bg-error-container px-sm py-2 text-sm font-bold text-on-error-container">
+          {validationError}
+        </p>
+      )}
 
       <div className="flex flex-col md:flex-row gap-md mt-sm">
         <button

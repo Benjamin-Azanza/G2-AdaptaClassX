@@ -1,76 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import Phaser from 'phaser';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Preloader } from './scenes/Preloader';
 import { Play } from './scenes/Play';
-import api from '../../../services/api';
-import { useAuthStore } from '../../auth/store/authStore';
 import { GameConsoleWrapper } from '../components/GameConsoleWrapper';
-
-type BackendRow = { preguntas_json: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }> };
+import { useGameSession } from '../hooks/useGameSession';
 
 export const CardMemoryGamePage: React.FC = () => {
-  const gameRef = useRef<HTMLDivElement>(null);
-  const phaserGame = useRef<Phaser.Game | null>(null);
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const [searchParams] = useSearchParams();
-  const assignmentId = searchParams.get('assignmentId');
-  const gameId = searchParams.get('gameId');
-
-  const [gameStarted, setGameStarted] = useState(false);
-
-  useEffect(() => {
-    if (!gameStarted) return;
-
-    let isMounted = true;
-    const handleQuit = () => navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
-    window.addEventListener('game:quit', handleQuit);
-
-    async function initGame() {
-      if (!gameRef.current || phaserGame.current) return;
-      let questions: Array<{ q: string; options: string[]; answer: number }> = [];
-      if (gameId) {
-        try {
-          const res = await api.get<BackendRow[]>(`/games/${gameId}/questions`);
-          questions = res.data.flatMap((r) =>
-            (r.preguntas_json ?? []).map((q) => ({ q: q.texto, options: q.opciones, answer: q.respuestaCorrecta })),
-          );
-        } catch { /* sin preguntas */ }
-      }
-      if (!isMounted) return;
-
-      phaserGame.current = new Phaser.Game({
+  // The original implementation didn't fall back to the built-in question
+  // bank — keep that behavior so a missing /games/:id/questions response
+  // leaves the registry empty (the scene already handles that case).
+  const { gameRef, phaserGame, gameStarted, setGameStarted, quitHandler } = useGameSession(
+    (parent) =>
+      new Phaser.Game({
         type: Phaser.AUTO,
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
         backgroundColor: '#192a56',
-        parent: gameRef.current,
+        parent,
         render: { pixelArt: true },
         scene: [Preloader, Play],
-      });
-      phaserGame.current.registry.set('preguntasDelNivel', questions);
-    }
-    void initGame();
-
-    let heartbeat: number | null = null;
-    if (assignmentId) {
-      heartbeat = window.setInterval(async () => {
-        try { await api.post('/progress/heartbeat', { assignment_id: assignmentId, played_minutes: 0.5 }); } catch { /* ignore */ }
-      }, 30000);
-    }
-    return () => {
-      isMounted = false;
-      window.removeEventListener('game:quit', handleQuit);
-      phaserGame.current?.sound?.stopAll();
-      phaserGame.current?.destroy(true);
-      phaserGame.current = null;
-      if (heartbeat) window.clearInterval(heartbeat);
-    };
-  }, [assignmentId, gameId, navigate, user?.role, gameStarted]);
-
-  const quitHandler = () => {
-    navigate(user?.role === 'TEACHER' ? '/teacher/dashboard' : '/student/games');
-  };
+      }),
+    { useFallback: false },
+  );
 
   return (
     <GameConsoleWrapper
@@ -78,12 +28,12 @@ export const CardMemoryGamePage: React.FC = () => {
       description="Encuentra las parejas de cartas iguales y entrena tu memoria en este clásico desafío de cartas."
       objective="Voltea las cartas de dos en dos y recuerda su ubicación para completar todas las parejas en el menor número de intentos."
       controlsPc={[
-        "Seleccionar carta: Clic Izquierdo del mouse",
-        "Pausar: Tecla ESC"
+        'Seleccionar carta: Clic Izquierdo del mouse',
+        'Pausar: Tecla ESC',
       ]}
       controlsMobile={[
-        "Seleccionar carta: Toca las cartas directamente",
-        "Pausar: Botón Pausa"
+        'Seleccionar carta: Toca las cartas directamente',
+        'Pausar: Botón Pausa',
       ]}
       hasGamepad={false}
       phaserGameRef={phaserGame}

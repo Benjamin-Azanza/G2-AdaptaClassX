@@ -2,38 +2,35 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/store/authStore';
 import type { UserRole } from '../../types/auth';
-import { routePaths } from './routePaths';
+import { getDashboardRoute, routePaths } from './routePaths';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRole?: UserRole;
 }
 
-function getDashboardByRole(role: UserRole) {
-  return role === 'TEACHER'
-    ? routePaths.teacherDashboard
-    : routePaths.studentDashboard;
-}
-
 export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
-  const { user, token } = useAuthStore();
+  // Session lives in the httpOnly cookie, not in JS state. Presence of a
+  // hydrated `user` is our only proxy for "logged in"; the cookie is the
+  // server-side source of truth and is validated on every API call.
+  const { user } = useAuthStore();
 
-  if (!token || !user) {
+  if (!user) {
     return <Navigate to={routePaths.login} replace />;
   }
 
   if (allowedRole && user.role !== allowedRole) {
-    return <Navigate to={getDashboardByRole(user.role)} replace />;
+    return <Navigate to={getDashboardRoute(user.role)} replace />;
   }
 
   return <>{children}</>;
 }
 
 export function AuthRedirect({ children }: { children: ReactNode }) {
-  const { user, token } = useAuthStore();
+  const { user } = useAuthStore();
 
-  if (token && user) {
-    return <Navigate to={getDashboardByRole(user.role)} replace />;
+  if (user) {
+    return <Navigate to={getDashboardRoute(user.role)} replace />;
   }
 
   return <>{children}</>;

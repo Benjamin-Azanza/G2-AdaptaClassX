@@ -109,13 +109,39 @@ export class AuthService {
 
     return {
       access_token: token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        nombre: user.teacher?.nombre || user.student?.nombre,
-        paralelo_id: user.student?.paralelo_id ?? null,
-      },
+      user: this.toAuthUser(user),
+    };
+  }
+
+  /**
+   * Used by GET /auth/me to rehydrate the SPA after a refresh,
+   * without exposing the JWT to JavaScript.
+   */
+  async findById(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { teacher: true, student: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+    return this.toAuthUser(user);
+  }
+
+  /**
+   * Single projection of the User aggregate into the shape the SPA consumes.
+   * Includes the gamification fields (`puntos_xp`, `racha_dias`) so the
+   * student dashboard can render real progress instead of placeholders.
+   */
+  private toAuthUser(user: any) {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      nombre: user.teacher?.nombre || user.student?.nombre,
+      paralelo_id: user.student?.paralelo_id ?? null,
+      puntos_xp: user.student?.puntos_xp ?? 0,
+      racha_dias: user.student?.racha_dias ?? 0,
     };
   }
 
@@ -232,18 +258,22 @@ export class AuthService {
       }
     }
 
+    // After the streak update above, reload the student so the response
+    // reflects the new racha_dias / puntos_xp instead of stale values.
+    const refreshed =
+      user.role === Role.STUDENT
+        ? await this.prisma.user.findUnique({
+            where: { id: user.id },
+            include: { student: true, teacher: true },
+          })
+        : user;
+
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
     return {
       access_token: token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        nombre: user.teacher?.nombre || user.student?.nombre,
-        paralelo_id: user.student?.paralelo_id ?? null,
-      },
+      user: this.toAuthUser(refreshed ?? user),
     };
   }
 }

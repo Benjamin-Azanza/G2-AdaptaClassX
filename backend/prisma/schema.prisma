@@ -84,6 +84,12 @@ model Teacher {
   @@map("teachers")
 }
 
+// Tabla "cedulas_autorizadas" existe en la DB (migration 20260510220527_init)
+// pero NO se mapea aquí porque Prisma 7 + adapter-pg rechaza modelos sin
+// relación a otros mapeados cuando se inicializa el client. La tabla queda
+// inerte (drift) hasta que el dominio la necesite. Si en el futuro `prisma
+// migrate dev` intenta dropearla, mover la migration sql a una nueva.
+
 // ─── Paralelos ───────────────────────────────────────────
 
 model Paralelo {

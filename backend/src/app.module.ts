@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module';
@@ -9,6 +10,7 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { ProgressModule } from './progress/progress.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
+import { CsrfGuard } from './common/security/csrf.guard';
 
 @Module({
   imports: [
@@ -21,12 +23,23 @@ import { AiModule } from './ai/ai.module';
         JWT_EXPIRES_IN: Joi.string().default('7d'),
         PORT: Joi.number().default(3000),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-        FRONTEND_URL: Joi.string().uri().optional(),
+        // FRONTEND_URL is required in production for CORS allowlist (see main.ts).
+        FRONTEND_URL: Joi.string().when('NODE_ENV', {
+          is: 'production',
+          then: Joi.required(),
+          otherwise: Joi.optional(),
+        }),
         OPENAI_API_KEY: Joi.string().optional(), // alias for AI_API_KEY
         AI_API_KEY: Joi.string().optional(),     // preferred key name (OpenRouter / any provider)
         AI_API_URL: Joi.string().uri().optional().default('https://api.openai.com/v1'),
         AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'), // Override to swap models without code changes
-      }),
+        // Optional — when set, the AI flow persists question drafts between
+        // /generate-questions and /save-questions for 30 min. Missing is fine
+        // (drafts just won't survive a tab reload).
+        REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).optional(),
+      })
+        // Require at least one AI key so the AiService never starts unauthenticated.
+        .or('AI_API_KEY', 'OPENAI_API_KEY'),
     }),
     PrismaModule,
     AuthModule,
@@ -36,6 +49,11 @@ import { AiModule } from './ai/ai.module';
     ProgressModule,
     NotificationsModule,
     AiModule,
+  ],
+  providers: [
+    // Global double-submit CSRF guard. Runs on every request; safe methods
+    // and handlers marked @SkipCsrf() (login, register) bypass it.
+    { provide: APP_GUARD, useClass: CsrfGuard },
   ],
 })
 export class AppModule {}
