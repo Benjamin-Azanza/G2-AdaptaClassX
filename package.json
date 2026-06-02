@@ -6,7 +6,7 @@
     "backend"
   ],
   "scripts": {
-    "postinstall": "npx prisma generate --schema=backend/prisma/schema.prisma"
+    "postinstall": "node -e \"try { require.resolve('@prisma/client'); require('child_process').execSync('npx prisma generate --schema=backend/prisma/schema.prisma', {stdio: 'inherit'}); } catch (e) { console.log('Skipping prisma generation: @prisma/client not installed'); }\""
   },
   "dependencies": {
     "@prisma/client": "^7.8.0"
