@@ -83,24 +83,3 @@ export const studentGamesService = {
   },
 };
 
-export const studentAssignmentsService = {
-  async getMyAssignments(): Promise<{
-    pending: StudentAssignment[];
-    completed: StudentAssignment[];
-  }> {
-    const response = await api.get<{
-      pending: StudentAssignment[];
-      completed: StudentAssignment[];
-    }>('/assignments/my');
-
-    const normalizeTask = (task: StudentAssignment): StudentAssignment => ({
-      ...task,
-      gameCategory: mapTemaToLabel(task.gameCategory),
-    });
-
-    return {
-      pending: response.data.pending.map(normalizeTask),
-      completed: response.data.completed.map(normalizeTask),
-    };
-  },
-};

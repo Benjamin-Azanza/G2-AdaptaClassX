@@ -6,26 +6,26 @@ import { MyParaleloCard } from '../components/MyParaleloCard';
 import { useAuthStore } from '../../auth/store/authStore';
 import {
   buildStudentProfile,
-  studentAssignmentsService,
   studentGamesService,
 } from '../services/student.service';
+import { missionsService } from '../../missions/services/missions.service';
+import type { StudentMissionItem } from '../../missions/services/missions.service';
 import { routePaths } from '../../../app/router/routePaths';
-import type { StudentAssignment, StudentGame } from '../types/student.types';
+import type { StudentGame } from '../types/student.types';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
+import {
+  achievementsService,
+  type AchievementItem,
+} from '../../achievements/services/achievements.service';
 
-// All badges are placeholders until a real achievement system exists in the
-// backend. Keeping them locked is the honest visual state (vs. the previous
-// mocked "unlocked" labels that never matched reality).
-const BADGES = [
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-  { icon: 'lock', bg: 'bg-surface-variant', label: '???' },
-];
+function getMissionTitle(tipo: string, goal: number) {
+  if (tipo === 'PLAY_TIME') return `Jugar ${goal} minutos`;
+  if (tipo === 'PLAY_DISTINCT') return `Jugar ${goal} juegos diferentes`;
+  if (tipo === 'ANSWER_CORRECT') return `Responder ${goal} preguntas correctamente`;
+  return `Misión de objetivo ${goal}`;
+}
 
-function formatRelative(iso: string | undefined): string {
+function formatRelative(iso: string | undefined | null): string {
   if (!iso) return '';
   const completedAt = new Date(iso);
   const diffMs = Date.now() - completedAt.getTime();
@@ -40,9 +40,11 @@ export function StudentDashboardPage() {
   const { user } = useAuthStore();
   const profile = buildStudentProfile(user);
   const [games, setGames] = useState<StudentGame[]>([]);
-  const [recentCompleted, setRecentCompleted] = useState<StudentAssignment[]>([]);
+  const [recentCompleted, setRecentCompleted] = useState<StudentMissionItem[]>([]);
+  const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [gamesError, setGamesError] = useState('');
   const [assignmentsError, setAssignmentsError] = useState('');
+  const [achievementsError, setAchievementsError] = useState('');
   const firstName = user?.nombre?.split(' ')[0] ?? 'Estudiante';
   const xpProgress = (profile.xp % 1000) / 10;
   const xpToNext = 1000 - (profile.xp % 1000);
@@ -61,8 +63,8 @@ export function StudentDashboardPage() {
   const loadRecentAssignments = useCallback(() => {
     if (!user?.paralelo_id) return;
     setAssignmentsError('');
-    studentAssignmentsService
-      .getMyAssignments()
+    missionsService
+      .getMyMissions()
       .then((data) => setRecentCompleted(data.completed.slice(0, 3)))
       .catch((requestError: unknown) => {
         setRecentCompleted([]);
@@ -71,6 +73,19 @@ export function StudentDashboardPage() {
         );
       });
   }, [user?.paralelo_id]);
+
+  const loadAchievements = useCallback(() => {
+    setAchievementsError('');
+    achievementsService
+      .getMyAchievements()
+      .then(setAchievements)
+      .catch((requestError: unknown) => {
+        setAchievements([]);
+        setAchievementsError(
+          getApiErrorMessage(requestError, 'No pudimos cargar tus logros.'),
+        );
+      });
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(loadGames, 0);
@@ -82,6 +97,11 @@ export function StudentDashboardPage() {
     const timer = window.setTimeout(loadRecentAssignments, 0);
     return () => window.clearTimeout(timer);
   }, [loadRecentAssignments]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadAchievements, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadAchievements]);
 
   return (
     <StudentShell title="Mi Panel">
@@ -162,22 +182,56 @@ export function StudentDashboardPage() {
         <div className="border-4 border-on-background bg-surface-container-lowest p-md shadow-[8px_8px_0_0_#1d1c17] lg:col-span-7">
           <div className="mb-md flex items-center justify-between border-b-2 border-on-background pb-sm">
             <h3 className="font-headline text-xl font-bold uppercase">Sala de Trofeos</h3>
-            <span className="font-mono text-xs uppercase text-on-surface-variant">Próximamente</span>
+            <span className="font-mono text-xs uppercase text-on-surface-variant">
+              {achievements.length > 0
+                ? `${achievements.filter((a) => a.earned).length}/${achievements.length}`
+                : ''}
+            </span>
           </div>
-          <div className="flex flex-wrap gap-md">
-            {BADGES.map((badge, index) => (
-              <div key={index} className="group flex flex-col items-center gap-xs opacity-40 grayscale">
+          {achievementsError ? (
+            <div className="border-2 border-on-background bg-error-container p-sm text-on-error-container">
+              <p className="text-sm font-bold">{achievementsError}</p>
+              <button
+                type="button"
+                onClick={loadAchievements}
+                className="mt-xs font-mono text-xs font-bold uppercase text-primary hover:underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : achievements.length === 0 ? (
+            <p className="font-mono text-xs uppercase text-on-surface-variant">
+              Aún no hay logros disponibles.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-md">
+              {achievements.map((badge) => (
                 <div
-                  className={`flex h-16 w-16 items-center justify-center rounded-full border-2 border-on-background ${badge.bg} shadow-[4px_4px_0_0_#1d1c17]`}
+                  key={badge.codigo}
+                  title={badge.descripcion}
+                  className={`group flex flex-col items-center gap-xs ${
+                    badge.earned ? '' : 'opacity-40 grayscale'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-2xl">{badge.icon}</span>
+                  <div
+                    className={`flex h-16 w-16 items-center justify-center rounded-full border-2 border-on-background shadow-[4px_4px_0_0_#1d1c17] ${
+                      badge.earned ? 'bg-tertiary text-on-tertiary' : 'bg-surface-variant'
+                    }`}
+                  >
+                    <span
+                      className="material-symbols-outlined text-2xl"
+                      style={badge.earned ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                    >
+                      {badge.earned ? badge.icon : 'lock'}
+                    </span>
+                  </div>
+                  <span className="max-w-[64px] text-center font-mono text-[10px] font-bold uppercase leading-tight">
+                    {badge.earned ? badge.nombre : '???'}
+                  </span>
                 </div>
-                <span className="max-w-[64px] text-center font-mono text-[10px] font-bold uppercase leading-tight">
-                  {badge.label}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="border-4 border-on-background bg-surface-container p-md shadow-[8px_8px_0_0_#1d1c17] lg:col-span-5">
@@ -215,16 +269,16 @@ export function StudentDashboardPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-sm font-bold uppercase truncate">
-                        {task.gameTitle}
+                        {getMissionTitle(task.tipo, task.goal_value)}
                       </p>
                       <p className="text-xs text-on-surface-variant truncate">
-                        {formatRelative(task.completadoAt)}
+                        {formatRelative(task.completed_at)}
                       </p>
                     </div>
                   </div>
-                  {task.xpGanado ? (
+                  {task.xp_ganado ? (
                     <p className="font-headline text-lg font-bold flex-shrink-0 text-primary">
-                      +{task.xpGanado} XP
+                      +{task.xp_ganado} XP
                     </p>
                   ) : null}
                 </div>
@@ -331,6 +385,13 @@ export function StudentDashboardPage() {
         >
           <span className="material-symbols-outlined">rocket_launch</span>
           Mis Tareas
+        </Link>
+        <Link
+          to={routePaths.studentLeaderboard}
+          className="flex items-center gap-sm border-4 border-on-background bg-surface-container-lowest px-xl py-md font-headline text-lg font-bold uppercase shadow-[8px_8px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[4px_4px_0_0_#1d1c17]"
+        >
+          <span className="material-symbols-outlined">leaderboard</span>
+          Clasificación
         </Link>
       </section>
     </StudentShell>

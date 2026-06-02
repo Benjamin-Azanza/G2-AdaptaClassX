@@ -6,10 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MissionType } from '@prisma/client';
 import { CreateMissionDto } from './dto/create-mission.dto';
+import { AchievementsService } from '../achievements/achievements.service';
 
 @Injectable()
 export class MissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly achievementsService: AchievementsService,
+  ) {}
 
   async create(dto: CreateMissionDto, teacherId: string) {
     const paralelo = await this.prisma.paralelo.findUnique({
@@ -315,7 +319,27 @@ export class MissionsService {
             puntos_xp: { increment: 100 },
           },
         });
+
+        // Confirm the completion to the student via the notifications bell.
+        // Fires exactly once per mission (gated by the same xp_otorgado flag).
+        const goalLabelMap: Record<MissionType, string> = {
+          [MissionType.PLAY_TIME]: `${mission.goal_value} minutos de juego`,
+          [MissionType.PLAY_DISTINCT]: `${mission.goal_value} juegos distintos`,
+          [MissionType.ANSWER_CORRECT]: `${mission.goal_value} respuestas correctas`,
+        };
+        await this.prisma.notification.create({
+          data: {
+            student_id: studentId,
+            mission_id: mission.id,
+            mensaje: `¡Misión completada! Ganaste 100 XP por lograr ${goalLabelMap[mission.tipo]}.`,
+          },
+        });
       }
     }
+
+    // Mission progress is now up to date — re-evaluate achievements that may
+    // have just unlocked from this gameplay (first mission, perfect game,
+    // marathon, etc.). Idempotent and safe to call on every recalculation.
+    await this.achievementsService.evaluateFor(studentId);
   }
 }

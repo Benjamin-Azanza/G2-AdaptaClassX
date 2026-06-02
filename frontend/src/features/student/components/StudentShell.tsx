@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Inicio', icon: 'home', to: routePaths.studentDashboard },
   { label: 'Juegos', icon: 'stadia_controller', to: routePaths.studentGames },
   { label: 'Mis Tareas', icon: 'assignment', to: routePaths.studentTasks },
+  { label: 'Ranking', icon: 'leaderboard', to: routePaths.studentLeaderboard },
 ];
 
 export function StudentShell({ title, children }: StudentShellProps) {

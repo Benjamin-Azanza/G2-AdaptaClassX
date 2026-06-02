@@ -7,6 +7,7 @@ export const routePaths = {
   studentDashboard: '/student/dashboard',
   studentGames: '/student/games',
   studentTasks: '/student/tasks',
+  studentLeaderboard: '/student/leaderboard',
   studentResult: '/student/result',
   teacherDashboard: '/teacher/dashboard',
   teacherClassroom: '/teacher/classroom',

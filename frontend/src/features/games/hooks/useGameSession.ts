@@ -100,9 +100,14 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
       api.post(`/game-sessions/${sessionIdRef.current}/attempt`, {
         question_id,
         correcta: correct,
-      }).catch((err) => {
-        console.error('Failed to post question attempt', err);
-      });
+      })
+        .then(() => {
+          // Backend recalculated mission progress; nudge the in-game overlay.
+          window.dispatchEvent(new CustomEvent('mission:refresh'));
+        })
+        .catch((err) => {
+          console.error('Failed to post question attempt', err);
+        });
     };
 
     window.addEventListener('game:quit', handleQuit);
@@ -124,6 +129,10 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
                 api
                   .post(`/game-sessions/${sessionIdRef.current}/heartbeat`, {
                     played_minutes: HEARTBEAT_MINUTES,
+                  })
+                  .then(() => {
+                    // Time-based missions advanced; refresh the overlay.
+                    window.dispatchEvent(new CustomEvent('mission:refresh'));
                   })
                   .catch((err) => {
                     console.error('Heartbeat failed', err);

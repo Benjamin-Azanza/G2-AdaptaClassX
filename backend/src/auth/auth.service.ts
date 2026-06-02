@@ -20,6 +20,10 @@ export class AuthService {
     if (!user) return;
 
     if (user.role === Role.STUDENT) {
+      // Delete unlocked achievements
+      await this.prisma.studentAchievement.deleteMany({
+        where: { student_id: userId },
+      });
       // Delete student question attempts
       await this.prisma.questionAttempt.deleteMany({
         where: { student_id: userId },
@@ -227,9 +231,17 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales invalidas');
     }
 
+    // XP awarded for today's streak login. Stays 0 when the student already
+    // logged in today (diffDays === 0) or is a teacher.
+    let streakBonusXp = 0;
+
     if (user.role === Role.STUDENT && user.student) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+
+      // The streak value after this login, or null when no change applies
+      // (already logged in today → no bonus, no update).
+      let newRacha: number | null = null;
 
       if (user.student.last_login_date) {
         const lastLogin = new Date(user.student.last_login_date);
@@ -239,28 +251,25 @@ export class AuthService {
         );
 
         if (diffDays === 1) {
-          await this.prisma.student.update({
-            where: { user_id: user.id },
-            data: {
-              racha_dias: { increment: 1 },
-              last_login_date: today,
-            },
-          });
+          newRacha = user.student.racha_dias + 1; // streak continues
         } else if (diffDays > 1) {
-          await this.prisma.student.update({
-            where: { user_id: user.id },
-            data: {
-              racha_dias: 1,
-              last_login_date: today,
-            },
-          });
+          newRacha = 1; // streak broken, restart at today
         }
+        // diffDays === 0 → already logged in today; leave newRacha null.
       } else {
+        newRacha = 1; // first ever login
+      }
+
+      if (newRacha !== null) {
+        // Daily login bonus: +10 base, +5 per full week of streak, capped
+        // at +50. Awarded once per day (gated by the date check above).
+        streakBonusXp = Math.min(10 + 5 * Math.floor(newRacha / 7), 50);
         await this.prisma.student.update({
           where: { user_id: user.id },
           data: {
-            racha_dias: 1,
+            racha_dias: newRacha,
             last_login_date: today,
+            puntos_xp: { increment: streakBonusXp },
           },
         });
       }
@@ -282,6 +291,7 @@ export class AuthService {
     return {
       access_token: token,
       user: this.toAuthUser(refreshed ?? user),
+      streak_bonus_xp: streakBonusXp,
     };
   }
 }

@@ -8,6 +8,7 @@ import { RegisterPage } from '../../features/auth/pages/RegisterPage';
 import { StudentDashboardPage } from '../../features/student/pages/StudentDashboardPage';
 import { StudentGameCatalogPage } from '../../features/student/pages/StudentGameCatalogPage';
 import { StudentTasksPage } from '../../features/student/pages/StudentTasksPage';
+import { StudentLeaderboardPage } from '../../features/student/pages/StudentLeaderboardPage';
 import { StudentResultPage } from '../../features/student/pages/StudentResultPage';
 import { TeacherDashboardPage } from '../../features/teacher/pages/TeacherDashboardPage';
 import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassroomPage';
@@ -123,6 +124,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRole="STUDENT">
             <StudentTasksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.studentLeaderboard}
+        element={
+          <ProtectedRoute allowedRole="STUDENT">
+            <StudentLeaderboardPage />
           </ProtectedRoute>
         }
       />

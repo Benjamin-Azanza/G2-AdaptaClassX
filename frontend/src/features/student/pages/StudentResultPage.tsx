@@ -79,7 +79,7 @@ export function StudentResultPage() {
 
   return (
     <StudentShell title="¡Buen trabajo!">
-      <section className="mx-auto max-w-xl border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[8px_8px_0_0_#1d1c17]">
+      <section className="mx-auto w-[90%] md:w-[500px] max-w-xl border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[8px_8px_0_0_#1d1c17]">
         <span
           className="material-symbols-outlined text-[96px] text-primary"
           style={{ fontVariationSettings: "'FILL' 1" }}

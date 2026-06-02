@@ -11,6 +11,7 @@ import { GameSessionsModule } from './game-sessions/game-sessions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
 import { QuestionsModule } from './questions/questions.module';
+import { AchievementsModule } from './achievements/achievements.module';
 import { CsrfGuard } from './common/security/csrf.guard';
 
 @Module({
@@ -58,6 +59,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
     NotificationsModule,
     AiModule,
     QuestionsModule,
+    AchievementsModule,
   ],
   providers: [
     // Global double-submit CSRF guard. Runs on every request; safe methods

@@ -1,5 +1,12 @@
 import 'dotenv/config';
-import { PrismaClient, Role, Tema, TipoJuego, MissionType } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  Tema,
+  TipoJuego,
+  MissionType,
+  AchievementCode,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
@@ -428,6 +435,90 @@ async function main() {
     });
   }
   console.log('  1 misión de ejemplo activa (PLAY_TIME, 15 min) creada con progreso y notificaciones');
+
+  // 9. Catálogo de logros (Achievements). Idempotente vía upsert por código.
+  const achievementCatalog = [
+    {
+      codigo: AchievementCode.FIRST_PLAY,
+      nombre: 'Primer Paso',
+      descripcion: 'Jugaste tu primer juego.',
+      icon: 'rocket_launch',
+      xp_reward: 50,
+    },
+    {
+      codigo: AchievementCode.FIRST_MISSION,
+      nombre: 'Misión Cumplida',
+      descripcion: 'Completaste tu primera misión.',
+      icon: 'flag',
+      xp_reward: 50,
+    },
+    {
+      codigo: AchievementCode.STREAK_7,
+      nombre: 'Racha de Fuego',
+      descripcion: 'Entraste a jugar 7 días seguidos.',
+      icon: 'local_fire_department',
+      xp_reward: 75,
+    },
+    {
+      codigo: AchievementCode.PERFECT_GAME,
+      nombre: 'Puntería Perfecta',
+      descripcion: 'Una partida con 100% de respuestas correctas.',
+      icon: 'target',
+      xp_reward: 75,
+    },
+    {
+      codigo: AchievementCode.MARATHON,
+      nombre: 'Maratonista',
+      descripcion: 'Una partida de 20 minutos o más.',
+      icon: 'timer',
+      xp_reward: 75,
+    },
+    {
+      codigo: AchievementCode.ANSWER_50,
+      nombre: 'Sabelotodo',
+      descripcion: 'Acumulaste 50 respuestas correctas.',
+      icon: 'school',
+      xp_reward: 100,
+    },
+  ];
+
+  for (const ach of achievementCatalog) {
+    await prisma.achievement.upsert({
+      where: { codigo: ach.codigo },
+      update: {
+        nombre: ach.nombre,
+        descripcion: ach.descripcion,
+        icon: ach.icon,
+        xp_reward: ach.xp_reward,
+      },
+      create: ach,
+    });
+  }
+  console.log(`  ${achievementCatalog.length} logros creados en el catálogo`);
+
+  // 10. Desbloqueo de demo: dar "Primer Paso" a los 2 primeros alumnos de 3ro A
+  const firstPlay = await prisma.achievement.findUnique({
+    where: { codigo: AchievementCode.FIRST_PLAY },
+  });
+  if (firstPlay) {
+    for (const s of students3A.slice(0, 2)) {
+      await prisma.studentAchievement.upsert({
+        where: {
+          student_id_achievement_id: {
+            student_id: s.user_id,
+            achievement_id: firstPlay.id,
+          },
+        },
+        update: {},
+        create: {
+          student_id: s.user_id,
+          achievement_id: firstPlay.id,
+          xp_gained: firstPlay.xp_reward,
+        },
+      });
+    }
+    console.log('  Logro de demo "Primer Paso" desbloqueado para 2 alumnos de 3ro A');
+  }
 
   console.log('Seed completado exitosamente.');
 }

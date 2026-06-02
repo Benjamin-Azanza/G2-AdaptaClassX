@@ -45,9 +45,10 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { access_token, user } = await this.authService.login(dto);
+    const { access_token, user, streak_bonus_xp } =
+      await this.authService.login(dto);
     this.emitSession(res, access_token);
-    return { user };
+    return { user, streak_bonus_xp };
   }
 
   @Post('logout')

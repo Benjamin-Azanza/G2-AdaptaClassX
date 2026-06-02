@@ -42,6 +42,15 @@ enum MissionType {
   ANSWER_CORRECT
 }
 
+enum AchievementCode {
+  FIRST_PLAY
+  FIRST_MISSION
+  STREAK_7
+  PERFECT_GAME
+  MARATHON
+  ANSWER_50
+}
+
 // ─── Auth & Users ────────────────────────────────────────
 
 model User {
@@ -65,6 +74,7 @@ model User {
   game_sessions       GameSession[]            @relation("StudentGameSessions")
   attempts            QuestionAttempt[]        @relation("StudentAttempts")
   notifications       Notification[]           @relation("NotificationStudent")
+  achievements        StudentAchievement[]     @relation("StudentAchievements")
 
   @@map("users")
 }
@@ -263,4 +273,36 @@ model Notification {
   @@index([student_id])
   @@index([mission_id])
   @@map("notifications")
+}
+
+// ─── Achievements / Badges ───────────────────────────────
+
+model Achievement {
+  id          String          @id @default(uuid())
+  codigo      AchievementCode @unique
+  nombre      String
+  descripcion String
+  icon        String // Material Symbol name (e.g. "rocket_launch")
+  xp_reward   Int             @default(50)
+  created_at  DateTime        @default(now())
+
+  student_achievements StudentAchievement[]
+
+  @@map("achievements")
+}
+
+model StudentAchievement {
+  id             String   @id @default(uuid())
+  student_id     String
+  achievement_id String
+  earned_at      DateTime @default(now())
+  xp_gained      Int      @default(0)
+
+  student     User        @relation("StudentAchievements", fields: [student_id], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievement_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, achievement_id])
+  @@index([student_id])
+  @@index([achievement_id])
+  @@map("student_achievements")
 }

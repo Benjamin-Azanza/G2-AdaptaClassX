@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import Phaser from 'phaser';
 import { useAuthStore } from '../../auth/store/authStore';
+import { MissionProgressOverlay } from './MissionProgressOverlay';
 
 type GameConsoleWrapperProps = {
   title: string;
@@ -726,6 +727,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         {/* Bottom Gamepad controls (32% height) */}
         {renderGamepad()}
         {pauseOverlay}
+        <MissionProgressOverlay active={gameStarted} />
       </div>
     );
   }
@@ -788,6 +790,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       </div>
 
       {pauseOverlay}
+      <MissionProgressOverlay active={gameStarted} />
     </div>
   );
 };
