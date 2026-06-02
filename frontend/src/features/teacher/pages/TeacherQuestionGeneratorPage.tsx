@@ -4,8 +4,6 @@ import { QuestionGenerationForm } from '../components/QuestionGenerationForm';
 import { QuestionPreview } from '../components/QuestionPreview';
 import { TeacherShell } from '../components/TeacherShell';
 import { aiService, type GeneratedQuestionPreview } from '../services/ai.service';
-import { useParalelos } from '../hooks/useParalelos';
-import { useTeacherGames } from '../hooks/useTeacherGames';
 import { ManualQuestionForm } from '../components/ManualQuestionForm';
 
 type Banner = { kind: 'success' | 'error'; message: string } | null;
@@ -13,20 +11,22 @@ type Banner = { kind: 'success' | 'error'; message: string } | null;
 export function TeacherQuestionGeneratorPage() {
   const [questions, setQuestions] = useState<GeneratedQuestionPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentGameId, setCurrentGameId] = useState<string>('');
-  const [selectedParaleloId, setSelectedParaleloId] = useState<string>('');
+  const [currentTema, setCurrentTema] = useState<string>('LECTURA');
+  const [sourceId, setSourceId] = useState<string | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
-  const { paralelos } = useParalelos();
-  const { games, isLoading: gamesLoading } = useTeacherGames();
 
-  const handleGenerate = async (formData: FormData, gameId: string, paraleloId: string) => {
+  const handleGenerate = async (formData: FormData, tema: string) => {
     setBanner(null);
     setIsLoading(true);
-    setCurrentGameId(gameId);
-    setSelectedParaleloId(paraleloId);
+    setCurrentTema(tema);
+    setSourceId(null);
     try {
-      const generatedQuestions = await aiService.generateQuestions(formData);
-      setQuestions(generatedQuestions);
+      const response = await aiService.generateQuestions(formData);
+      setQuestions(response.questions);
+      setSourceId(response.source_id);
+      if (response.cached) {
+        setBanner({ kind: 'success', message: 'Se recuperaron preguntas pre-generadas en caché para este documento.' });
+      }
     } catch (error: unknown) {
       console.error('Error generating questions', error);
       setBanner({
@@ -39,19 +39,16 @@ export function TeacherQuestionGeneratorPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedParaleloId) {
-      setBanner({ kind: 'error', message: 'Selecciona un paralelo antes de guardar.' });
-      return;
-    }
     setBanner(null);
     try {
       await aiService.saveQuestions({
-        game_id: currentGameId,
-        paralelo_id: selectedParaleloId,
+        tema: currentTema,
+        source_id: sourceId,
         questions,
       });
-      setBanner({ kind: 'success', message: 'Preguntas guardadas exitosamente.' });
+      setBanner({ kind: 'success', message: 'Preguntas guardadas exitosamente en tu banco global.' });
       setQuestions([]);
+      setSourceId(null);
     } catch (error: unknown) {
       console.error('Error saving questions', error);
       setBanner({
@@ -62,18 +59,17 @@ export function TeacherQuestionGeneratorPage() {
   };
 
   const handleSaveManual = async (
-    targetGameId: string,
-    paraleloId: string,
-    manualQuestions: { texto: string; opciones: string[]; respuestaCorrecta: number }[],
+    tema: string,
+    manualQuestions: { texto: string; opciones: [string, string, string, string]; respuestaCorrecta: number }[],
   ) => {
     setBanner(null);
     try {
       await aiService.saveQuestions({
-        game_id: targetGameId,
-        paralelo_id: paraleloId,
+        tema,
+        source_id: null,
         questions: manualQuestions,
       });
-      setBanner({ kind: 'success', message: 'Preguntas manuales guardadas exitosamente.' });
+      setBanner({ kind: 'success', message: 'Preguntas manuales añadidas exitosamente al banco.' });
     } catch (error: unknown) {
       console.error('Error saving manual questions', error);
       setBanner({
@@ -84,7 +80,7 @@ export function TeacherQuestionGeneratorPage() {
   };
 
   return (
-    <TeacherShell title="IA Docente">
+    <TeacherShell title="Generador de Preguntas">
       {banner && (
         <div
           className={[
@@ -103,9 +99,6 @@ export function TeacherQuestionGeneratorPage() {
         <QuestionGenerationForm
           onSubmit={handleGenerate}
           isLoading={isLoading}
-          paralelos={paralelos}
-          games={games}
-          gamesLoading={gamesLoading}
         />
         <QuestionPreview
           questions={questions}
@@ -117,9 +110,6 @@ export function TeacherQuestionGeneratorPage() {
       <div className="mt-xl">
         <ManualQuestionForm
           onSave={handleSaveManual}
-          paralelos={paralelos}
-          games={games}
-          gamesLoading={gamesLoading}
         />
       </div>
     </TeacherShell>

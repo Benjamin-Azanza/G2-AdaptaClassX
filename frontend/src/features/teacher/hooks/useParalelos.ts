@@ -3,7 +3,7 @@ import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { paralelosService } from '../../paralelos/services/paralelos.service';
 import type { Paralelo } from '../../paralelos/types/paralelo.types';
 
-export function useParalelos() {
+export function useParalelos(includeArchived = false) {
   const [paralelos, setParalelos] = useState<Paralelo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,19 +12,22 @@ export function useParalelos() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await paralelosService.getAll();
+      const response = await paralelosService.getAll(includeArchived);
       setParalelos(response.data);
     } catch (requestError: unknown) {
       setError(getApiErrorMessage(requestError, 'No se pudieron cargar los paralelos'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [includeArchived]);
 
   useEffect(() => {
     let mounted = true;
+    Promise.resolve().then(() => {
+      if (mounted) setIsLoading(true);
+    });
     paralelosService
-      .getAll()
+      .getAll(includeArchived)
       .then((response) => {
         if (mounted) setParalelos(response.data);
       })
@@ -39,7 +42,7 @@ export function useParalelos() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [includeArchived]);
 
   return { paralelos, isLoading, error, refresh };
 }

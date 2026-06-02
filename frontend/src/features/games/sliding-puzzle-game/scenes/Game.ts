@@ -641,6 +641,14 @@ export default class Game extends Phaser.Scene
                 this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
 
                 const correct = i === correctIdx;
+                window.dispatchEvent(
+                    new CustomEvent('game:answer', {
+                        detail: {
+                            question_id: qData.id,
+                            correct
+                        }
+                    })
+                );
                 btnGfx.clear();
                 btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
                 btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);

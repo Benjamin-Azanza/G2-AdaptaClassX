@@ -1,27 +1,27 @@
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
-  Length,
   Matches,
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { Tema } from '@prisma/client';
 
-const SAFE_TEXT = /^[\w\sáéíóúÁÉÍÓÚñÑüÜ.,;:¿?¡!()\-'"\n\r]+$/;
+// Allowed characters regex, using * instead of + to support empty string if sent
+const SAFE_TEXT = /^[\w\sáéíóúÁÉÍÓÚñÑüÜ.,;:¿?¡!()\-'"\n\r]*$/;
 
 export class GenerateQuestionsDto {
-  // Game IDs are short slugs in this codebase (e.g. "bomb-game"), not UUIDs.
-  @IsString()
-  @Length(2, 64)
-  @Matches(/^[a-z0-9-]+$/, {
-    message: 'targetGameId must be a kebab-case slug.',
+  @IsEnum(Tema, {
+    message: 'tema debe ser un valor válido del enum Tema.',
   })
-  targetGameId: string;
+  tema: Tema;
 
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -36,6 +36,9 @@ export class GenerateQuestionsDto {
   difficulty: string;
 
   @IsOptional()
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined ? undefined : value,
+  )
   @IsString()
   @MaxLength(500)
   @Matches(SAFE_TEXT, {
@@ -43,16 +46,10 @@ export class GenerateQuestionsDto {
   })
   context?: string;
 
-  // Optional in the multipart form. If present we can short-circuit the LLM
-  // when a recent IA-generated question set already exists for this
-  // (game, paralelo) pair, and we use it as the Redis draft key.
   @IsOptional()
   @IsUUID()
-  paralelo_id?: string;
+  source_id?: string;
 
-  // Set to true from the frontend to bypass the recent-cache check and force
-  // a fresh LLM call (e.g. the teacher uploaded different material for the
-  // same game/paralelo and wants new questions).
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean()
@@ -64,27 +61,24 @@ export class SaveQuestionsItemDto {
   @MaxLength(500)
   texto: string;
 
-  // Free-form options validated as strings with length caps.
   @IsString({ each: true })
   opciones: string[];
 
-  @IsInt()
-  @Min(0)
-  @Max(10)
-  respuestaCorrecta: number;
+  @IsString()
+  respuesta_correcta: string;
 }
 
 export class SaveQuestionsDto {
-  @IsString()
-  @Length(2, 64)
-  @Matches(/^[a-z0-9-]+$/)
-  game_id: string;
+  @IsEnum(Tema, {
+    message: 'tema debe ser un valor válido del enum Tema.',
+  })
+  tema: Tema;
 
   @IsOptional()
   @IsUUID()
-  paralelo_id?: string | null;
+  source_id?: string;
 
-  // Use any[] at runtime — array contents are validated when persisted.
-  @IsOptional()
-  questions: any[];
+  @ValidateNested({ each: true })
+  @Type(() => SaveQuestionsItemDto)
+  questions: SaveQuestionsItemDto[];
 }

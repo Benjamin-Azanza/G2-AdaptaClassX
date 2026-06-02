@@ -30,7 +30,9 @@ function buildCorsOrigins(): boolean | string[] | RegExp[] {
     /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/,
     /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,
     /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}(:\d+)?$/,
-    ...allowlist.map((o) => new RegExp(`^${o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)),
+    ...allowlist.map(
+      (o) => new RegExp(`^${o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    ),
   ];
 }
 
@@ -52,9 +54,15 @@ async function bootstrap() {
       res.setHeader('X-XSS-Protection', '0');
       res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
       res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-      res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+      res.setHeader(
+        'Permissions-Policy',
+        'geolocation=(), microphone=(), camera=()',
+      );
       // Browser default CSP for API responses — UI app ships its own CSP via index.html.
-      res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; frame-ancestors 'none'",
+      );
       if (process.env.NODE_ENV === 'production') {
         res.setHeader(
           'Strict-Transport-Security',

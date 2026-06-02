@@ -14,9 +14,9 @@ import type {
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
 import * as mammoth from 'mammoth';
+import { Tema } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse');
-import { TipoFuente } from '@prisma/client';
 
 type NormalizedQuestion = {
   texto: string;
@@ -24,8 +24,6 @@ type NormalizedQuestion = {
   respuestaCorrecta: number;
 };
 
-// Reuse an IA-generated question set if it was saved less than this many
-// days ago AND the source hash matches the current request.
 const CACHE_FRESHNESS_DAYS = 7;
 const MAX_TEXTO_LEN = 500;
 const MAX_OPCION_LEN = 200;
@@ -33,9 +31,6 @@ const OPTIONS_PER_QUESTION = 4;
 
 @Injectable()
 export class AiService {
-  // Use Nest's Logger so prod logs land in whatever transport the platform
-  // captures (Vercel, Railway, etc.) instead of raw console writes. Debug
-  // lines are gated so we don't leak prompt diagnostics in production.
   private readonly logger = new Logger(AiService.name);
   private openai: OpenAI;
 
@@ -59,7 +54,6 @@ export class AiService {
       baseURL:
         this.configService.get<string>('AI_API_URL') ||
         'https://api.openai.com/v1',
-      // 25s is below Vercel's 30s serverless limit; retries cover 429/5xx.
       timeout: 25_000,
       maxRetries: 2,
     });
@@ -70,7 +64,9 @@ export class AiService {
       throw new BadRequestException('No file provided');
     }
 
-    this.logger.debug(`extractText — mimetype=${file.mimetype} size=${file.size}B`);
+    this.logger.debug(
+      `extractText — mimetype=${file.mimetype} size=${file.size}B`,
+    );
 
     try {
       let rawText: string;
@@ -79,7 +75,8 @@ export class AiService {
         const result = await pdfParse(file.buffer);
         rawText = result.text;
       } else if (
-        file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.mimetype ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         file.mimetype === 'application/msword'
       ) {
         const result = await mammoth.extractRawText({ buffer: file.buffer });
@@ -87,7 +84,9 @@ export class AiService {
       } else if (file.mimetype.startsWith('text/')) {
         rawText = file.buffer.toString('utf-8');
       } else {
-        throw new BadRequestException('Unsupported file format. Please upload PDF, DOCX, or TXT.');
+        throw new BadRequestException(
+          'Unsupported file format. Please upload PDF, DOCX, or TXT.',
+        );
       }
 
       const cleaned = this.cleanText(rawText);
@@ -97,13 +96,15 @@ export class AiService {
       return cleaned;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error('extractText failed', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        'extractText failed',
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Error extracting text from file');
     }
   }
 
   private cleanText(raw: string): string {
-    // Phase 1 — structural cleanup (whitespace, page numbers, etc.).
     const baseCleaned = raw
       .replace(/\r\n/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
@@ -114,12 +115,7 @@ export class AiService {
       .join('\n')
       .trim();
 
-    // Phase 2 — promote obvious structure to Markdown so the LLM can lean on
-    // headings/lists instead of free-flowing prose. Cheap, no deps, ~15%
-    // token reduction in practice.
     const markdown = this.normalizeToMarkdown(baseCleaned);
-
-    // Phase 3 — truncate to ~4000 words to stay within context limits.
     return markdown.split(/\s+/).slice(0, 4000).join(' ');
   }
 
@@ -136,14 +132,12 @@ export class AiService {
         continue;
       }
 
-      // Bullet-style lines → canonical "- item".
       const bulletMatch = trimmed.match(/^[-*•·]\s*(.+)$/);
       if (bulletMatch) {
         out.push(`- ${bulletMatch[1]}`);
         continue;
       }
 
-      // "Heading-ish" line followed by a list → promote to "## heading".
       if (/[A-Za-zÁÉÍÓÚÑáéíóúñ0-9].*:$/.test(trimmed) && trimmed.length <= 80) {
         const next = (lines[i + 1] ?? '').trim();
         if (/^[-*•·]/.test(next) || /^\d+[.)]\s/.test(next)) {
@@ -152,7 +146,6 @@ export class AiService {
         }
       }
 
-      // Fully uppercase short lines look like titles → "## TITULO".
       const letters = trimmed.replace(/[^A-Za-zÁÉÍÓÚÑ]/g, '');
       if (
         letters.length >= 3 &&
@@ -181,83 +174,72 @@ export class AiService {
       .digest('hex');
   }
 
-  /**
-   * Returns the saved IA questions for this (game, paralelo) only when:
-   *  - a Redis sourceHash exists for the pair and matches the current request,
-   *  - and a DB row exists with tipo_fuente=IA created within the freshness
-   *    window.
-   *
-   * The hash gate is what makes the cache *correct*: without it we'd serve
-   * stale questions whenever the teacher uploads different material for the
-   * same game/paralelo.
-   */
-  async findRecentCachedQuestions(
-    gameId: string,
-    paraleloId: string | null,
-    sourceHash: string,
-  ): Promise<NormalizedQuestion[] | null> {
-    const storedHash = await this.draftStore.readSourceHash(gameId, paraleloId);
-    if (!storedHash) {
-      this.logger.debug(`cache miss — no sourceHash recorded for ${gameId}/${paraleloId ?? 'global'}`);
-      return null;
-    }
-    if (storedHash !== sourceHash) {
-      this.logger.debug(
-        `cache miss — sourceHash mismatch for ${gameId}/${paraleloId ?? 'global'}`,
-      );
-      return null;
-    }
-
-    const since = new Date(Date.now() - CACHE_FRESHNESS_DAYS * 86_400_000);
-    const row = await this.prisma.gameQuestion.findFirst({
-      where: {
-        game_id: gameId,
-        paralelo_id: paraleloId ?? null,
-        tipo_fuente: TipoFuente.IA,
-        created_at: { gte: since },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    if (!row) return null;
-    const json = row.preguntas_json;
-    if (!Array.isArray(json)) return null;
-    return json as unknown as NormalizedQuestion[];
-  }
-
   async generateQuestions(
     text: string,
-    targetGameId: string,
+    tema: Tema,
     amount: number,
     difficulty: string,
     context: string | undefined,
     userId: string,
-    paraleloId: string | null,
     force: boolean,
-  ): Promise<{ cached: boolean; questions: NormalizedQuestion[] }> {
-    const sourceHash = this.computeSourceHash(text, amount, difficulty, context);
+    filename: string,
+  ): Promise<{
+    cached: boolean;
+    questions: NormalizedQuestion[];
+    source_id: string;
+  }> {
+    const sourceHash = this.computeSourceHash(
+      text,
+      amount,
+      difficulty,
+      context,
+    );
 
-    // Step 1 — cheap DB+hash lookup before burning any LLM tokens. Only
-    // returns when the source matches the previously saved set.
-    if (targetGameId && !force) {
-      const cached = await this.findRecentCachedQuestions(
-        targetGameId,
-        paraleloId,
-        sourceHash,
+    // Búsqueda en base de datos (Postgres) para verificar si ya existe este recurso
+    // con preguntas válidas generadas hace poco.
+    const since = new Date(Date.now() - CACHE_FRESHNESS_DAYS * 86_400_000);
+    const existingSource = await this.prisma.questionSource.findFirst({
+      where: {
+        teacher_id: userId,
+        source_hash: sourceHash,
+        created_at: { gte: since },
+      },
+      include: {
+        questions: true,
+      },
+    });
+
+    if (existingSource && existingSource.questions.length > 0 && !force) {
+      this.logger.log(
+        `cache hit source_hash=${sourceHash} teacher=${userId} count=${existingSource.questions.length}`,
       );
-      if (cached) {
-        this.logger.log(
-          `cache hit game=${targetGameId} paralelo=${paraleloId ?? 'global'} count=${cached.length}`,
-        );
-        return { cached: true, questions: cached };
-      }
+
+      const cachedQuestions: NormalizedQuestion[] =
+        existingSource.questions.map((q) => {
+          const opciones = Array.isArray(q.opciones)
+            ? (q.opciones as string[])
+            : [];
+          const correctIndex = opciones.indexOf(q.respuesta_correcta);
+          return {
+            texto: q.texto,
+            opciones,
+            respuestaCorrecta: correctIndex !== -1 ? correctIndex : 0,
+          };
+        });
+
+      return {
+        cached: true,
+        questions: cachedQuestions,
+        source_id: existingSource.id,
+      };
     }
 
-    const model = this.configService.get<string>('AI_MODEL') || 'z-ai/glm-4.5-air:free';
+    const model =
+      this.configService.get<string>('AI_MODEL') || 'z-ai/glm-4.5-air:free';
 
-    // Prompt asks for an object with a `preguntas` array so it's compatible
-    // with OpenAI-style JSON mode (response_format = json_object, which
-    // requires an object root). The existing parser unwraps either shape.
+    // Generar el prompt omitiendo "Consideraciones" si context está vacío
+    const contextPart =
+      context && context.trim() ? `\nConsideraciones: ${context.trim()}` : '';
     const prompt = `Eres un generador de preguntas de opción múltiple para niños de 8 a 10 años (3ro-5to EGB).
 
 TEXTO BASE:
@@ -265,7 +247,7 @@ TEXTO BASE:
 ${text}
 """
 
-TAREA: Genera exactamente ${amount} preguntas de opción múltiple basadas ÚNICAMENTE en el texto anterior. Nivel de dificultad: ${difficulty}.${context ? `\nConsideraciones: ${context}` : ''}
+TAREA: Genera exactamente ${amount} preguntas de opción múltiple basadas ÚNICAMENTE en el texto anterior. Nivel de dificultad: ${difficulty}.${contextPart}
 
 REGLAS:
 - Cada pregunta debe poder responderse leyendo el texto base.
@@ -285,12 +267,16 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
 
     const startedAt = Date.now();
     try {
-      const response = await this.callLlmWithJsonModeFallback(model, prompt, amount);
+      const response = await this.callLlmWithJsonModeFallback(
+        model,
+        prompt,
+        amount,
+      );
       const latencyMs = Date.now() - startedAt;
       const choice = response.choices[0];
       const usage = response.usage;
       this.logger.log(
-        `LLM usage — game=${targetGameId} latency=${latencyMs}ms finish=${choice?.finish_reason} ` +
+        `LLM usage — tema=${tema} latency=${latencyMs}ms finish=${choice?.finish_reason} ` +
           `prompt_tokens=${usage?.prompt_tokens ?? 'n/a'} completion_tokens=${usage?.completion_tokens ?? 'n/a'} ` +
           `total_tokens=${usage?.total_tokens ?? 'n/a'} cached=false`,
       );
@@ -309,32 +295,39 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
         );
       }
 
-      // Stash the result + sourceHash in Redis so `save-questions` can pick
-      // it up after a refresh, and so we can pin the saved row to its source.
-      if (userId && targetGameId) {
-        await this.draftStore.saveDraft(userId, targetGameId, paraleloId, {
-          questions: validQuestions,
-          sourceHash,
+      // Guardar el borrador en Redis utilizando la nueva clave (userId, sourceHash)
+      await this.draftStore.saveDraft(userId, sourceHash, {
+        questions: validQuestions,
+        sourceHash,
+      });
+
+      // Crear o retornar la fuente de la pregunta
+      let sourceId = existingSource?.id;
+      if (!sourceId) {
+        const source = await this.prisma.questionSource.create({
+          data: {
+            teacher_id: userId,
+            filename: filename || 'documento.pdf',
+            source_hash: sourceHash,
+            tema: tema,
+          },
         });
+        sourceId = source.id;
       }
 
-      return { cached: false, questions: validQuestions };
+      return { cached: false, questions: validQuestions, source_id: sourceId };
     } catch (error) {
       const latencyMs = Date.now() - startedAt;
       this.logger.error(
         `generateQuestions failed after ${latencyMs}ms`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Error generating questions from LLM');
+      throw new InternalServerErrorException(
+        'Error generating questions from LLM',
+      );
     }
   }
 
-  /**
-   * Tries JSON mode first (cheap reliability win for OpenAI-compatible
-   * providers that support it). If the provider rejects `response_format`
-   * with a 4xx complaining about that param, retry once without it instead
-   * of failing the whole request.
-   */
   private async callLlmWithJsonModeFallback(
     model: string,
     prompt: string,
@@ -343,7 +336,6 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     const baseParams: ChatCompletionCreateParamsNonStreaming = {
       model,
       messages: [{ role: 'user', content: prompt }],
-      // ~150 output tokens per question; floor covers the JSON wrapper.
       max_tokens: 500 + amount * 200,
     };
 
@@ -368,23 +360,31 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     const e = err as { status?: number; message?: string };
     if (e.status !== 400) return false;
     const msg = (e.message ?? '').toLowerCase();
-    return msg.includes('response_format') || msg.includes('json_object') || msg.includes('json mode');
+    return (
+      msg.includes('response_format') ||
+      msg.includes('json_object') ||
+      msg.includes('json mode')
+    );
   }
 
-  private parseLlmResponse(choice: ChatCompletion['choices'][number] | undefined): unknown[] {
-    // Some reasoning models (e.g. GLM-4.5) put output in alternate fields.
+  private parseLlmResponse(
+    choice: ChatCompletion['choices'][number] | undefined,
+  ): unknown[] {
     const msg = choice?.message as Record<string, unknown> | undefined;
     const content =
       (msg?.content as string | undefined) ||
       (msg?.reasoning_content as string | undefined) ||
       (msg?.reasoning as string | undefined) ||
-      ((msg?.tool_calls as { function?: { arguments?: string } }[] | undefined)?.[0]?.function?.arguments);
+      (
+        msg?.tool_calls as { function?: { arguments?: string } }[] | undefined
+      )?.[0]?.function?.arguments;
 
     if (!content) {
-      throw new Error(`No content from LLM. finish_reason: ${choice?.finish_reason}`);
+      throw new Error(
+        `No content from LLM. finish_reason: ${choice?.finish_reason}`,
+      );
     }
 
-    // Strip markdown code fences in case the model ignored the instruction.
     const jsonStr = content.replace(/```(?:json)?/gi, '').trim();
 
     let parsed: unknown;
@@ -420,13 +420,13 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
   }
 
   private recoverPartialObjects(jsonStr: string): unknown[] {
-    // Last-resort recovery when the response was truncated (finish_reason=length)
-    // — extract complete question-like objects via regex.
     const matches = [
       ...jsonStr.matchAll(/\{[^{}]*"respuestaCorrecta"\s*:\s*\d[^{}]*\}/g),
     ];
     if (matches.length === 0) {
-      throw new Error('Could not recover any valid questions from LLM response');
+      throw new Error(
+        'Could not recover any valid questions from LLM response',
+      );
     }
     this.logger.warn(
       `Recovered ${matches.length} question(s) from truncated response`,
@@ -443,25 +443,23 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     return valid;
   }
 
-  /**
-   * Validates and normalizes a single question, supporting legacy field
-   * aliases (prompt → texto, options → opciones, correctOptionIndex →
-   * respuestaCorrecta). Returns null when the question is malformed —
-   * callers decide whether to filter (LLM output) or 400 (user save).
-   */
   private normalizeOne(item: unknown): NormalizedQuestion | null {
     if (!item || typeof item !== 'object') return null;
     const q = item as Record<string, unknown>;
 
-    const textoRaw = (q.texto ?? q.prompt) as unknown;
-    const opcionesRaw = (q.opciones ?? q.options) as unknown;
-    const respuestaRaw = (q.respuestaCorrecta ?? q.correctOptionIndex) as unknown;
+    const textoRaw = q.texto ?? q.prompt;
+    const opcionesRaw = q.opciones ?? q.options;
+    const respuestaRaw = q.respuestaCorrecta ?? q.correctOptionIndex;
 
     if (typeof textoRaw !== 'string') return null;
     const texto = textoRaw.trim();
     if (!texto || texto.length > MAX_TEXTO_LEN) return null;
 
-    if (!Array.isArray(opcionesRaw) || opcionesRaw.length !== OPTIONS_PER_QUESTION) return null;
+    if (
+      !Array.isArray(opcionesRaw) ||
+      opcionesRaw.length !== OPTIONS_PER_QUESTION
+    )
+      return null;
     const opciones: string[] = [];
     for (const o of opcionesRaw) {
       if (typeof o !== 'string') return null;
@@ -470,85 +468,58 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
       opciones.push(trimmed);
     }
 
-    if (typeof respuestaRaw !== 'number' || !Number.isInteger(respuestaRaw)) return null;
+    if (typeof respuestaRaw !== 'number' || !Number.isInteger(respuestaRaw))
+      return null;
     if (respuestaRaw < 0 || respuestaRaw >= OPTIONS_PER_QUESTION) return null;
 
     return { texto, opciones, respuestaCorrecta: respuestaRaw };
   }
 
   async saveQuestions(
-    gameId: string,
-    paraleloId: string | null,
-    questions: unknown[],
+    tema: Tema,
+    sourceId: string | null,
+    questions: any[],
     userId: string,
   ) {
     try {
-      const draft = await this.draftStore.readDraft(userId, gameId, paraleloId);
-
-      // Body wins when populated — the teacher may have edited the IA output
-      // before saving, and those edits must not be silently overwritten by
-      // the stashed draft. Fall back to the draft only when the client sent
-      // an empty/missing array (e.g. they refreshed and lost the editor
-      // state).
-      const sourceQuestions =
-        Array.isArray(questions) && questions.length > 0
-          ? questions
-          : (draft?.questions ?? []);
-
-      if (sourceQuestions.length === 0) {
+      if (questions.length === 0) {
         throw new BadRequestException('No hay preguntas para guardar.');
       }
 
-      // Validate every question and report the first offender by index so
-      // the frontend can surface a precise error.
-      const normalizedQuestions: NormalizedQuestion[] = [];
-      sourceQuestions.forEach((q, i) => {
-        const n = this.normalizeOne(q);
-        if (!n) {
-          throw new BadRequestException(
-            `Pregunta ${i + 1} no es válida: requiere texto (1-${MAX_TEXTO_LEN} chars), exactamente ${OPTIONS_PER_QUESTION} opciones no vacías y respuestaCorrecta entre 0 y ${OPTIONS_PER_QUESTION - 1}.`,
-          );
+      // Si existe un sourceId, eliminamos preguntas previas para evitar duplicidad al editar
+      if (sourceId) {
+        await this.prisma.question.deleteMany({
+          where: { source_id: sourceId },
+        });
+      }
+
+      // Guardamos cada pregunta en el banco global de preguntas
+      const savedQuestions = [];
+      for (const q of questions) {
+        const saved = await this.prisma.question.create({
+          data: {
+            teacher_id: userId,
+            source_id: sourceId || null,
+            tema: tema,
+            texto: q.texto,
+            opciones: q.opciones,
+            respuesta_correcta: q.respuesta_correcta,
+          },
+        });
+        savedQuestions.push(saved);
+      }
+
+      // Limpiamos el borrador de Redis si hay un sourceId
+      if (sourceId) {
+        const source = await this.prisma.questionSource.findUnique({
+          where: { id: sourceId },
+        });
+        if (source) {
+          await this.draftStore.clearDraft(userId, source.source_hash);
         }
-        normalizedQuestions.push(n);
-      });
-
-      const existing = await this.prisma.gameQuestion.findFirst({
-        where: { game_id: gameId, paralelo_id: paraleloId || null },
-      });
-
-      let saved;
-      if (existing) {
-        saved = await this.prisma.gameQuestion.update({
-          where: { id: existing.id },
-          data: {
-            preguntas_json: normalizedQuestions,
-            tipo_fuente: TipoFuente.IA,
-            created_by: userId,
-          },
-        });
-      } else {
-        saved = await this.prisma.gameQuestion.create({
-          data: {
-            game_id: gameId,
-            paralelo_id: paraleloId || null,
-            preguntas_json: normalizedQuestions,
-            tipo_fuente: TipoFuente.IA,
-            created_by: userId,
-          },
-        });
       }
 
-      // Pin the saved row to its source hash so future generate calls with
-      // the same material short-circuit the LLM. Only when we know what the
-      // source was — i.e. the request went through the generate flow.
-      if (draft?.sourceHash) {
-        await this.draftStore.saveSourceHash(gameId, paraleloId, draft.sourceHash);
-      }
-
-      // Draft is no longer needed — the canonical copy is in Postgres now.
-      await this.draftStore.clearDraft(userId, gameId, paraleloId);
-
-      return saved;
+      return { count: savedQuestions.length, questions: savedQuestions };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       this.logger.error(

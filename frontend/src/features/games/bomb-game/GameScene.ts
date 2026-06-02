@@ -563,7 +563,12 @@ export default class GameScene extends Phaser.Scene {
             btnBg.on('pointerdown', () => {
                 this.questionModalGroup.clear(true, true);
                 
-                if (i === qData.answer) {
+                const isCorrect = i === qData.answer;
+                if (qData && qData.id) {
+                    window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: qData.id, correct: isCorrect } }));
+                }
+
+                if (isCorrect) {
                     // Respuesta Correcta
                     if (this.questionSource === 'aid') {
                         this.aidboomSnd.play();

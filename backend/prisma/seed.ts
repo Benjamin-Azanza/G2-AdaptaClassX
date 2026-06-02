@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, Role, Tema, TipoJuego, TipoFuente } from '@prisma/client';
+import { PrismaClient, Role, Tema, TipoJuego, MissionType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
@@ -7,11 +7,11 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('Seeding database...');
-
+  console.log('Seeding database with the new learning model...');
 
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
+  // 1. Crear Profesores
   const teacher1 = await prisma.user.upsert({
     where: { email: 'maria@escuela.edu' },
     update: {},
@@ -45,6 +45,7 @@ async function main() {
   });
   console.log('  2 profesores creados');
 
+  // 2. Crear Paralelos
   const paralelo3A = await prisma.paralelo.upsert({
     where: { codigo_acceso: 'KX7T2M' },
     update: {},
@@ -56,7 +57,7 @@ async function main() {
     },
   });
 
-  await prisma.paralelo.upsert({
+  const paralelo4B = await prisma.paralelo.upsert({
     where: { codigo_acceso: 'NP4R8W' },
     update: {},
     create: {
@@ -68,6 +69,7 @@ async function main() {
   });
   console.log('  2 paralelos creados');
 
+  // 3. Crear Estudiantes
   const studentNames = [
     'Ana Martinez',
     'Luis Perez',
@@ -84,7 +86,8 @@ async function main() {
   const students: string[] = [];
   for (let i = 0; i < studentNames.length; i++) {
     const email = `estudiante${i + 1}@escuela.edu`;
-    const paraleloId = i < 5 ? paralelo3A.id : null;
+    // Asignar los primeros 5 a 3ro A (de la profesora Maria) y los otros 5 a 4to B (del profesor Carlos)
+    const paraleloId = i < 5 ? paralelo3A.id : paralelo4B.id;
     const student = await prisma.user.upsert({
       where: { email },
       update: {},
@@ -106,10 +109,9 @@ async function main() {
   }
   console.log(`  ${students.length} estudiantes creados`);
 
-  const juegoPrincipal = await prisma.game.upsert({
-    where: { titulo: 'Quiz Rapido - Lectura' },
-    update: {},
-    create: {
+  // 4. Crear Juegos
+  const juegosImportados = [
+    {
       titulo: 'Quiz Rapido - Lectura',
       tema: Tema.LECTURA,
       tipo: TipoJuego.CAMBIANTE,
@@ -125,11 +127,6 @@ async function main() {
         permitirPistas: true,
       },
     },
-  });
-  console.log('  1 juego creado');
-
-  // ─── 10 juegos importados desde examples-master ──────────
-  const juegosImportados = [
     {
       titulo: 'Avoid the Germs',
       tema: Tema.LENGUA_CULTURA,
@@ -249,117 +246,190 @@ async function main() {
       create: juegoData,
     });
   }
-  console.log(`  ${juegosImportados.length} juegos importados desde examples-master`);
+  console.log(`  ${juegosImportados.length} juegos creados/actualizados`);
 
-  const defaultQuestions = [
+  // 5. Crear QuestionSources (Historial de PDF/materiales subidos)
+  const sourceLectura1 = await prisma.questionSource.create({
+    data: {
+      teacher_id: teacher1.id,
+      filename: 'comprension_lectora_3ero.pdf',
+      source_hash: '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',
+      tema: Tema.LECTURA,
+    },
+  });
+
+  const sourceEscritura1 = await prisma.questionSource.create({
+    data: {
+      teacher_id: teacher1.id,
+      filename: 'reglas_ortograficas_basicas.pdf',
+      source_hash: '8f4305af2f778d9b1390f77ff181bf372dc458b0f8cd4384a6c8e8886266e7bf',
+      tema: Tema.ESCRITURA,
+    },
+  });
+
+  const sourceLectura2 = await prisma.questionSource.create({
+    data: {
+      teacher_id: teacher2.id,
+      filename: 'lecturas_avanzadas_4to.pdf',
+      source_hash: '48f305af2f778d9b1390f77ff181bf372dc458b0f8cd4384a6c8e8886266e7cf',
+      tema: Tema.LECTURA,
+    },
+  });
+  console.log('  3 fuentes de preguntas creadas (QuestionSource)');
+
+  // 6. Crear Banco de Preguntas (Questions) vinculadas a los profesores y opcionalmente a las fuentes
+  const defaultQuestionsLectura = [
     {
-      id: 'q1',
-      texto: 'Cual es el sinonimo de alegre?',
+      texto: '¿Cuál es el sinónimo de alegre?',
       opciones: ['triste', 'feliz', 'enojado', 'cansado'],
-      respuestaCorrecta: 1,
-      pista: 'Es lo que sientes en tu cumpleanos',
+      respuesta_correcta: 'feliz',
     },
     {
-      id: 'q2',
-      texto: 'Que es un sustantivo?',
-      opciones: ['Una accion', 'Un nombre', 'Un color', 'Un numero'],
-      respuestaCorrecta: 1,
-      pista: 'Es el nombre de algo o alguien',
+      texto: '¿Qué tipo de texto es una fábula?',
+      opciones: ['Informativo', 'Narrativo', 'Científico', 'Instructivo'],
+      respuesta_correcta: 'Narrativo',
     },
     {
-      id: 'q3',
-      texto: 'Cuantas vocales tiene el abecedario espanol?',
-      opciones: ['3', '4', '5', '6'],
-      respuestaCorrecta: 2,
-      pista: 'A, E, I...',
-    },
-    {
-      id: 'q4',
-      texto: 'Cual de estas palabras es un adjetivo?',
-      opciones: ['correr', 'hermoso', 'mesa', 'rapidamente'],
-      respuestaCorrecta: 1,
-      pista: 'Describe una cualidad',
-    },
-    {
-      id: 'q5',
-      texto: 'Que signo se pone al final de una pregunta?',
-      opciones: ['Punto', 'Coma', 'Signo de interrogacion', 'Punto y coma'],
-      respuestaCorrecta: 2,
-      pista: 'Lo estas viendo en esta misma pregunta',
+      texto: '¿Qué signo se pone al final de una pregunta?',
+      opciones: ['Punto', 'Coma', 'Signo de interrogación', 'Punto y coma'],
+      respuesta_correcta: 'Signo de interrogación',
     },
   ];
 
-  const allGames = await prisma.game.findMany();
-  for (const g of allGames) {
-    const existingQuestionSet = await prisma.gameQuestion.findFirst({
-      where: {
-        game_id: g.id,
-        paralelo_id: null,
+  const defaultQuestionsEscritura = [
+    {
+      texto: '¿Qué palabra está escrita correctamente?',
+      opciones: ['aveses', 'a veces', 'aveces', 'habeces'],
+      respuesta_correcta: 'a veces',
+    },
+    {
+      texto: '¿Qué es un sustantivo?',
+      opciones: ['Una acción', 'Un nombre de persona, animal o cosa', 'Un color', 'Un número'],
+      respuesta_correcta: 'Un nombre de persona, animal o cosa',
+    },
+    {
+      texto: '¿Cuál de estas palabras es un adjetivo?',
+      opciones: ['correr', 'hermoso', 'mesa', 'rápidamente'],
+      respuesta_correcta: 'hermoso',
+    },
+  ];
+
+  const defaultQuestionsOtros = [
+    {
+      tema: Tema.LENGUA_CULTURA,
+      texto: '¿Cuántas vocales tiene el abecedario español?',
+      opciones: ['3', '4', '5', '6'],
+      respuesta_correcta: '5',
+    },
+    {
+      tema: Tema.COMUNICACION_ORAL,
+      texto: '¿Qué hacemos al escuchar con atención a alguien?',
+      opciones: ['Interrumpir', 'Mirar a los ojos y prestar atención', 'Mirar el celular', 'Hablar más fuerte'],
+      respuesta_correcta: 'Mirar a los ojos y prestar atención',
+    },
+    {
+      tema: Tema.LITERATURA,
+      texto: '¿Quién escribió un poema?',
+      opciones: ['El reportero', 'El poeta', 'El científico', 'El panadero'],
+      respuesta_correcta: 'El poeta',
+    },
+  ];
+
+  // Poblar preguntas de lectura para Profesora Maria (Teacher 1)
+  for (const q of defaultQuestionsLectura) {
+    await prisma.question.create({
+      data: {
+        teacher_id: teacher1.id,
+        source_id: sourceLectura1.id,
+        tema: Tema.LECTURA,
+        texto: q.texto,
+        opciones: q.opciones,
+        respuesta_correcta: q.respuesta_correcta,
       },
     });
-
-    if (existingQuestionSet) {
-      await prisma.gameQuestion.update({
-        where: { id: existingQuestionSet.id },
-        data: {
-          preguntas_json: defaultQuestions.map((q) => ({
-            texto: q.texto,
-            opciones: q.opciones,
-            respuestaCorrecta: q.respuestaCorrecta,
-          })),
-          tipo_fuente: TipoFuente.DEFAULT,
-        },
-      });
-    } else {
-      await prisma.gameQuestion.create({
-        data: {
-          game_id: g.id,
-          paralelo_id: null,
-          preguntas_json: defaultQuestions.map((q) => ({
-            texto: q.texto,
-            opciones: q.opciones,
-            respuestaCorrecta: q.respuestaCorrecta,
-          })),
-          tipo_fuente: TipoFuente.DEFAULT,
-        },
-      });
-    }
   }
-  console.log('  Preguntas por defecto creadas para TODOS los juegos');
 
-  const assignment = await prisma.assignment.create({
+  // Poblar preguntas de escritura para Profesora Maria (Teacher 1)
+  for (const q of defaultQuestionsEscritura) {
+    await prisma.question.create({
+      data: {
+        teacher_id: teacher1.id,
+        source_id: sourceEscritura1.id,
+        tema: Tema.ESCRITURA,
+        texto: q.texto,
+        opciones: q.opciones,
+        respuesta_correcta: q.respuesta_correcta,
+      },
+    });
+  }
+
+  // Poblar otras temáticas para Profesora Maria para que tenga cubiertos todos los juegos
+  for (const q of defaultQuestionsOtros) {
+    await prisma.question.create({
+      data: {
+        teacher_id: teacher1.id,
+        tema: q.tema,
+        texto: q.texto,
+        opciones: q.opciones,
+        respuesta_correcta: q.respuesta_correcta,
+      },
+    });
+  }
+
+  // Poblar preguntas de lectura para Profesor Carlos (Teacher 2)
+  for (const q of defaultQuestionsLectura) {
+    await prisma.question.create({
+      data: {
+        teacher_id: teacher2.id,
+        source_id: sourceLectura2.id,
+        tema: Tema.LECTURA,
+        texto: q.texto,
+        opciones: q.opciones,
+        respuesta_correcta: q.respuesta_correcta,
+      },
+    });
+  }
+  console.log('  Preguntas creadas en el banco global de preguntas para ambos profesores');
+
+  // 7. Crear una Misión Activa (Mission)
+  // Tipo: PLAY_TIME de 15 minutos en el paralelo de la profesora María (3ro A)
+  const mission = await prisma.mission.create({
     data: {
       paralelo_id: paralelo3A.id,
-      game_id: juegoPrincipal.id,
-      minutos_requeridos: 15,
-      fecha_limite: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      tipo: MissionType.PLAY_TIME,
+      goal_value: 15,
+      fecha_limite: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días límite
       created_by: teacher1.id,
     },
   });
 
+  // 8. Crear progreso inicial y notificaciones de misión para estudiantes de 3ro A
   const students3A = await prisma.student.findMany({
     where: { paralelo_id: paralelo3A.id },
   });
 
-  for (const student of students3A) {
-    await prisma.studentProgress.create({
+  for (const s of students3A) {
+    await prisma.studentMissionProgress.create({
       data: {
-        student_id: student.user_id,
-        assignment_id: assignment.id,
+        student_id: s.user_id,
+        mission_id: mission.id,
+        current_value: 0,
+        completado: false,
+        xp_otorgado: false,
       },
     });
 
     await prisma.notification.create({
       data: {
-        student_id: student.user_id,
-        assignment_id: assignment.id,
-        mensaje: `Tu profe asigno nueva actividad: 15 min de ${juegoPrincipal.titulo}`,
+        student_id: s.user_id,
+        mission_id: mission.id,
+        mensaje: `¡Nueva Misión asignada! Juega un total de 15 minutos a cualquier juego de la clase.`,
       },
     });
   }
-  console.log('  1 asignacion de ejemplo creada con progreso y notificaciones');
+  console.log('  1 misión de ejemplo activa (PLAY_TIME, 15 min) creada con progreso y notificaciones');
 
-  console.log('Seed completado exitosamente');
+  console.log('Seed completado exitosamente.');
 }
 
 main()

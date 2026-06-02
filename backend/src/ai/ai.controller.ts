@@ -37,8 +37,6 @@ export class AiController {
 
   @Post('generate-questions')
   @Roles(Role.TEACHER)
-  // Per-userId rate limit (5/min) on top of the JWT guard. Catches runaway
-  // client loops and accidental abuse before the LLM bill grows.
   @UseGuards(AiThrottlerGuard)
   @Throttle({ 'ai-generate': { limit: 5, ttl: 60_000 } })
   @UseInterceptors(
@@ -69,13 +67,13 @@ export class AiController {
     const text = await this.aiService.extractText(file);
     return this.aiService.generateQuestions(
       text,
-      dto.targetGameId,
+      dto.tema,
       dto.amount,
       dto.difficulty,
       dto.context,
       req.user.sub,
-      dto.paralelo_id ?? null,
       dto.force ?? false,
+      file.originalname,
     );
   }
 
@@ -84,8 +82,8 @@ export class AiController {
   async saveQuestions(@Body() dto: SaveQuestionsDto, @Request() req: any) {
     const userId = req.user.sub;
     return this.aiService.saveQuestions(
-      dto.game_id,
-      dto.paralelo_id ?? null,
+      dto.tema,
+      dto.source_id ?? null,
       dto.questions ?? [],
       userId,
     );

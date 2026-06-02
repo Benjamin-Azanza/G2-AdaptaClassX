@@ -8,9 +8,11 @@ import { RegisterPage } from '../../features/auth/pages/RegisterPage';
 import { StudentDashboardPage } from '../../features/student/pages/StudentDashboardPage';
 import { StudentGameCatalogPage } from '../../features/student/pages/StudentGameCatalogPage';
 import { StudentTasksPage } from '../../features/student/pages/StudentTasksPage';
+import { StudentResultPage } from '../../features/student/pages/StudentResultPage';
 import { TeacherDashboardPage } from '../../features/teacher/pages/TeacherDashboardPage';
 import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassroomPage';
 import { TeacherQuestionGeneratorPage } from '../../features/teacher/pages/TeacherQuestionGeneratorPage';
+import { TeacherBankPage } from '../../features/teacher/pages/TeacherBankPage';
 
 const BombGamePage = lazy(() =>
   import('../../features/games/bomb-game/BombGamePage').then((module) => ({
@@ -125,6 +127,14 @@ export function AppRouter() {
         }
       />
       <Route
+        path={routePaths.studentResult}
+        element={
+          <ProtectedRoute allowedRole="STUDENT">
+            <StudentResultPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path={routePaths.teacherDashboard}
         element={
           <ProtectedRoute allowedRole="TEACHER">
@@ -137,6 +147,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRole="TEACHER">
             <TeacherQuestionGeneratorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.teacherBank}
+        element={
+          <ProtectedRoute allowedRole="TEACHER">
+            <TeacherBankPage />
           </ProtectedRoute>
         }
       />

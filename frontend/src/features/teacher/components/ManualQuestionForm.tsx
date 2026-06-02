@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import type { Paralelo } from '../../paralelos/types/paralelo.types';
-import type { TeacherGame } from '../../games/types/game.types';
 
 interface ManualQuestion {
   texto: string;
@@ -9,26 +7,24 @@ interface ManualQuestion {
 }
 
 interface ManualQuestionFormProps {
-  onSave: (targetGameId: string, paraleloId: string, questions: ManualQuestion[]) => Promise<void>;
-  paralelos: Paralelo[];
-  games: TeacherGame[];
-  gamesLoading?: boolean;
+  onSave: (tema: string, questions: ManualQuestion[]) => Promise<void>;
 }
 
-export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: ManualQuestionFormProps) {
+const TEMAS = [
+  { value: 'LECTURA', label: 'Lectura' },
+  { value: 'ESCRITURA', label: 'Escritura' },
+  { value: 'LITERATURA', label: 'Literatura' },
+  { value: 'LENGUA_CULTURA', label: 'Lengua y Cultura' },
+  { value: 'COMUNICACION_ORAL', label: 'Comunicación Oral' },
+];
+
+export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
   const [questions, setQuestions] = useState<ManualQuestion[]>([
     { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }
   ]);
-  const [targetGameId, setTargetGameId] = useState('');
-  const [selectedParaleloId, setSelectedParaleloId] = useState('');
+  const [tema, setTema] = useState('LECTURA');
   const [isSaving, setIsSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const selectedParaleloValue = paralelos.some((p) => p.id === selectedParaleloId)
-    ? selectedParaleloId
-    : (paralelos[0]?.id ?? '');
-  const targetGameValue = games.some((game) => game.id === targetGameId)
-    ? targetGameId
-    : (games[0]?.id ?? '');
 
   const handleAddQuestion = () => {
     setQuestions([...questions, { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
@@ -54,8 +50,8 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
 
   const handleSave = async () => {
     setValidationError('');
-    if (!targetGameValue || !selectedParaleloValue) {
-      setValidationError('Selecciona un paralelo y un juego destino.');
+    if (!tema) {
+      setValidationError('Selecciona un tema para guardar las preguntas.');
       return;
     }
 
@@ -71,12 +67,10 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
 
     try {
       setIsSaving(true);
-      await onSave(targetGameValue, selectedParaleloValue, questions);
+      await onSave(tema, questions);
       // Reset after save
       setQuestions([{ texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
     } catch (error) {
-      // The parent component shows the network error in its banner —
-      // here we just stop the spinner.
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -86,40 +80,21 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
   return (
     <section className="flex flex-col gap-md border-2 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] mt-xl">
       <div className="border-b-2 border-on-background pb-sm">
-        <h2 className="font-headline text-2xl font-bold text-secondary">Generar Preguntas Manuales</h2>
-        <p className="text-on-surface-variant">Agrega tus propias preguntas personalizadas.</p>
+        <h2 className="font-headline text-2xl font-bold text-secondary">Añadir Preguntas Manuales</h2>
+        <p className="text-on-surface-variant">Agrega tus propias preguntas directamente a tu banco.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+      <div className="grid grid-cols-1 gap-md">
         <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-          Paralelo de destino
+          Tema del Banco de Destino
           <select
             className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-            value={selectedParaleloValue}
-            onChange={(event) => setSelectedParaleloId(event.target.value)}
+            value={tema}
+            onChange={(event) => setTema(event.target.value)}
           >
-            <option value="">Selecciona un paralelo...</option>
-            {paralelos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} ({p.grado}ro EGB)
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-          Juego destino
-          <select
-            className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            value={targetGameValue}
-            onChange={(event) => setTargetGameId(event.target.value)}
-            disabled={gamesLoading || games.length === 0}
-          >
-            {gamesLoading && <option value="">Cargando juegos...</option>}
-            {!gamesLoading && games.length === 0 && <option value="">No hay juegos disponibles</option>}
-            {games.map((game) => (
-              <option key={game.id} value={game.id}>
-                {game.title}
+            {TEMAS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
               </option>
             ))}
           </select>
@@ -201,7 +176,7 @@ export function ManualQuestionForm({ onSave, paralelos, games, gamesLoading }: M
           disabled={isSaving}
         >
           <span className="material-symbols-outlined">save</span>
-          {isSaving ? 'Guardando...' : 'Guardar y Asignar'}
+          {isSaving ? 'Guardando...' : 'Guardar en el Banco'}
         </button>
       </div>
 

@@ -1,0 +1,73 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { Tema } from '@prisma/client';
+import { UpdateQuestionDto } from './dto/update-question.dto';
+
+@Injectable()
+export class QuestionsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async listSources(teacherId: string) {
+    return this.prisma.questionSource.findMany({
+      where: { teacher_id: teacherId },
+      include: {
+        _count: { select: { questions: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async regenerateSource(sourceId: string, teacherId: string) {
+    const source = await this.prisma.questionSource.findUnique({
+      where: { id: sourceId },
+    });
+    if (!source || source.teacher_id !== teacherId) {
+      throw new NotFoundException('Fuente de preguntas no encontrada');
+    }
+    return {
+      message:
+        'Regeneración simulada exitosamente. Sube el archivo de nuevo para re-correr la IA real.',
+      sourceId,
+    };
+  }
+
+  async listQuestions(teacherId: string, tema?: Tema) {
+    return this.prisma.question.findMany({
+      where: {
+        teacher_id: teacherId,
+        ...(tema ? { tema } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async updateQuestion(
+    questionId: string,
+    teacherId: string,
+    dto: UpdateQuestionDto,
+  ) {
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+    if (!question || question.teacher_id !== teacherId) {
+      throw new NotFoundException('Pregunta no encontrada o no autorizada');
+    }
+    return this.prisma.question.update({
+      where: { id: questionId },
+      data: dto,
+    });
+  }
+
+  async deleteQuestion(questionId: string, teacherId: string) {
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+    if (!question || question.teacher_id !== teacherId) {
+      throw new NotFoundException('Pregunta no encontrada o no autorizada');
+    }
+    await this.prisma.question.delete({
+      where: { id: questionId },
+    });
+    return { ok: true };
+  }
+}

@@ -199,6 +199,9 @@ export class StoryScene extends Phaser.Scene {
       btnBg.on('pointerout', () => btnBg.setFillStyle(0x000000));
       
       btnBg.on('pointerdown', () => {
+        if (q && q.id) {
+          window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: q.id, correct: isCorrect } }));
+        }
         if (isCorrect) {
           // Correct!
           btnBg.setFillStyle(0x22c55e);

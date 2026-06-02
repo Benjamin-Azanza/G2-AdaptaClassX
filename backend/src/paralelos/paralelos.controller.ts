@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { ParalelosService } from './paralelos.service';
 import { CreateParaleloDto, JoinParaleloDto } from './dto/paralelos.dto';
@@ -32,21 +33,44 @@ export class ParalelosController {
     return this.paralelosService.join(dto, req.user.sub);
   }
 
+  // Student-initiated leave. Idempotent so it's safe to call from a
+  // "Salir del paralelo" button even if the SPA state is stale.
+  @Post('leave')
+  @Roles(Role.STUDENT)
+  async leave(@Request() req: any) {
+    return this.paralelosService.leave(req.user.sub);
+  }
+
   @Get()
   @Roles(Role.TEACHER)
-  async findAll() {
-    return this.paralelosService.findAll();
+  async findAll(
+    @Request() req: any,
+    @Query('include_archived') includeArchived?: string,
+  ) {
+    const withArchived = includeArchived === '1' || includeArchived === 'true';
+    return this.paralelosService.findAllForTeacher(req.user.sub, withArchived);
   }
 
   @Get(':id')
   @Roles(Role.TEACHER)
-  async findOne(@Param('id') id: string) {
-    return this.paralelosService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    return this.paralelosService.findOne(id, req.user.sub);
+  }
+
+  @Get(':id/ranking')
+  async getRanking(@Param('id') id: string, @Request() req: any) {
+    return this.paralelosService.ranking(id, req.user.sub, req.user.role);
   }
 
   @Patch(':id/archive')
   @Roles(Role.TEACHER)
-  async archive(@Param('id') id: string) {
-    return this.paralelosService.archive(id);
+  async archive(@Param('id') id: string, @Request() req: any) {
+    return this.paralelosService.archive(id, req.user.sub);
+  }
+
+  @Patch(':id/rotate-code')
+  @Roles(Role.TEACHER)
+  async rotateCode(@Param('id') id: string, @Request() req: any) {
+    return this.paralelosService.rotateCode(id, req.user.sub);
   }
 }

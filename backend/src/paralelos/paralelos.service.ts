@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -92,9 +93,41 @@ export class ParalelosService {
     });
   }
 
-  async findAll() {
+  /**
+   * Student leaves their current paralelo (sets paralelo_id = null).
+   * Idempotent: if already detached, no-op.
+   */
+  async leave(studentUserId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { user_id: studentUserId },
+    });
+    if (!student) {
+      throw new BadRequestException('Perfil de estudiante no encontrado');
+    }
+    if (!student.paralelo_id) {
+      return { ok: true, alreadyOut: true };
+    }
+    await this.prisma.student.update({
+      where: { user_id: studentUserId },
+      data: { paralelo_id: null },
+    });
+    return { ok: true, alreadyOut: false };
+  }
+
+  /**
+   * Scoped list for a single teacher. Previously this returned ALL active
+   * paralelos which leaked other teachers' classrooms. The controller still
+   * passes the teacher id so the contract is opt-in safe.
+   */
+  async findAllForTeacher(teacherId: string, includeArchived = false) {
+    const where: { teacher_id: string; activo?: boolean } = {
+      teacher_id: teacherId,
+    };
+    if (!includeArchived) {
+      where.activo = true;
+    }
     return this.prisma.paralelo.findMany({
-      where: { activo: true },
+      where,
       include: {
         _count: { select: { students: true } },
         teacher: { include: { teacher: true } },
@@ -103,11 +136,14 @@ export class ParalelosService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, teacherId: string) {
     const paralelo = await this.prisma.paralelo.findUnique({
       where: { id },
       include: {
-        students: { include: { user: true } },
+        students: {
+          include: { user: { select: { email: true } } },
+          orderBy: { nombre: 'asc' },
+        },
         _count: { select: { students: true } },
       },
     });
@@ -115,26 +151,93 @@ export class ParalelosService {
     if (!paralelo) {
       throw new NotFoundException('Paralelo no encontrado');
     }
+    if (paralelo.teacher_id !== teacherId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
 
     return paralelo;
   }
 
-  async archive(id: string) {
+  async archive(id: string, teacherId: string) {
     const paralelo = await this.prisma.paralelo.findUnique({ where: { id } });
 
     if (!paralelo) {
       throw new NotFoundException('Paralelo no encontrado');
     }
+    if (paralelo.teacher_id !== teacherId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
 
-    // Detach all students from this paralelo
-    await this.prisma.student.updateMany({
-      where: { paralelo_id: id },
-      data: { paralelo_id: null },
-    });
+    // Do NOT detach students from this paralelo anymore (non-destructive archivation)
 
     return this.prisma.paralelo.update({
       where: { id },
       data: { activo: false },
     });
+  }
+
+  /**
+   * Rotate the access code (e.g. when the previous one leaked). Old code
+   * stops working immediately; existing students stay attached because we
+   * key them by paralelo_id, not by code.
+   */
+  async rotateCode(id: string, teacherId: string) {
+    const paralelo = await this.prisma.paralelo.findUnique({ where: { id } });
+    if (!paralelo) {
+      throw new NotFoundException('Paralelo no encontrado');
+    }
+    if (paralelo.teacher_id !== teacherId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
+    const newCode = await this.generateUniqueCode();
+    return this.prisma.paralelo.update({
+      where: { id },
+      data: { codigo_acceso: newCode },
+    });
+  }
+
+  /**
+   * Ranking by XP for a paralelo. Auth: a teacher can only inspect their
+   * own paralelos; a student gets their own paralelo (regardless of id
+   * passed — we resolve from the student record).
+   */
+  async ranking(
+    id: string,
+    requesterId: string,
+    requesterRole: 'TEACHER' | 'STUDENT',
+  ) {
+    const paralelo = await this.prisma.paralelo.findUnique({ where: { id } });
+    if (!paralelo) throw new NotFoundException('Paralelo no encontrado');
+
+    if (requesterRole === 'TEACHER' && paralelo.teacher_id !== requesterId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
+    if (requesterRole === 'STUDENT') {
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: requesterId },
+      });
+      if (!student || student.paralelo_id !== id) {
+        throw new ForbiddenException('No perteneces a este paralelo');
+      }
+    }
+
+    const students = await this.prisma.student.findMany({
+      where: { paralelo_id: id },
+      orderBy: [{ puntos_xp: 'desc' }, { nombre: 'asc' }],
+      select: {
+        user_id: true,
+        nombre: true,
+        puntos_xp: true,
+        racha_dias: true,
+      },
+    });
+
+    return students.map((s, index) => ({
+      rank: index + 1,
+      user_id: s.user_id,
+      nombre: s.nombre,
+      puntos_xp: s.puntos_xp,
+      racha_dias: s.racha_dias,
+    }));
   }
 }

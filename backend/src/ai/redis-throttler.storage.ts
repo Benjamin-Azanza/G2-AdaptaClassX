@@ -66,6 +66,11 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
   }
 
   private openRecord(ttl: number): ThrottlerStorageRecord {
-    return { totalHits: 0, timeToExpire: ttl, isBlocked: false, timeToBlockExpire: 0 };
+    return {
+      totalHits: 0,
+      timeToExpire: ttl,
+      isBlocked: false,
+      timeToBlockExpire: 0,
+    };
   }
 }

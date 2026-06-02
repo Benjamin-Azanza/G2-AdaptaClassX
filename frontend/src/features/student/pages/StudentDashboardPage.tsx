@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StudentShell } from '../components/StudentShell';
 import { JoinParaleloCard } from '../components/JoinParaleloCard';
+import { MyParaleloCard } from '../components/MyParaleloCard';
 import { useAuthStore } from '../../auth/store/authStore';
 import {
   buildStudentProfile,
@@ -84,7 +85,7 @@ export function StudentDashboardPage() {
 
   return (
     <StudentShell title="Mi Panel">
-      {!user?.paralelo_id && <JoinParaleloCard />}
+      {user?.paralelo_id ? <MyParaleloCard /> : <JoinParaleloCard />}
 
       <section className="mb-lg grid grid-cols-1 items-stretch gap-md md:gap-lg md:grid-cols-3">
         <div className="md:col-span-2 flex flex-col gap-md border-4 border-on-background bg-surface-container p-md md:p-lg shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] md:flex-row md:items-center">

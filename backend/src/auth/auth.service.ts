@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,8 +20,16 @@ export class AuthService {
     if (!user) return;
 
     if (user.role === Role.STUDENT) {
-      // Delete student progress
-      await this.prisma.studentProgress.deleteMany({
+      // Delete student question attempts
+      await this.prisma.questionAttempt.deleteMany({
+        where: { student_id: userId },
+      });
+      // Delete student game sessions
+      await this.prisma.gameSession.deleteMany({
+        where: { student_id: userId },
+      });
+      // Delete student mission progress
+      await this.prisma.studentMissionProgress.deleteMany({
         where: { student_id: userId },
       });
       // Delete notifications
@@ -40,33 +45,33 @@ export class AuthService {
       const paralelos = await this.prisma.paralelo.findMany({
         where: { teacher_id: userId },
       });
-      const paraleloIds = paralelos.map(p => p.id);
+      const paraleloIds = paralelos.map((p) => p.id);
 
-      // Delete student progress for assignments in these paralelos
-      await this.prisma.studentProgress.deleteMany({
+      // Delete student mission progress for missions in these paralelos
+      await this.prisma.studentMissionProgress.deleteMany({
         where: {
-          assignment: {
+          mission: {
             paralelo_id: { in: paraleloIds },
           },
         },
       });
 
-      // Delete notifications for assignments in these paralelos
+      // Delete notifications for missions in these paralelos
       await this.prisma.notification.deleteMany({
         where: {
-          assignment: {
+          mission: {
             paralelo_id: { in: paraleloIds },
           },
         },
       });
 
-      // Delete assignments in these paralelos
-      await this.prisma.assignment.deleteMany({
+      // Delete missions in these paralelos
+      await this.prisma.mission.deleteMany({
         where: { paralelo_id: { in: paraleloIds } },
       });
 
-      // Delete assignments created by teacher directly
-      await this.prisma.assignment.deleteMany({
+      // Delete missions created by teacher directly
+      await this.prisma.mission.deleteMany({
         where: { created_by: userId },
       });
 
@@ -76,14 +81,14 @@ export class AuthService {
         data: { paralelo_id: null },
       });
 
-      // Delete questions in these paralelos or created by this teacher
-      await this.prisma.gameQuestion.deleteMany({
-        where: {
-          OR: [
-            { paralelo_id: { in: paraleloIds } },
-            { created_by: userId },
-          ],
-        },
+      // Delete questions created by this teacher
+      await this.prisma.question.deleteMany({
+        where: { teacher_id: userId },
+      });
+
+      // Delete question sources created by this teacher
+      await this.prisma.questionSource.deleteMany({
+        where: { teacher_id: userId },
       });
 
       // Delete paralelos
@@ -214,7 +219,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales invalidas');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.password_hash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales invalidas');
     }

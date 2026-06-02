@@ -6,10 +6,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ParalelosModule } from './paralelos/paralelos.module';
 import { GamesModule } from './games/games.module';
-import { AssignmentsModule } from './assignments/assignments.module';
-import { ProgressModule } from './progress/progress.module';
+import { MissionsModule } from './missions/missions.module';
+import { GameSessionsModule } from './game-sessions/game-sessions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
+import { QuestionsModule } from './questions/questions.module';
 import { CsrfGuard } from './common/security/csrf.guard';
 
 @Module({
@@ -22,7 +23,9 @@ import { CsrfGuard } from './common/security/csrf.guard';
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_EXPIRES_IN: Joi.string().default('7d'),
         PORT: Joi.number().default(3000),
-        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
         // FRONTEND_URL is required in production for CORS allowlist (see main.ts).
         FRONTEND_URL: Joi.string().when('NODE_ENV', {
           is: 'production',
@@ -30,13 +33,18 @@ import { CsrfGuard } from './common/security/csrf.guard';
           otherwise: Joi.optional(),
         }),
         OPENAI_API_KEY: Joi.string().optional(), // alias for AI_API_KEY
-        AI_API_KEY: Joi.string().optional(),     // preferred key name (OpenRouter / any provider)
-        AI_API_URL: Joi.string().uri().optional().default('https://api.openai.com/v1'),
+        AI_API_KEY: Joi.string().optional(), // preferred key name (OpenRouter / any provider)
+        AI_API_URL: Joi.string()
+          .uri()
+          .optional()
+          .default('https://api.openai.com/v1'),
         AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'), // Override to swap models without code changes
         // Optional — when set, the AI flow persists question drafts between
         // /generate-questions and /save-questions for 30 min. Missing is fine
         // (drafts just won't survive a tab reload).
-        REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).optional(),
+        REDIS_URL: Joi.string()
+          .uri({ scheme: ['redis', 'rediss'] })
+          .optional(),
       })
         // Require at least one AI key so the AiService never starts unauthenticated.
         .or('AI_API_KEY', 'OPENAI_API_KEY'),
@@ -45,10 +53,11 @@ import { CsrfGuard } from './common/security/csrf.guard';
     AuthModule,
     ParalelosModule,
     GamesModule,
-    AssignmentsModule,
-    ProgressModule,
+    MissionsModule,
+    GameSessionsModule,
     NotificationsModule,
     AiModule,
+    QuestionsModule,
   ],
   providers: [
     // Global double-submit CSRF guard. Runs on every request; safe methods

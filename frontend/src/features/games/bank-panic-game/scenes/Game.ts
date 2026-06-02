@@ -377,6 +377,9 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
 
         const correct = selectedIndex === this.correctAnswerIndex;
+        if (this.currentQuestion && this.currentQuestion.id) {
+            window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: this.currentQuestion.id, correct } }));
+        }
         btnGfx.clear();
         btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
         btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
@@ -482,7 +485,11 @@ export default class MainGame extends Phaser.Scene
     answerQuestion(doorObj)
     {
         const index = this.doors.indexOf(doorObj);
-        if (index === this.correctDoorIndex)
+        const correct = index === this.correctDoorIndex;
+        if (this.currentQuestion && this.currentQuestion.id) {
+            window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: this.currentQuestion.id, correct } }));
+        }
+        if (correct)
         {
             // Correct answer!
             this.sound.play('levelComplete');

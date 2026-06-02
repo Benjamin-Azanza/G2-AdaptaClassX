@@ -9,10 +9,7 @@ export class GamesController {
 
   @Get()
   async findAll(@Request() req: any) {
-    return this.gamesService.findAllForUser(
-      req.user.sub,
-      req.user.role,
-    );
+    return this.gamesService.findAllForUser(req.user.sub, req.user.role);
   }
 
   @Get(':id/questions')

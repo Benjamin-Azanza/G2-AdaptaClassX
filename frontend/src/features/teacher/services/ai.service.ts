@@ -1,38 +1,44 @@
 import api from '../../../services/api';
 
 export interface GeneratedQuestionPreview {
-  id: string;
   texto: string;
   opciones: string[];
   respuestaCorrecta: number;
 }
 
-// The save endpoint normalizes its input — it accepts both AI-generated
-// previews (which carry a synthetic `id`) and manually-typed rows. We model
-// that with a structural type so callers don't need to fabricate ids.
-export interface SavableQuestion {
-  texto: string;
-  opciones: string[];
-  respuestaCorrecta: number;
+export interface GenerateQuestionsResponse {
+  cached: boolean;
+  questions: GeneratedQuestionPreview[];
+  source_id: string;
 }
 
 export const aiService = {
-  generateQuestions: async (formData: FormData): Promise<GeneratedQuestionPreview[]> => {
-    // Override Content-Type for this specific request
-    const response = await api.post<{ cached: boolean; questions: GeneratedQuestionPreview[] }>('/ai/generate-questions', formData, {
+  generateQuestions: async (formData: FormData): Promise<GenerateQuestionsResponse> => {
+    const response = await api.post<GenerateQuestionsResponse>('/ai/generate-questions', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data.questions;
+    return response.data;
   },
 
   saveQuestions: async (data: {
-    game_id: string;
-    paralelo_id: string;
-    questions: SavableQuestion[];
+    tema: string;
+    source_id: string | null;
+    questions: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }>;
   }): Promise<unknown> => {
-    const response = await api.post('/ai/save-questions', data);
+    // Mapea la respuesta correcta de índice numérico al texto de la opción antes de enviar al backend
+    const mappedQuestions = data.questions.map((q) => ({
+      texto: q.texto,
+      opciones: q.opciones,
+      respuesta_correcta: q.opciones[q.respuestaCorrecta] || '',
+    }));
+
+    const response = await api.post('/ai/save-questions', {
+      tema: data.tema,
+      source_id: data.source_id,
+      questions: mappedQuestions,
+    });
     return response.data;
   },
 };

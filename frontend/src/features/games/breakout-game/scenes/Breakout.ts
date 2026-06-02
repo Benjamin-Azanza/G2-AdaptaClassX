@@ -374,6 +374,9 @@ export default class Breakout extends Phaser.Scene {
                 });
 
                 const isCorrect = i === correctIndex;
+                if (qData && qData.id) {
+                    window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: qData.id, correct: isCorrect } }));
+                }
                 btnGfx.clear();
                 btnGfx.fillStyle(isCorrect ? 0x166534 : 0x7f1d1d, 0.95);
                 btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);

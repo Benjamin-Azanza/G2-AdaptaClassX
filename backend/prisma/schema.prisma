@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -35,6 +36,12 @@ enum TipoFuente {
   IA
 }
 
+enum MissionType {
+  PLAY_TIME
+  PLAY_DISTINCT
+  ANSWER_CORRECT
+}
+
 // ─── Auth & Users ────────────────────────────────────────
 
 model User {
@@ -48,13 +55,16 @@ model User {
   teacher       Teacher?
 
   // Relations as teacher
-  paralelos     Paralelo[]    @relation("TeacherParalelos")
-  assignments   Assignment[]  @relation("AssignmentCreator")
-  questions     GameQuestion[] @relation("QuestionCreator")
+  paralelos           Paralelo[]               @relation("TeacherParalelos")
+  question_sources    QuestionSource[]         @relation("TeacherQuestionSources")
+  questions           Question[]               @relation("TeacherQuestions")
+  missions            Mission[]                @relation("MissionCreator")
 
   // Relations as student
-  progress      StudentProgress[] @relation("StudentProgressUser")
-  notifications Notification[]    @relation("NotificationStudent")
+  mission_progress    StudentMissionProgress[] @relation("StudentMissionProgressUser")
+  game_sessions       GameSession[]            @relation("StudentGameSessions")
+  attempts            QuestionAttempt[]        @relation("StudentAttempts")
+  notifications       Notification[]           @relation("NotificationStudent")
 
   @@map("users")
 }
@@ -84,12 +94,6 @@ model Teacher {
   @@map("teachers")
 }
 
-// Tabla "cedulas_autorizadas" existe en la DB (migration 20260510220527_init)
-// pero NO se mapea aquí porque Prisma 7 + adapter-pg rechaza modelos sin
-// relación a otros mapeados cuando se inicializa el client. La tabla queda
-// inerte (drift) hasta que el dominio la necesite. Si en el futuro `prisma
-// migrate dev` intenta dropearla, mover la migration sql a una nueva.
-
 // ─── Paralelos ───────────────────────────────────────────
 
 model Paralelo {
@@ -103,8 +107,7 @@ model Paralelo {
 
   teacher     User          @relation("TeacherParalelos", fields: [teacher_id], references: [id])
   students    Student[]
-  questions   GameQuestion[]
-  assignments Assignment[]
+  missions    Mission[]
 
   @@map("paralelos")
 }
@@ -123,9 +126,8 @@ model Game {
   descripcion         String?
   thumbnail_url       String?
 
-  content     GameContent[]
-  questions   GameQuestion[]
-  assignments Assignment[]
+  content       GameContent[]
+  game_sessions GameSession[]
 
   @@map("games")
 }
@@ -142,75 +144,123 @@ model GameContent {
   @@map("game_content")
 }
 
-model GameQuestion {
-  id              String     @id @default(uuid())
-  game_id         String
-  paralelo_id     String?
-  preguntas_json  Json
-  tipo_fuente     TipoFuente @default(DEFAULT)
-  created_by      String?
-  created_at      DateTime   @default(now())
+// ─── Question Bank (Banco de Preguntas) ──────────────────
 
-  game     Game      @relation(fields: [game_id], references: [id], onDelete: Cascade)
-  paralelo Paralelo? @relation(fields: [paralelo_id], references: [id], onDelete: SetNull)
-  creator  User?     @relation("QuestionCreator", fields: [created_by], references: [id])
+model QuestionSource {
+  id          String     @id @default(uuid())
+  teacher_id  String
+  filename    String
+  source_hash String
+  tema        Tema
+  created_at  DateTime   @default(now())
 
-  @@unique([game_id, paralelo_id])
-  @@map("game_questions")
+  teacher   User       @relation("TeacherQuestionSources", fields: [teacher_id], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@map("question_sources")
 }
 
-// ─── Assignments & Progress ──────────────────────────────
+model Question {
+  id                 String            @id @default(uuid())
+  teacher_id         String
+  source_id          String?
+  tema               Tema
+  texto              String
+  opciones           Json
+  respuesta_correcta String
+  created_at         DateTime          @default(now())
 
-model Assignment {
-  id                  String   @id @default(uuid())
-  paralelo_id         String
-  game_id             String
-  minutos_requeridos  Int
-  fecha_limite        DateTime
-  created_by          String
-  created_at          DateTime @default(now())
+  teacher   User              @relation("TeacherQuestions", fields: [teacher_id], references: [id], onDelete: Cascade)
+  source    QuestionSource?   @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  attempts  QuestionAttempt[]
 
-  paralelo      Paralelo          @relation(fields: [paralelo_id], references: [id])
-  game          Game              @relation(fields: [game_id], references: [id])
-  creator       User              @relation("AssignmentCreator", fields: [created_by], references: [id])
-  progress      StudentProgress[]
+  @@map("questions")
+}
+
+// ─── Missions & Progress ─────────────────────────────────
+
+model Mission {
+  id           String      @id @default(uuid())
+  paralelo_id  String
+  tipo         MissionType
+  goal_value   Int
+  fecha_limite DateTime
+  created_by   String
+  created_at   DateTime    @default(now())
+
+  paralelo      Paralelo                 @relation(fields: [paralelo_id], references: [id], onDelete: Cascade)
+  creator       User                     @relation("MissionCreator", fields: [created_by], references: [id])
+  progress      StudentMissionProgress[]
   notifications Notification[]
 
-  @@map("assignments")
+  @@map("missions")
 }
 
-model StudentProgress {
-  id              String    @id @default(uuid())
-  student_id      String
-  assignment_id   String
-  minutos_jugados Decimal   @default(0) @db.Decimal(5, 2)
-  completado      Boolean   @default(false)
-  xp_otorgado     Boolean   @default(false)
-  completed_at    DateTime?
+model StudentMissionProgress {
+  id           String    @id @default(uuid())
+  student_id   String
+  mission_id   String
+  current_value Int       @default(0)
+  completado   Boolean   @default(false)
+  xp_otorgado  Boolean   @default(false)
+  completed_at DateTime?
 
-  student    User       @relation("StudentProgressUser", fields: [student_id], references: [id])
-  assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
+  student   User    @relation("StudentMissionProgressUser", fields: [student_id], references: [id], onDelete: Cascade)
+  mission   Mission @relation(fields: [mission_id], references: [id], onDelete: Cascade)
 
-  @@unique([student_id, assignment_id])
+  @@unique([student_id, mission_id])
   @@index([student_id])
-  @@index([assignment_id])
-  @@map("student_progress")
+  @@index([mission_id])
+  @@map("student_mission_progress")
+}
+
+// ─── Game Sessions & Attempts ────────────────────────────
+
+model GameSession {
+  id                  String            @id @default(uuid())
+  student_id          String
+  game_id             String
+  started_at          DateTime          @default(now())
+  minutos_jugados     Decimal           @default(0) @db.Decimal(5, 2)
+  preguntas_correctas Int               @default(0)
+  preguntas_intentadas Int               @default(0)
+
+  student  User              @relation("StudentGameSessions", fields: [student_id], references: [id], onDelete: Cascade)
+  game     Game              @relation(fields: [game_id], references: [id], onDelete: Cascade)
+  attempts QuestionAttempt[]
+
+  @@map("game_sessions")
+}
+
+model QuestionAttempt {
+  id              String      @id @default(uuid())
+  student_id      String
+  question_id     String
+  game_session_id String
+  correcta        Boolean
+  answered_at     DateTime    @default(now())
+
+  student      User        @relation("StudentAttempts", fields: [student_id], references: [id], onDelete: Cascade)
+  question     Question    @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  game_session GameSession @relation(fields: [game_session_id], references: [id], onDelete: Cascade)
+
+  @@map("question_attempts")
 }
 
 // ─── Notifications ───────────────────────────────────────
 
 model Notification {
-  id            String   @id @default(uuid())
-  student_id    String
-  assignment_id String
-  mensaje       String
-  leida         Boolean  @default(false)
-  created_at    DateTime @default(now())
+  id         String   @id @default(uuid())
+  student_id String
+  mission_id String
+  mensaje    String
+  leida      Boolean  @default(false)
+  created_at DateTime @default(now())
 
-  student    User       @relation("NotificationStudent", fields: [student_id], references: [id])
-  assignment Assignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
+  student User    @relation("NotificationStudent", fields: [student_id], references: [id])
+  mission Mission @relation(fields: [mission_id], references: [id], onDelete: Cascade)
 
   @@index([student_id])
-  @@index([assignment_id])
+  @@index([mission_id])
   @@map("notifications")
 }

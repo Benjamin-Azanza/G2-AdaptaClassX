@@ -1,48 +1,44 @@
 import { useState } from 'react';
-import type { Paralelo } from '../../paralelos/types/paralelo.types';
-import type { TeacherGame } from '../../games/types/game.types';
 
 interface QuestionGenerationFormProps {
-  onSubmit: (formData: FormData, targetGameId: string, paraleloId: string) => void;
+  onSubmit: (formData: FormData, tema: string) => void;
   isLoading: boolean;
-  paralelos: Paralelo[];
-  games: TeacherGame[];
-  gamesLoading?: boolean;
 }
 
-export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, gamesLoading }: QuestionGenerationFormProps) {
+const TEMAS = [
+  { value: 'LECTURA', label: 'Lectura' },
+  { value: 'ESCRITURA', label: 'Escritura' },
+  { value: 'LITERATURA', label: 'Literatura' },
+  { value: 'LENGUA_CULTURA', label: 'Lengua y Cultura' },
+  { value: 'COMUNICACION_ORAL', label: 'Comunicación Oral' },
+];
+
+export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerationFormProps) {
   const [amount, setAmount] = useState(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [targetGameId, setTargetGameId] = useState('');
+  const [tema, setTema] = useState('LECTURA');
   const [difficulty, setDifficulty] = useState('Basico');
   const [context, setContext] = useState('');
-  const [selectedParaleloId, setSelectedParaleloId] = useState('');
 
   const questionAmounts = [5, 10, 15];
-  const selectedParaleloValue = paralelos.some((p) => p.id === selectedParaleloId)
-    ? selectedParaleloId
-    : (paralelos[0]?.id ?? '');
-  const targetGameValue = games.some((game) => game.id === targetGameId)
-    ? targetGameId
-    : (games[0]?.id ?? '');
 
   const handleSubmit = () => {
-    if (!uploadedFile || !targetGameValue || !selectedParaleloValue) return;
+    if (!uploadedFile || !tema) return;
 
     const formData = new FormData();
     formData.append('file', uploadedFile);
-    formData.append('targetGameId', targetGameValue);
+    formData.append('tema', tema);
     formData.append('amount', amount.toString());
     formData.append('difficulty', difficulty);
     formData.append('context', context);
 
-    onSubmit(formData, targetGameValue, selectedParaleloValue);
+    onSubmit(formData, tema);
   };
 
   return (
     <section className="flex h-fit flex-col gap-md border-2 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] md:col-span-1">
       <div className="border-b-2 border-on-background pb-sm">
-        <h2 className="font-headline text-2xl font-bold text-primary">Parametros de generacion</h2>
+        <h2 className="font-headline text-2xl font-bold text-primary">Parámetros de generación</h2>
         <p className="text-on-surface-variant">Configura las opciones para la IA.</p>
       </div>
 
@@ -52,7 +48,7 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, 
           {uploadedFile ? uploadedFile.name : 'Subir documento base'}
         </span>
         <span className="text-sm text-on-surface-variant">
-          {uploadedFile ? 'Archivo cargado solo en memoria' : 'PDF o DOCX, max 10MB'}
+          {uploadedFile ? 'Archivo cargado en memoria' : 'PDF, DOCX o TXT, max 10MB'}
         </span>
         <input
           className="sr-only"
@@ -63,34 +59,15 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, 
       </label>
 
       <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-        Paralelo de destino
+        Tema del material
         <select
           className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-          value={selectedParaleloValue}
-          onChange={(event) => setSelectedParaleloId(event.target.value)}
+          value={tema}
+          onChange={(event) => setTema(event.target.value)}
         >
-          <option value="">Selecciona un paralelo...</option>
-          {paralelos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre} ({p.grado}ro EGB)
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-        Juego destino
-        <select
-          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-          value={targetGameValue}
-          onChange={(event) => setTargetGameId(event.target.value)}
-          disabled={gamesLoading || games.length === 0}
-        >
-          {gamesLoading && <option value="">Cargando juegos...</option>}
-          {!gamesLoading && games.length === 0 && <option value="">No hay juegos disponibles</option>}
-          {games.map((game) => (
-            <option key={game.id} value={game.id}>
-              {game.title}
+          {TEMAS.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
@@ -129,10 +106,10 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, 
       </label>
 
       <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-        Contexto adicional
+        Contexto adicional (opcional)
         <textarea
           className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Ej: Enfocar en comprension lectora, vocabulario o figuras literarias..."
+          placeholder="Ej: Enfocar en comprensión lectora, vocabulario o figuras literarias..."
           rows={3}
           value={context}
           onChange={(e) => setContext(e.target.value)}
@@ -142,7 +119,7 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos, games, 
       <button
         className="mt-auto flex w-full items-center justify-center gap-sm border-2 border-on-background bg-primary px-4 py-2.5 font-headline text-lg md:text-2xl font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] disabled:cursor-not-allowed disabled:opacity-60"
         type="button"
-        disabled={!uploadedFile || !targetGameValue || !selectedParaleloValue || isLoading}
+        disabled={!uploadedFile || !tema || isLoading}
         onClick={handleSubmit}
       >
         <span className="material-symbols-outlined">smart_toy</span>

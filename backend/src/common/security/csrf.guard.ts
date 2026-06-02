@@ -7,11 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
-import {
-  CSRF_COOKIE,
-  CSRF_HEADER,
-  parseCookies,
-} from './cookies';
+import { CSRF_COOKIE, CSRF_HEADER, parseCookies } from './cookies';
 import { CSRF_SKIP_KEY } from './skip-csrf.decorator';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

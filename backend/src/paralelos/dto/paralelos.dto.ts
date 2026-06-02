@@ -26,7 +26,8 @@ export class JoinParaleloDto {
   @IsNotEmpty()
   @Length(6, 6)
   @Matches(/^[A-Z2-9]+$/, {
-    message: 'codigo_acceso must be 6 uppercase alphanumeric chars (no O, 0, I, 1).',
+    message:
+      'codigo_acceso must be 6 uppercase alphanumeric chars (no O, 0, I, 1).',
   })
   codigo_acceso: string;
 }

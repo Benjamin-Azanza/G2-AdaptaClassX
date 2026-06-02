@@ -11,7 +11,8 @@ interface TeacherShellProps {
 
 const navItems = [
   { label: 'Dashboard', icon: 'dashboard', to: routePaths.teacherDashboard },
-  { label: 'Preguntas', icon: 'menu_book', to: routePaths.teacherQuestions },
+  { label: 'Generador', icon: 'menu_book', to: routePaths.teacherQuestions },
+  { label: 'Banco', icon: 'database', to: routePaths.teacherBank },
   { label: 'Aula', icon: 'school', to: routePaths.teacherClassroom },
 ];
 

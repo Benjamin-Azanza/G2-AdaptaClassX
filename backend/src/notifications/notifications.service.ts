@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -13,10 +17,8 @@ export class NotificationsService {
       },
       orderBy: { created_at: 'desc' },
       include: {
-        assignment: {
-          include: { game: true }
-        }
-      }
+        mission: true,
+      },
     });
   }
 
@@ -30,7 +32,9 @@ export class NotificationsService {
     }
 
     if (notification.student_id !== studentId) {
-      throw new ForbiddenException('No tienes permiso para marcar esta notificación');
+      throw new ForbiddenException(
+        'No tienes permiso para marcar esta notificación',
+      );
     }
 
     return this.prisma.notification.update({

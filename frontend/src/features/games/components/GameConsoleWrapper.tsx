@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import Phaser from 'phaser';
+import { useAuthStore } from '../../auth/store/authStore';
 
 type GameConsoleWrapperProps = {
   title: string;
@@ -32,6 +33,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   onQuit,
   children,
 }) => {
+  // Surface the role so the wrapper can show a "preview mode" banner when
+  // a teacher opens a game directly from the catalog. The flag is purely
+  // visual — it doesn't gate anything in the scene.
+  const role = useAuthStore((state) => state.user?.role);
+  const isTeacherPreview = role === 'TEACHER';
+
   const [isPaused, setIsPaused] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isBtnAPressed, setIsBtnAPressed] = useState(false);
@@ -477,6 +484,11 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         style={{ width: '90%', maxWidth: '520px', minWidth: '280px', maxHeight: '95vh', boxSizing: 'border-box' }}
       >
         <div>
+          {isTeacherPreview && (
+            <div className="mb-3 border-4 border-tertiary bg-tertiary-container px-2 py-1 text-center font-mono text-xs font-bold uppercase text-on-tertiary-container">
+              Modo previsualización · no cuenta como tarea
+            </div>
+          )}
           <h1 className="border-b-4 border-on-background pb-2 text-2xl md:text-3xl font-black uppercase tracking-widest text-center text-primary" style={{ fontFamily: 'Lexend, var(--font-body), sans-serif' }}>
             {title}
           </h1>
@@ -739,6 +751,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
           <span className="material-symbols-outlined">pause</span>
           Pausa
         </button>
+        {isTeacherPreview && (
+          <div className="flex items-center gap-1 border-4 border-tertiary bg-tertiary-container px-3 py-2 font-mono text-xs font-bold uppercase text-on-tertiary-container shadow-[4px_4px_0_0_#1d1c17]">
+            <span className="material-symbols-outlined text-base">visibility</span>
+            Modo preview
+          </div>
+        )}
       </div>
 
       <div 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { notificationsService, type NotificationRow } from '../services/notifications.service';
+import { routePaths } from '../../../app/router/routePaths';
 
 /**
  * Bell + dropdown that lives in the student shell header. Polls /notifications
@@ -7,6 +9,7 @@ import { notificationsService, type NotificationRow } from '../services/notifica
  * enough for the "new assignment" use case which isn't time-critical.
  */
 export function NotificationsBell() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -58,6 +61,17 @@ export function NotificationsBell() {
     }
   };
 
+  /**
+   * Open the notification's target. Today every notification points at an
+   * assignment, so we navigate to the tasks page and mark it as read in
+   * the same gesture (fire-and-forget — the UI doesn't depend on it).
+   */
+  const handleOpen = (id: string) => {
+    void handleRead(id);
+    setOpen(false);
+    navigate(routePaths.studentTasks);
+  };
+
   const unread = items.length;
 
   return (
@@ -96,13 +110,22 @@ export function NotificationsBell() {
                       {notification.assignment.game.titulo}
                     </p>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleRead(notification.id)}
-                    className="mt-xs text-xs font-bold uppercase text-primary hover:underline"
-                  >
-                    Marcar como leída
-                  </button>
+                  <div className="mt-xs flex items-center justify-between gap-sm">
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(notification.id)}
+                      className="border-2 border-on-background bg-primary px-sm py-xs text-xs font-bold uppercase text-on-primary shadow-[2px_2px_0_0_#1d1c17]"
+                    >
+                      Ver tarea
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRead(notification.id)}
+                      className="text-xs font-bold uppercase text-primary hover:underline"
+                    >
+                      Marcar leída
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1,40 +1,44 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
-import type { GameQuestion, Prisma } from '@prisma/client';
 
 @Injectable()
 export class GamesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAllForUser(userId: string, role: Role) {
-    // Single query that pulls every game plus the question rows the user is
-    // allowed to see (own + global defaults). We then collapse per game in
-    // memory, preferring custom rows and falling back to defaults so the
-    // counter never reads 0 when defaults exist.
-    //
-    // Replaces the previous Promise.all(...) loop that ran ~25-37 queries
-    // for the seed of 12 games. With Supabase PgBouncer the loop reliably
-    // exhausted the pool under modest concurrency.
-    const where = await this.buildQuestionsFilter(userId, role);
-
     const games = await this.prisma.game.findMany({
       orderBy: { titulo: 'asc' },
-      include: { questions: { where } },
     });
 
+    let teacherId: string | null = null;
+    if (role === Role.TEACHER) {
+      teacherId = userId;
+    } else {
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: userId },
+      });
+      if (student?.paralelo_id) {
+        const paralelo = await this.prisma.paralelo.findUnique({
+          where: { id: student.paralelo_id },
+        });
+        teacherId = paralelo?.teacher_id || null;
+      }
+    }
+
+    const questionCounts = teacherId
+      ? await this.prisma.question.groupBy({
+          by: ['tema'],
+          where: { teacher_id: teacherId },
+          _count: { id: true },
+        })
+      : [];
+
+    const countMap = new Map(questionCounts.map((q) => [q.tema, q._count.id]));
+
     return games.map((game) => {
-      const visible = pickVisibleQuestions(game.questions);
-      const questionsCount = visible.reduce(
-        (total, q) =>
-          total + (Array.isArray(q.preguntas_json) ? q.preguntas_json.length : 0),
-        0,
-      );
-      // Don't ship the full questions payload from the list endpoint —
-      // /games/:id/questions handles that. Keeps the response light.
-      const { questions: _omit, ...gameWithoutQuestions } = game;
-      void _omit;
-      return { ...gameWithoutQuestions, questionsCount };
+      const questionsCount = countMap.get(game.tema) ?? 0;
+      return { ...game, questionsCount };
     });
   }
 
@@ -44,60 +48,44 @@ export class GamesService {
       throw new NotFoundException('Juego no encontrado');
     }
 
-    const where = await this.buildQuestionsFilter(userId, role, gameId);
-    const questions = await this.prisma.gameQuestion.findMany({ where });
-    return pickVisibleQuestions(questions);
-  }
-
-  /**
-   * Build the `where` clause that selects the question rows visible to this
-   * user. Centralised so the list endpoint and the per-game endpoint apply
-   * the exact same authorization rules.
-   *
-   * The clause includes global defaults (paralelo_id null) too; callers must
-   * collapse via `pickVisibleQuestions` to prefer custom over defaults.
-   */
-  private async buildQuestionsFilter(
-    userId: string,
-    role: Role,
-    gameId?: string,
-  ): Promise<Prisma.GameQuestionWhereInput> {
-    const gameFilter: Prisma.GameQuestionWhereInput = gameId
-      ? { game_id: gameId }
-      : {};
-
-    if (role === Role.STUDENT) {
+    let teacherId: string | null = null;
+    if (role === Role.TEACHER) {
+      teacherId = userId;
+    } else {
       const student = await this.prisma.student.findUnique({
         where: { user_id: userId },
-        select: { paralelo_id: true },
       });
-      const paraleloId = student?.paralelo_id;
-      return {
-        ...gameFilter,
-        OR: paraleloId
-          ? [{ paralelo_id: paraleloId }, { paralelo_id: null }]
-          : [{ paralelo_id: null }],
-      };
+      if (student?.paralelo_id) {
+        const paralelo = await this.prisma.paralelo.findUnique({
+          where: { id: student.paralelo_id },
+        });
+        teacherId = paralelo?.teacher_id || null;
+      }
     }
 
-    // TEACHER: their own custom rows, rows from their paralelos, plus defaults.
-    return {
-      ...gameFilter,
-      OR: [
-        { created_by: userId },
-        { paralelo: { teacher_id: userId } },
-        { paralelo_id: null },
-      ],
-    };
-  }
-}
+    if (!teacherId) return [];
 
-/**
- * If any non-default questions exist (paralelo_id !== null), return only
- * those — they override the global defaults. Otherwise return the defaults
- * unchanged. Keeps the legacy "custom wins over default" UX.
- */
-function pickVisibleQuestions(rows: GameQuestion[]): GameQuestion[] {
-  const custom = rows.filter((r) => r.paralelo_id !== null);
-  return custom.length > 0 ? custom : rows;
+    const dbQuestions = await this.prisma.question.findMany({
+      where: {
+        teacher_id: teacherId,
+        tema: game.tema,
+      },
+    });
+
+    // Devuelve en el formato heredado que espera frontend para no romper la sesión
+    const preguntas_json = dbQuestions.map((q) => {
+      const opciones = Array.isArray(q.opciones)
+        ? (q.opciones as string[])
+        : [];
+      const correctIndex = opciones.indexOf(q.respuesta_correcta);
+      return {
+        id: q.id,
+        texto: q.texto,
+        opciones: opciones,
+        respuestaCorrecta: correctIndex !== -1 ? correctIndex : 0,
+      };
+    });
+
+    return [{ preguntas_json }];
+  }
 }
