@@ -5,9 +5,9 @@ import { getApiErrorMessage } from '../../../lib/httpErrors';
 
 /**
  * Rendered on the student dashboard when the user is already in a paralelo.
- * Lets them leave (e.g. wrong code, end of school year). The backend keeps
- * their progress rows tied to assignment_id, so re-joining the same paralelo
- * later still shows old completions.
+ * Lets them leave (e.g. wrong code, end of school year). Leaving only detaches
+ * the student from the paralelo — their game sessions, attempts and XP stay,
+ * so re-joining the same or a different paralelo never wipes their progress.
  */
 export function MyParaleloCard() {
   const hydrate = useAuthStore((state) => state.hydrate);

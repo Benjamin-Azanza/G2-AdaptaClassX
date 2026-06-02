@@ -3,7 +3,12 @@ import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { paralelosService } from '../../paralelos/services/paralelos.service';
 import type { Paralelo } from '../../paralelos/types/paralelo.types';
 
-export function useParalelos(includeArchived = false) {
+/**
+ * Lists every paralelo owned by the logged-in teacher. The archive/unarchive
+ * UX was removed — the backend now returns all paralelos regardless of
+ * `activo` so there's no filter to tweak here.
+ */
+export function useParalelos() {
   const [paralelos, setParalelos] = useState<Paralelo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,22 +17,19 @@ export function useParalelos(includeArchived = false) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await paralelosService.getAll(includeArchived);
+      const response = await paralelosService.getAll();
       setParalelos(response.data);
     } catch (requestError: unknown) {
       setError(getApiErrorMessage(requestError, 'No se pudieron cargar los paralelos'));
     } finally {
       setIsLoading(false);
     }
-  }, [includeArchived]);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
-    Promise.resolve().then(() => {
-      if (mounted) setIsLoading(true);
-    });
     paralelosService
-      .getAll(includeArchived)
+      .getAll()
       .then((response) => {
         if (mounted) setParalelos(response.data);
       })
@@ -42,7 +44,7 @@ export function useParalelos(includeArchived = false) {
     return () => {
       mounted = false;
     };
-  }, [includeArchived]);
+  }, []);
 
   return { paralelos, isLoading, error, refresh };
 }

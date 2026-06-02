@@ -31,6 +31,10 @@ export class MissionsService {
         goal_value: dto.goal_value,
         fecha_limite: new Date(dto.fecha_limite),
         created_by: teacherId,
+        descripcion: dto.descripcion ?? null,
+        // The schema default is 100 — only override when the teacher
+        // explicitly picked a different reward.
+        ...(dto.xp_reward !== undefined && { xp_reward: dto.xp_reward }),
       },
     });
 
@@ -99,10 +103,17 @@ export class MissionsService {
         id: m.id,
         tipo: m.tipo,
         goal_value: m.goal_value,
-        current_value: prog?.current_value ?? 0,
+        descripcion: m.descripcion,
+        xp_reward: m.xp_reward,
+        // Prisma's Decimal column serializes as an object; coerce to plain
+        // number so the frontend gets a JSON number.
+        current_value: Number(prog?.current_value ?? 0),
         completado: isCompleted,
         fecha_limite: m.fecha_limite.toISOString(),
-        xp_ganado: prog?.xp_otorgado ? 100 : 0,
+        // Reflect what was actually awarded. Reading it off the mission
+        // (rather than hardcoding 100) keeps the UI honest for low/high
+        // reward missions.
+        xp_ganado: prog?.xp_otorgado ? m.xp_reward : 0,
         completed_at: prog?.completed_at?.toISOString() ?? null,
       };
 
@@ -153,6 +164,8 @@ export class MissionsService {
         paralelo: m.paralelo,
         tipo: m.tipo,
         goal_value: m.goal_value,
+        descripcion: m.descripcion,
+        xp_reward: m.xp_reward,
         fecha_limite: m.fecha_limite.toISOString(),
         created_at: m.created_at.toISOString(),
         completed_count: completedCount,
@@ -200,7 +213,7 @@ export class MissionsService {
           user_id: s.user_id,
           nombre: s.nombre,
           email: s.user.email,
-          current_value: p ? p.current_value : 0,
+          current_value: Number(p?.current_value ?? 0),
           completado: p?.completado ?? false,
           completed_at: p?.completed_at?.toISOString() ?? null,
           xp_otorgado: p?.xp_otorgado ?? false,
@@ -275,7 +288,9 @@ export class MissionsService {
             minutos_jugados: true,
           },
         });
-        currentValue = Math.floor(Number(result._sum.minutos_jugados ?? 0));
+        // Keep the fractional minutes from heartbeats (0.5 per beat) so
+        // a student who plays 7.5 min toward a 10-min goal sees 7.5, not 7.
+        currentValue = Number(result._sum.minutos_jugados ?? 0);
       } else if (mission.tipo === MissionType.PLAY_DISTINCT) {
         const sessions = await this.prisma.gameSession.findMany({
           where: {
@@ -313,10 +328,14 @@ export class MissionsService {
       });
 
       if (shouldGrantXp) {
+        // Use the mission's configured reward (defaults to 100 in the
+        // schema for back-compat) so a tougher mission can actually pay
+        // out more than a 15-minute warm-up.
+        const reward = mission.xp_reward;
         await this.prisma.student.update({
           where: { user_id: studentId },
           data: {
-            puntos_xp: { increment: 100 },
+            puntos_xp: { increment: reward },
           },
         });
 
@@ -331,7 +350,7 @@ export class MissionsService {
           data: {
             student_id: studentId,
             mission_id: mission.id,
-            mensaje: `¡Misión completada! Ganaste 100 XP por lograr ${goalLabelMap[mission.tipo]}.`,
+            mensaje: `¡Misión completada! Ganaste ${reward} XP por lograr ${goalLabelMap[mission.tipo]}.`,
           },
         });
       }

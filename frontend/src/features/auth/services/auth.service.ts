@@ -19,12 +19,20 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+// Login extends AuthResponse with the daily streak bonus the backend
+// awards once per calendar day. 0 for teachers and for already-logged-in
+// students; > 0 the first login of the day. The UI uses it to flash a
+// confirmation banner so the player notices the XP gain.
+export interface LoginResponse extends AuthResponse {
+  streak_bonus_xp: number;
+}
+
 export const authService = {
   register: (data: RegisterPayload) =>
     api.post<AuthResponse>('/auth/register', data),
 
   login: (data: LoginPayload) =>
-    api.post<AuthResponse>('/auth/login', data),
+    api.post<LoginResponse>('/auth/login', data),
 
   logout: () => api.post<void>('/auth/logout'),
 

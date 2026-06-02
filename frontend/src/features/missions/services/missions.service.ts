@@ -9,6 +9,8 @@ export interface Mission {
   };
   tipo: 'PLAY_TIME' | 'PLAY_DISTINCT' | 'ANSWER_CORRECT';
   goal_value: number;
+  descripcion: string | null;
+  xp_reward: number;
   fecha_limite: string;
   created_at: string;
   completed_count: number;
@@ -37,9 +39,13 @@ export interface StudentMissionItem {
   id: string;
   tipo: 'PLAY_TIME' | 'PLAY_DISTINCT' | 'ANSWER_CORRECT';
   goal_value: number;
+  descripcion: string | null;
+  // Reward the student WILL receive (configured by the teacher).
+  xp_reward: number;
   current_value: number;
   completado: boolean;
   fecha_limite: string;
+  // Reward already credited (0 until completion, then equals xp_reward).
   xp_ganado: number;
   completed_at: string | null;
 }
@@ -55,6 +61,8 @@ export const missionsService = {
     tipo: 'PLAY_TIME' | 'PLAY_DISTINCT' | 'ANSWER_CORRECT';
     goal_value: number;
     fecha_limite: string;
+    descripcion?: string;
+    xp_reward?: number;
   }): Promise<unknown> => {
     const res = await api.post('/missions', data);
     return res.data;

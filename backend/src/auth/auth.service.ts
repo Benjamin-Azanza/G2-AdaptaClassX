@@ -232,30 +232,44 @@ export class AuthService {
     }
 
     // XP awarded for today's streak login. Stays 0 when the student already
-    // logged in today (diffDays === 0) or is a teacher.
+    // logged in today or is a teacher.
     let streakBonusXp = 0;
 
     if (user.role === Role.STUDENT && user.student) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Compare dates as UTC YYYY-MM-DD strings. The old code used
+      // `setHours(0,0,0,0)` which interprets the Date in *local* time;
+      // combined with Postgres returning the `@db.Date` column as UTC
+      // midnight, that subtraction wrapped to ~1 day in any TZ west of
+      // UTC (we're UTC-5 in Ecuador). Result: the streak ticked up
+      // every single login. Comparing two YYYY-MM-DD strings sidesteps
+      // the whole timezone trap.
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0, 10);
+      const todayAnchor = new Date(`${todayKey}T00:00:00.000Z`);
 
       // The streak value after this login, or null when no change applies
       // (already logged in today → no bonus, no update).
       let newRacha: number | null = null;
 
       if (user.student.last_login_date) {
-        const lastLogin = new Date(user.student.last_login_date);
-        lastLogin.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor(
-          (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const lastKey = user.student.last_login_date
+          .toISOString()
+          .slice(0, 10);
 
-        if (diffDays === 1) {
-          newRacha = user.student.racha_dias + 1; // streak continues
-        } else if (diffDays > 1) {
-          newRacha = 1; // streak broken, restart at today
+        if (lastKey !== todayKey) {
+          const lastAnchor = new Date(`${lastKey}T00:00:00.000Z`);
+          const diffDays = Math.round(
+            (todayAnchor.getTime() - lastAnchor.getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+
+          if (diffDays === 1) {
+            newRacha = user.student.racha_dias + 1; // streak continues
+          } else {
+            newRacha = 1; // streak broken, restart at today
+          }
         }
-        // diffDays === 0 → already logged in today; leave newRacha null.
+        // lastKey === todayKey → already logged in today; nothing to do.
       } else {
         newRacha = 1; // first ever login
       }
@@ -268,7 +282,7 @@ export class AuthService {
           where: { user_id: user.id },
           data: {
             racha_dias: newRacha,
-            last_login_date: today,
+            last_login_date: todayAnchor,
             puntos_xp: { increment: streakBonusXp },
           },
         });

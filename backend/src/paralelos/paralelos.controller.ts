@@ -7,7 +7,6 @@ import {
   Param,
   UseGuards,
   Request,
-  Query,
 } from '@nestjs/common';
 import { ParalelosService } from './paralelos.service';
 import { CreateParaleloDto, JoinParaleloDto } from './dto/paralelos.dto';
@@ -43,12 +42,8 @@ export class ParalelosController {
 
   @Get()
   @Roles(Role.TEACHER)
-  async findAll(
-    @Request() req: any,
-    @Query('include_archived') includeArchived?: string,
-  ) {
-    const withArchived = includeArchived === '1' || includeArchived === 'true';
-    return this.paralelosService.findAllForTeacher(req.user.sub, withArchived);
+  async findAll(@Request() req: any) {
+    return this.paralelosService.findAllForTeacher(req.user.sub);
   }
 
   @Get(':id')
@@ -60,12 +55,6 @@ export class ParalelosController {
   @Get(':id/ranking')
   async getRanking(@Param('id') id: string, @Request() req: any) {
     return this.paralelosService.ranking(id, req.user.sub, req.user.role);
-  }
-
-  @Patch(':id/archive')
-  @Roles(Role.TEACHER)
-  async archive(@Param('id') id: string, @Request() req: any) {
-    return this.paralelosService.archive(id, req.user.sub);
   }
 
   @Patch(':id/rotate-code')

@@ -15,11 +15,16 @@ import { AiThrottlerGuard } from './ai-throttler.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, Tema } from '@prisma/client';
 import {
   GenerateQuestionsDto,
   SaveQuestionsDto,
 } from './dto/generate-questions.dto';
+
+// Default classification tag used when the UI no longer asks the teacher
+// to pick a `tema`. The schema column is still NOT NULL — every question
+// gets stamped with this so old data stays consistent.
+const DEFAULT_TEMA: Tema = Tema.LECTURA;
 
 // Defense-in-depth file upload limits.
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -67,7 +72,7 @@ export class AiController {
     const text = await this.aiService.extractText(file);
     return this.aiService.generateQuestions(
       text,
-      dto.tema,
+      dto.tema ?? DEFAULT_TEMA,
       dto.amount,
       dto.difficulty,
       dto.context,
@@ -82,7 +87,7 @@ export class AiController {
   async saveQuestions(@Body() dto: SaveQuestionsDto, @Request() req: any) {
     const userId = req.user.sub;
     return this.aiService.saveQuestions(
-      dto.tema,
+      dto.tema ?? DEFAULT_TEMA,
       dto.source_id ?? null,
       dto.questions ?? [],
       userId,

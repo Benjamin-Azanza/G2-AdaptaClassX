@@ -11,14 +11,12 @@ type Banner = { kind: 'success' | 'error'; message: string } | null;
 export function TeacherQuestionGeneratorPage() {
   const [questions, setQuestions] = useState<GeneratedQuestionPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentTema, setCurrentTema] = useState<string>('LECTURA');
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
 
-  const handleGenerate = async (formData: FormData, tema: string) => {
+  const handleGenerate = async (formData: FormData) => {
     setBanner(null);
     setIsLoading(true);
-    setCurrentTema(tema);
     setSourceId(null);
     try {
       const response = await aiService.generateQuestions(formData);
@@ -42,7 +40,6 @@ export function TeacherQuestionGeneratorPage() {
     setBanner(null);
     try {
       await aiService.saveQuestions({
-        tema: currentTema,
         source_id: sourceId,
         questions,
       });
@@ -59,13 +56,11 @@ export function TeacherQuestionGeneratorPage() {
   };
 
   const handleSaveManual = async (
-    tema: string,
     manualQuestions: { texto: string; opciones: [string, string, string, string]; respuestaCorrecta: number }[],
   ) => {
     setBanner(null);
     try {
       await aiService.saveQuestions({
-        tema,
         source_id: null,
         questions: manualQuestions,
       });

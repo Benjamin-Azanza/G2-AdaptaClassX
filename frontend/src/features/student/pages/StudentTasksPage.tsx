@@ -131,6 +131,9 @@ export function StudentTasksPage() {
                             <span className="border-2 border-on-background bg-secondary px-sm py-xs font-mono text-xs font-bold uppercase text-on-secondary">
                               {getTipoLabel(task.tipo)}
                             </span>
+                            <span className="border-2 border-on-background bg-tertiary px-sm py-xs font-mono text-xs font-bold uppercase text-on-tertiary">
+                              +{task.xp_reward} XP
+                            </span>
                             <span className="border-2 border-yellow-600 bg-yellow-100 px-sm py-xs font-mono text-xs font-bold uppercase text-yellow-800">
                               En progreso
                             </span>
@@ -138,7 +141,12 @@ export function StudentTasksPage() {
                           <h4 className="mt-sm font-headline text-lg font-bold md:text-xl text-primary">
                             {getMissionTitle(task.tipo, task.goal_value)}
                           </h4>
-                          <p className="text-sm text-on-surface-variant">
+                          {task.descripcion && (
+                            <p className="mt-xs text-sm italic text-on-surface">
+                              “{task.descripcion}”
+                            </p>
+                          )}
+                          <p className="mt-xs text-sm text-on-surface-variant">
                             Objetivo: <strong>{getGoalDescription(task.tipo, task.current_value, task.goal_value)}</strong> <br />
                             Vence el {formatDate(task.fecha_limite)}
                           </p>

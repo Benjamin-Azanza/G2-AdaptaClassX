@@ -38,6 +38,8 @@ function formatRelative(iso: string | undefined | null): string {
 
 export function StudentDashboardPage() {
   const { user } = useAuthStore();
+  const streakBonusXp = useAuthStore((state) => state.streakBonusXp);
+  const clearStreakBonus = useAuthStore((state) => state.clearStreakBonus);
   const profile = buildStudentProfile(user);
   const [games, setGames] = useState<StudentGame[]>([]);
   const [recentCompleted, setRecentCompleted] = useState<StudentMissionItem[]>([]);
@@ -105,6 +107,34 @@ export function StudentDashboardPage() {
 
   return (
     <StudentShell title="Mi Panel">
+      {streakBonusXp > 0 && (
+        <div className="mb-md flex items-center justify-between gap-sm border-4 border-on-background bg-tertiary p-sm text-on-tertiary shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17]">
+          <div className="flex items-center gap-sm">
+            <span
+              className="material-symbols-outlined text-2xl text-orange-500"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              local_fire_department
+            </span>
+            <div>
+              <p className="font-headline text-base font-bold uppercase">
+                ¡Bono de racha! +{streakBonusXp} XP
+              </p>
+              <p className="font-mono text-xs uppercase">
+                Llevas {profile.racha} {profile.racha === 1 ? 'día' : 'días'} seguidos jugando.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearStreakBonus}
+            className="border-2 border-on-background bg-surface-container-lowest px-sm py-xs font-mono text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+          >
+            ¡Vamos!
+          </button>
+        </div>
+      )}
+
       {user?.paralelo_id ? <MyParaleloCard /> : <JoinParaleloCard />}
 
       <section className="mb-lg grid grid-cols-1 items-stretch gap-md md:gap-lg md:grid-cols-3">

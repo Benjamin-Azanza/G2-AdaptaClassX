@@ -33,14 +33,9 @@ export const paralelosService = {
   // `alreadyOut` if there was nothing to detach.
   leave: () => api.post<{ ok: boolean; alreadyOut: boolean }>('/paralelos/leave'),
 
-  getAll: (includeArchived = false) =>
-    api.get<Paralelo[]>('/paralelos', {
-      params: includeArchived ? { include_archived: '1' } : {},
-    }),
+  getAll: () => api.get<Paralelo[]>('/paralelos'),
 
   getOne: (id: string) => api.get<ParaleloDetail>(`/paralelos/${id}`),
-
-  archive: (id: string) => api.patch<Paralelo>(`/paralelos/${id}/archive`),
 
   // Rotates the access code. The old code stops working immediately;
   // already-joined students stay attached.

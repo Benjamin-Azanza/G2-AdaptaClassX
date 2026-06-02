@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
+// `id` is optional because freshly generated questions (from
+// /ai/generate-questions) don't have one yet — it's only assigned when
+// the teacher saves them to the bank. The shape mirrors the shared
+// `GeneratedQuestionPreview` from ai.service.ts, plus an optional id
+// for rows that already exist server-side.
 interface GeneratedQuestionPreview {
-  id: string;
+  id?: string;
   texto: string;
   opciones: string[];
   respuestaCorrecta: number;

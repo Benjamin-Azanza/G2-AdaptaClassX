@@ -7,22 +7,13 @@ interface ManualQuestion {
 }
 
 interface ManualQuestionFormProps {
-  onSave: (tema: string, questions: ManualQuestion[]) => Promise<void>;
+  onSave: (questions: ManualQuestion[]) => Promise<void>;
 }
-
-const TEMAS = [
-  { value: 'LECTURA', label: 'Lectura' },
-  { value: 'ESCRITURA', label: 'Escritura' },
-  { value: 'LITERATURA', label: 'Literatura' },
-  { value: 'LENGUA_CULTURA', label: 'Lengua y Cultura' },
-  { value: 'COMUNICACION_ORAL', label: 'Comunicación Oral' },
-];
 
 export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
   const [questions, setQuestions] = useState<ManualQuestion[]>([
     { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }
   ]);
-  const [tema, setTema] = useState('LECTURA');
   const [isSaving, setIsSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -50,10 +41,6 @@ export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
 
   const handleSave = async () => {
     setValidationError('');
-    if (!tema) {
-      setValidationError('Selecciona un tema para guardar las preguntas.');
-      return;
-    }
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
@@ -67,7 +54,7 @@ export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
 
     try {
       setIsSaving(true);
-      await onSave(tema, questions);
+      await onSave(questions);
       // Reset after save
       setQuestions([{ texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
     } catch (error) {
@@ -81,24 +68,9 @@ export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
     <section className="flex flex-col gap-md border-2 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] mt-xl">
       <div className="border-b-2 border-on-background pb-sm">
         <h2 className="font-headline text-2xl font-bold text-secondary">Añadir Preguntas Manuales</h2>
-        <p className="text-on-surface-variant">Agrega tus propias preguntas directamente a tu banco.</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-md">
-        <label className="flex flex-col gap-sm text-sm font-bold uppercase">
-          Tema del Banco de Destino
-          <select
-            className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-            value={tema}
-            onChange={(event) => setTema(event.target.value)}
-          >
-            {TEMAS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="text-on-surface-variant">
+          Agrega tus propias preguntas directamente a tu banco. Se mostrarán en todos los juegos.
+        </p>
       </div>
 
       <div className="flex flex-col gap-lg">

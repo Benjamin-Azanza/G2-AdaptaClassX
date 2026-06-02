@@ -23,39 +23,24 @@ function formatGrade(grade: number) {
 type PanelKey = 'assign' | 'students' | 'tasks';
 
 export function TeacherClassroomPage() {
-  const [includeArchived, setIncludeArchived] = useState(false);
-  const { paralelos, isLoading, error, refresh } = useParalelos(includeArchived);
+  const { paralelos, isLoading, error, refresh } = useParalelos();
   const [copiedCode, setCopiedCode] = useState('');
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ nombre: '', grado: 3 });
-  const [archivingId, setArchivingId] = useState<string | null>(null);
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   // Map of { paraleloId -> active panel }. null means all panels collapsed.
   const [openPanels, setOpenPanels] = useState<Record<string, PanelKey | null>>({});
-  // Bumped per paralelo when we create an assignment, so AssignmentsPanel refreshes.
-  const [assignmentsBump, setAssignmentsBump] = useState<Record<string, number>>({});
+  // Bumped per paralelo when we create a mission, so MissionsPanel refreshes.
+  const [missionsBump, setMissionsBump] = useState<Record<string, number>>({});
 
   const togglePanel = (paraleloId: string, key: PanelKey) => {
     setOpenPanels((current) => ({
       ...current,
       [paraleloId]: current[paraleloId] === key ? null : key,
     }));
-  };
-
-  const handleArchive = async (id: string) => {
-    setActionError(null);
-    setArchivingId(id);
-    try {
-      await paralelosService.archive(id);
-      await refresh();
-    } catch (requestError: unknown) {
-      setActionError(getApiErrorMessage(requestError, 'No se pudo archivar el paralelo.'));
-    } finally {
-      setArchivingId(null);
-    }
   };
 
   const handleRotate = async (id: string) => {
@@ -103,18 +88,6 @@ export function TeacherClassroomPage() {
           Administra tus cursos y comparte códigos de acceso para que los estudiantes se unan desde su dashboard.
         </p>
       </section>
-
-      <div className="mb-md flex items-center justify-between">
-        <label className="flex items-center gap-xs text-sm font-bold uppercase cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 border-2 border-on-background accent-primary"
-            checked={includeArchived}
-            onChange={(e) => setIncludeArchived(e.target.checked)}
-          />
-          Mostrar paralelos archivados
-        </label>
-      </div>
 
       <form onSubmit={createParalelo} className="mb-lg grid gap-md border-4 border-on-background bg-surface-container-lowest p-sm md:p-md shadow-[4px_4px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] md:grid-cols-[1fr_180px_auto]">
         <label className="flex flex-col gap-xs text-sm font-bold uppercase">
@@ -181,9 +154,6 @@ export function TeacherClassroomPage() {
                     <h3 className="font-headline text-2xl font-bold uppercase text-primary">{paralelo.nombre}</h3>
                     <p className="text-on-surface-variant">{formatGrade(paralelo.grado)}</p>
                   </div>
-                  <span className="border-2 border-on-background bg-primary-fixed px-sm py-xs text-sm font-bold uppercase text-on-primary-fixed">
-                    {paralelo.activo ? 'Activo' : 'Archivado'}
-                  </span>
                 </div>
 
                 <div className="mt-md border-2 border-on-background bg-surface-container-low p-sm">
@@ -198,17 +168,15 @@ export function TeacherClassroomPage() {
                       >
                         {copiedCode === paralelo.codigo_acceso ? 'Copiado' : 'Copiar'}
                       </button>
-                      {paralelo.activo && (
-                        <button
-                          className="border-2 border-on-background bg-tertiary px-sm py-xs text-sm font-bold uppercase text-on-tertiary shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
-                          type="button"
-                          onClick={() => handleRotate(paralelo.id)}
-                          disabled={rotatingId === paralelo.id}
-                          title="Generar un código nuevo (el anterior queda inválido)"
-                        >
-                          {rotatingId === paralelo.id ? '...' : 'Rotar'}
-                        </button>
-                      )}
+                      <button
+                        className="border-2 border-on-background bg-tertiary px-sm py-xs text-sm font-bold uppercase text-on-tertiary shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
+                        type="button"
+                        onClick={() => handleRotate(paralelo.id)}
+                        disabled={rotatingId === paralelo.id}
+                        title="Generar un código nuevo (el anterior queda inválido)"
+                      >
+                        {rotatingId === paralelo.id ? '...' : 'Rotar'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -217,45 +185,37 @@ export function TeacherClassroomPage() {
                   {paralelo._count?.students ?? 0} estudiantes registrados
                 </p>
 
-                {paralelo.activo && (
-                  <div className="mt-md flex flex-wrap items-center gap-sm">
-                    <button
-                      type="button"
-                      onClick={() => togglePanel(paralelo.id, 'assign')}
-                      className="border-2 border-on-background bg-secondary px-sm py-xs text-sm font-bold uppercase text-on-secondary shadow-[2px_2px_0_0_#1d1c17]"
-                    >
-                      {activePanel === 'assign' ? 'Cerrar' : 'Asignar misión'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => togglePanel(paralelo.id, 'students')}
-                      className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
-                    >
-                      {activePanel === 'students' ? 'Ocultar' : 'Estudiantes'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => togglePanel(paralelo.id, 'tasks')}
-                      className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
-                    >
-                      {activePanel === 'tasks' ? 'Ocultar misiones' : 'Ver misiones'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleArchive(paralelo.id)}
-                      disabled={archivingId === paralelo.id}
-                      className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
-                    >
-                      {archivingId === paralelo.id ? 'Archivando…' : 'Archivar'}
-                    </button>
-                  </div>
-                )}
+                <div className="mt-md flex flex-wrap items-center gap-sm">
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(paralelo.id, 'assign')}
+                    className="border-2 border-on-background bg-secondary px-sm py-xs text-sm font-bold uppercase text-on-secondary shadow-[2px_2px_0_0_#1d1c17]"
+                  >
+                    {activePanel === 'assign' ? 'Cerrar' : 'Asignar misión'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(paralelo.id, 'students')}
+                    className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+                  >
+                    {activePanel === 'students' ? 'Ocultar' : 'Estudiantes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(paralelo.id, 'tasks')}
+                    className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+                  >
+                    {activePanel === 'tasks' ? 'Ocultar misiones' : 'Ver misiones'}
+                  </button>
+                </div>
 
                 {activePanel === 'assign' && (
                   <MissionForm
                     paraleloId={paralelo.id}
+                    paraleloNombre={paralelo.nombre}
+                    paraleloGrado={formatGrade(paralelo.grado)}
                     onSuccess={() => {
-                      setAssignmentsBump((current) => ({
+                      setMissionsBump((current) => ({
                         ...current,
                         [paralelo.id]: (current[paralelo.id] ?? 0) + 1,
                       }));
@@ -268,7 +228,7 @@ export function TeacherClassroomPage() {
                 {activePanel === 'tasks' && (
                   <MissionsPanel
                     paraleloId={paralelo.id}
-                    refreshKey={assignmentsBump[paralelo.id] ?? 0}
+                    refreshKey={missionsBump[paralelo.id] ?? 0}
                   />
                 )}
               </article>

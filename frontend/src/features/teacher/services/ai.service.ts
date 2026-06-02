@@ -22,12 +22,13 @@ export const aiService = {
     return response.data;
   },
 
+  // Saves a batch of (AI-generated or manually-typed) questions into the
+  // teacher's global bank. The legacy `tema` field is intentionally not
+  // sent — the backend stamps a default tag for schema compatibility.
   saveQuestions: async (data: {
-    tema: string;
     source_id: string | null;
     questions: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }>;
   }): Promise<unknown> => {
-    // Mapea la respuesta correcta de índice numérico al texto de la opción antes de enviar al backend
     const mappedQuestions = data.questions.map((q) => ({
       texto: q.texto,
       opciones: q.opciones,
@@ -35,7 +36,6 @@ export const aiService = {
     }));
 
     const response = await api.post('/ai/save-questions', {
-      tema: data.tema,
       source_id: data.source_id,
       questions: mappedQuestions,
     });

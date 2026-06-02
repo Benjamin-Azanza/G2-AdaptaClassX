@@ -197,6 +197,14 @@ model Mission {
   fecha_limite DateTime
   created_by   String
   created_at   DateTime    @default(now())
+  // Optional free-text description shown to students on the mission card.
+  // Lets the teacher say things like "Reto semanal de lectura: lee 10
+  // minutos diarios" without us having to enum every variation.
+  descripcion  String?
+  // XP awarded when the student completes the mission. Defaults to 100 so
+  // existing missions keep their reward, but the teacher can dial it up
+  // for tougher / longer challenges and down for warm-ups.
+  xp_reward    Int         @default(100)
 
   paralelo      Paralelo                 @relation(fields: [paralelo_id], references: [id], onDelete: Cascade)
   creator       User                     @relation("MissionCreator", fields: [created_by], references: [id])
@@ -210,7 +218,10 @@ model StudentMissionProgress {
   id           String    @id @default(uuid())
   student_id   String
   mission_id   String
-  current_value Int       @default(0)
+  // Decimal so PLAY_TIME progress can store fractional minutes from the
+  // 30-second heartbeats (each heartbeat adds 0.5 min). PLAY_DISTINCT and
+  // ANSWER_CORRECT will always be whole numbers but the column is shared.
+  current_value Decimal   @default(0) @db.Decimal(7, 2)
   completado   Boolean   @default(false)
   xp_otorgado  Boolean   @default(false)
   completed_at DateTime?

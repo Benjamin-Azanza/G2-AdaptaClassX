@@ -6,9 +6,6 @@ import { GameConsoleWrapper } from '../components/GameConsoleWrapper';
 import { useGameSession } from '../hooks/useGameSession';
 
 export const CardMemoryGamePage: React.FC = () => {
-  // The original implementation didn't fall back to the built-in question
-  // bank — keep that behavior so a missing /games/:id/questions response
-  // leaves the registry empty (the scene already handles that case).
   const { gameRef, phaserGame, gameStarted, setGameStarted, quitHandler } = useGameSession(
     (parent) =>
       new Phaser.Game({
@@ -19,7 +16,6 @@ export const CardMemoryGamePage: React.FC = () => {
         render: { pixelArt: true },
         scene: [Preloader, Play],
       }),
-    { useFallback: false },
   );
 
   return (

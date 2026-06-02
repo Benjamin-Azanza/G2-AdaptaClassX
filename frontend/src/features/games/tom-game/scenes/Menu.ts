@@ -1,6 +1,23 @@
 // @ts-nocheck
 import Phaser from 'phaser';
 
+// Per-user localStorage key for the best score. Using a flat
+// "best_points" key meant teachers in preview and any other student on
+// the same browser saw each other's high score — confusing and made
+// students think their progress was tied to the teacher's preview.
+function bestPointsKey() {
+    try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+            const user = JSON.parse(raw);
+            if (user?.id) return `tom_best_points_${user.id}`;
+        }
+    } catch {
+        // Fall through to anonymous key
+    }
+    return 'tom_best_points_anon';
+}
+
 class Menu extends Phaser.Scene
 {
     constructor ()
@@ -24,7 +41,7 @@ class Menu extends Phaser.Scene
     create ()
     {
 
-        const pointsDB = localStorage.getItem('best_points');
+        const pointsDB = localStorage.getItem(bestPointsKey());
         this.betsPoints = (pointsDB !== null) ? pointsDB : 0;
 
         this.add.image(0, 0, 'background').setOrigin(0);
@@ -80,7 +97,7 @@ class Menu extends Phaser.Scene
         });
 
         if(this.points > this.betsPoints) {
-            localStorage.setItem('best_points', this.points);
+            localStorage.setItem(bestPointsKey(), this.points);
         }
     }
 }

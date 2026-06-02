@@ -7,10 +7,15 @@ interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   error: string | null;
+  // XP awarded by the most recent successful login (daily streak bonus).
+  // Set to a positive number once per calendar day per student; consumed
+  // by the dashboard to flash a "+N XP por racha" notice and then cleared.
+  streakBonusXp: number;
   login: (data: LoginPayload) => Promise<void>;
   register: (data: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  clearStreakBonus: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -34,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: loadCachedUser(),
   isLoading: false,
   error: null,
+  streakBonusXp: 0,
 
   hydrate: async () => {
     // Confirm the session cookie is still valid by asking the server.
@@ -55,9 +61,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const response = await authService.login(data);
-      const { user } = response.data;
+      const { user, streak_bonus_xp } = response.data;
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      set({ user, isLoading: false });
+      set({
+        user,
+        isLoading: false,
+        streakBonusXp: streak_bonus_xp ?? 0,
+      });
     } catch (error: unknown) {
       const message = getApiErrorMessage(error, 'Error al iniciar sesion');
       set({ error: message, isLoading: false });
@@ -93,4 +103,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  clearStreakBonus: () => set({ streakBonusXp: 0 }),
 }));

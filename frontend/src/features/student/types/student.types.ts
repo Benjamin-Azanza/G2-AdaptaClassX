@@ -10,28 +10,22 @@ export interface StudentProfile {
   } | null;
 }
 
-export interface StudentAssignment {
-  id: string;
-  gameId: string;
-  gameTitle: string;
-  gameCategory: string;
-  gameRoute: string;
-  minutosRequeridos: number;
-  minutosJugados: number;
-  completado: boolean;
-  fechaLimite: string;
-  xpGanado?: number;
-  completadoAt?: string;
-}
-
 export interface StudentGame {
   id: string;
   title: string;
   description: string;
+  /** Legacy classification tag, kept for backwards compatibility. */
   categoryCode: string;
+  /** Human-readable label for `categoryCode`. */
   category: string;
   tipo: 'BASE' | 'CAMBIANTE';
   imageUrl?: string;
   route: string;
   locked?: boolean;
+  /**
+   * Total questions in the student's teacher's bank. Same number for
+   * every game because the bank is global (not segmented by tema).
+   * Surfaced on each card so the student knows whether questions exist.
+   */
+  questionsCount: number;
 }

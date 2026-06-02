@@ -1,12 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { notificationsService, type NotificationRow } from '../services/notifications.service';
+import {
+  notificationsService,
+  type NotificationMissionType,
+  type NotificationRow,
+} from '../services/notifications.service';
 import { routePaths } from '../../../app/router/routePaths';
+
+// Short human-readable label for the mission attached to a notification.
+// Kept here (vs. shared) because the bell is the only consumer for now.
+function describeMission(
+  tipo: NotificationMissionType,
+  goalValue: number,
+): string {
+  switch (tipo) {
+    case 'PLAY_TIME':
+      return `${goalValue} minutos de juego`;
+    case 'PLAY_DISTINCT':
+      return `${goalValue} juegos distintos`;
+    case 'ANSWER_CORRECT':
+      return `${goalValue} respuestas correctas`;
+    default:
+      return `Objetivo ${goalValue}`;
+  }
+}
 
 /**
  * Bell + dropdown that lives in the student shell header. Polls /notifications
  * /pending every 60s while the tab is visible; lighter than websockets and
- * enough for the "new assignment" use case which isn't time-critical.
+ * enough for the "new mission" use case which isn't time-critical.
  */
 export function NotificationsBell() {
   const navigate = useNavigate();
@@ -62,9 +84,10 @@ export function NotificationsBell() {
   };
 
   /**
-   * Open the notification's target. Today every notification points at an
-   * assignment, so we navigate to the tasks page and mark it as read in
-   * the same gesture (fire-and-forget — the UI doesn't depend on it).
+   * Open the notification's target. Today every notification points at a
+   * mission, so we navigate to the tasks page (where missions live) and
+   * mark it as read in the same gesture (fire-and-forget — the UI doesn't
+   * depend on it).
    */
   const handleOpen = (id: string) => {
     void handleRead(id);
@@ -105,9 +128,12 @@ export function NotificationsBell() {
                   className="border-2 border-on-background bg-surface-container p-sm"
                 >
                   <p className="text-sm">{notification.mensaje}</p>
-                  {notification.assignment?.game?.titulo && (
+                  {notification.mission && (
                     <p className="mt-xs font-mono text-xs uppercase text-on-surface-variant">
-                      {notification.assignment.game.titulo}
+                      {describeMission(
+                        notification.mission.tipo,
+                        notification.mission.goal_value,
+                      )}
                     </p>
                   )}
                   <div className="mt-xs flex items-center justify-between gap-sm">
@@ -116,7 +142,7 @@ export function NotificationsBell() {
                       onClick={() => handleOpen(notification.id)}
                       className="border-2 border-on-background bg-primary px-sm py-xs text-xs font-bold uppercase text-on-primary shadow-[2px_2px_0_0_#1d1c17]"
                     >
-                      Ver tarea
+                      Ver misión
                     </button>
                     <button
                       type="button"

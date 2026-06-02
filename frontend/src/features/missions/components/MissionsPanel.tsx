@@ -1,21 +1,51 @@
 import { useEffect, useState, useCallback } from 'react';
 import { missionsService } from '../services/missions.service';
 import type { Mission, MissionProgressDetail } from '../services/missions.service';
+import { getApiErrorMessage } from '../../../lib/httpErrors';
 
 interface MissionsPanelProps {
   paraleloId: string;
+  /** Bumped by the parent when a new mission is created to force a refresh. */
   refreshKey?: number;
+}
+
+function tipoLabel(tipo: Mission['tipo']): string {
+  if (tipo === 'PLAY_TIME') return 'Tiempo de juego';
+  if (tipo === 'PLAY_DISTINCT') return 'Juegos distintos';
+  if (tipo === 'ANSWER_CORRECT') return 'Preguntas correctas';
+  return tipo;
+}
+
+function goalLabel(tipo: Mission['tipo'], value: number): string {
+  if (tipo === 'PLAY_TIME') return `${value} minutos`;
+  if (tipo === 'PLAY_DISTINCT') return `${value} juegos`;
+  if (tipo === 'ANSWER_CORRECT') return `${value} respuestas correctas`;
+  return String(value);
+}
+
+function unitLabel(tipo: Mission['tipo']): string {
+  if (tipo === 'PLAY_TIME') return 'min';
+  if (tipo === 'PLAY_DISTINCT') return 'juegos';
+  if (tipo === 'ANSWER_CORRECT') return 'correctas';
+  return '';
+}
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 export function MissionsPanel({ paraleloId, refreshKey = 0 }: MissionsPanelProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Selected mission for student breakdown modal
+
+  // Selected mission for the per-student breakdown modal.
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const [detail, setDetail] = useState<MissionProgressDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchMissions = useCallback(async () => {
     setLoading(true);
@@ -23,267 +53,281 @@ export function MissionsPanel({ paraleloId, refreshKey = 0 }: MissionsPanelProps
     try {
       const data = await missionsService.listForTeacher(paraleloId);
       setMissions(data);
-    } catch (err) {
-      setError('Error al cargar las misiones del paralelo');
-      console.error(err);
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, 'No pudimos cargar las misiones de este paralelo.'));
     } finally {
       setLoading(false);
     }
   }, [paraleloId]);
 
   useEffect(() => {
-    let mounted = true;
-    Promise.resolve().then(() => {
-      if (mounted) fetchMissions();
-    });
-    return () => {
-      mounted = false;
-    };
+    const timer = window.setTimeout(fetchMissions, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchMissions, refreshKey]);
 
-  const handleDelete = async (missionId: string) => {
-    if (!window.confirm('¿Seguro que deseas eliminar esta misión? Se perderá el progreso histórico asociado.')) {
+  const closeDetail = () => {
+    setSelectedMission(null);
+    setDetail(null);
+    setDetailError(null);
+  };
+
+  const handleDelete = async (mission: Mission) => {
+    if (!window.confirm('¿Eliminar esta misión? Se perderá el progreso histórico asociado.')) {
       return;
     }
+    setDeletingId(mission.id);
     try {
-      await missionsService.remove(missionId);
-      setMissions((prev) => prev.filter((m) => m.id !== missionId));
-      if (selectedMission?.id === missionId) {
-        setSelectedMission(null);
-        setDetail(null);
+      await missionsService.remove(mission.id);
+      setMissions((current) => current.filter((m) => m.id !== mission.id));
+      if (selectedMission?.id === mission.id) {
+        closeDetail();
       }
-    } catch (err) {
-      alert('No se pudo eliminar la misión');
-      console.error(err);
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, 'No se pudo eliminar la misión.'));
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleOpenDetail = async (mission: Mission) => {
     setSelectedMission(mission);
+    setDetail(null);
+    setDetailError(null);
     setDetailLoading(true);
     try {
       const data = await missionsService.getProgressDetail(mission.id);
       setDetail(data);
-    } catch (err) {
-      console.error('Error fetching progress detail', err);
+    } catch (requestError: unknown) {
+      setDetailError(getApiErrorMessage(requestError, 'No pudimos cargar el progreso por estudiante.'));
     } finally {
       setDetailLoading(false);
     }
   };
 
-  const getTipoLabel = (tipo: string) => {
-    if (tipo === 'PLAY_TIME') return 'Tiempo de Juego';
-    if (tipo === 'PLAY_DISTINCT') return 'Juegos Distintos';
-    if (tipo === 'ANSWER_CORRECT') return 'Preguntas Correctas';
-    return tipo;
-  };
-
-  const getGoalLabel = (tipo: string, val: number) => {
-    if (tipo === 'PLAY_TIME') return `${val} minutos`;
-    if (tipo === 'PLAY_DISTINCT') return `${val} juegos`;
-    if (tipo === 'ANSWER_CORRECT') return `${val} respuestas correctas`;
-    return val;
-  };
-
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <svg className="animate-spin h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
+      <div className="mt-md border-4 border-dashed border-on-background bg-surface-container-lowest p-md text-center text-sm uppercase text-on-surface-variant">
+        Cargando misiones…
       </div>
     );
   }
 
-  if (error) {
+  if (error && missions.length === 0) {
     return (
-      <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-center text-sm">
-        {error}
+      <div className="mt-md border-4 border-on-background bg-error-container p-md text-on-error-container shadow-[4px_4px_0_0_#1d1c17]">
+        <p className="text-sm font-bold">{error}</p>
+        <button
+          type="button"
+          onClick={fetchMissions}
+          className="mt-sm border-2 border-on-background bg-surface px-sm py-xs font-headline text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mt-md flex flex-col gap-md">
+      {error && missions.length > 0 && (
+        <p
+          role="alert"
+          className="border-2 border-on-background bg-error-container p-sm text-sm font-bold text-on-error-container"
+        >
+          {error}
+        </p>
+      )}
+
       {missions.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm text-slate-400">
-          <span className="material-symbols-outlined text-4xl mb-2 text-slate-500 block">assignment_late</span>
-          <p className="text-sm">No hay misiones asignadas a esta clase todavía.</p>
+        <div className="flex flex-col items-center gap-sm border-4 border-dashed border-on-background bg-surface-container-lowest p-md text-center">
+          <span className="material-symbols-outlined text-3xl text-outline">flag</span>
+          <p className="font-mono text-xs uppercase text-on-surface-variant">
+            Aún no hay misiones asignadas a este paralelo.
+          </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <ul className="flex flex-col gap-sm">
           {missions.map((mission) => {
-            const completionPercent = mission.total_students > 0 
-              ? Math.round((mission.completed_count / mission.total_students) * 100)
-              : 0;
+            const total = mission.total_students;
+            const completed = mission.completed_count;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const isDeleting = deletingId === mission.id;
 
             return (
-              <div
+              <li
                 key={mission.id}
-                className="relative overflow-hidden p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between group"
+                className="border-2 border-on-background bg-surface-container-lowest p-sm shadow-[3px_3px_0_0_#1d1c17]"
               >
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-2">
-                        {getTipoLabel(mission.tipo)}
+                <div className="flex flex-col gap-sm sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-xs">
+                      <span className="inline-block border-2 border-on-background bg-secondary px-sm py-xs font-mono text-xxs font-bold uppercase text-on-secondary">
+                        {tipoLabel(mission.tipo)}
                       </span>
-                      <h4 className="text-lg font-bold text-white">
-                        Meta: {getGoalLabel(mission.tipo, mission.goal_value)}
-                      </h4>
+                      <span className="inline-flex items-center gap-xs border-2 border-on-background bg-tertiary px-sm py-xs font-mono text-xxs font-bold uppercase text-on-tertiary">
+                        <span className="material-symbols-outlined text-sm">stars</span>
+                        +{mission.xp_reward} XP
+                      </span>
                     </div>
-                    <button
-                      onClick={() => handleDelete(mission.id)}
-                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all"
-                      title="Eliminar misión"
-                    >
-                      <span className="material-symbols-outlined text-sm leading-none block">delete</span>
-                    </button>
-                  </div>
-
-                  <div className="text-xs text-slate-400 space-y-1">
-                    <p className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs">calendar_today</span>
-                      Límite: {new Date(mission.fecha_limite).toLocaleDateString()} a las {new Date(mission.fecha_limite).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <h4 className="mt-xs font-headline text-base font-bold uppercase text-primary md:text-lg">
+                      Meta: {goalLabel(mission.tipo, mission.goal_value)}
+                    </h4>
+                    {mission.descripcion && (
+                      <p className="mt-xs text-sm italic text-on-surface">
+                        “{mission.descripcion}”
+                      </p>
+                    )}
+                    <p className="mt-xs flex items-center gap-xs text-xs text-on-surface-variant">
+                      <span className="material-symbols-outlined text-sm">calendar_today</span>
+                      Vence el {formatDateTime(mission.fecha_limite)}
                     </p>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="pt-2 space-y-1">
-                    <div className="flex justify-between text-xs font-semibold text-slate-300">
-                      <span>Completado por estudiantes</span>
-                      <span>{mission.completed_count} de {mission.total_students} ({completionPercent}%)</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-emerald-400 to-cyan-500 rounded-full transition-all duration-500"
-                        style={{ width: `${completionPercent}%` }}
-                      />
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(mission)}
+                    disabled={isDeleting}
+                    className="self-start border-2 border-on-background bg-error-container px-sm py-xs font-mono text-xs font-bold uppercase text-on-error-container shadow-[2px_2px_0_0_#1d1c17] disabled:opacity-60"
+                    title="Eliminar misión"
+                  >
+                    {isDeleting ? 'Borrando…' : 'Eliminar'}
+                  </button>
+                </div>
+
+                <div className="mt-sm">
+                  <div className="mb-xs flex justify-between text-xs font-bold">
+                    <span>Avance del paralelo</span>
+                    <span className="font-mono">
+                      {completed}/{total} · {percent}%
+                    </span>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden border-2 border-on-background bg-surface-variant">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${percent}%` }}
+                    />
                   </div>
                 </div>
 
-                <div className="pt-4 mt-auto">
-                  <button
-                    onClick={() => handleOpenDetail(mission)}
-                    className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 hover:text-white font-semibold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-xs">analytics</span>
-                    Ver progreso de estudiantes
-                  </button>
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenDetail(mission)}
+                  className="mt-sm flex w-full items-center justify-center gap-xs border-2 border-on-background bg-surface px-sm py-xs font-mono text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+                >
+                  <span className="material-symbols-outlined text-sm">analytics</span>
+                  Ver progreso por estudiante
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
-      {/* Modal - Student Breakdown */}
       {selectedMission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-white/10 shadow-2xl overflow-hidden text-white flex flex-col max-h-[85vh]">
-            <div className="p-5 border-b border-white/10 flex justify-between items-start">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-sm"
+          role="dialog"
+          aria-modal="true"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeDetail();
+          }}
+        >
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col border-4 border-on-background bg-surface-container-lowest shadow-[6px_6px_0_0_#1d1c17] md:shadow-[10px_10px_0_0_#1d1c17]">
+            <header className="flex items-start justify-between gap-sm border-b-4 border-on-background bg-primary p-sm text-on-primary md:p-md">
               <div>
-                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                  Desglose de Progreso
+                <h3 className="font-headline text-lg font-bold uppercase md:text-2xl">
+                  Progreso por estudiante
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Misión {getTipoLabel(selectedMission.tipo)} • Meta: {getGoalLabel(selectedMission.tipo, selectedMission.goal_value)}
+                <p className="mt-xs font-mono text-xxs uppercase opacity-90 md:text-xs">
+                  {tipoLabel(selectedMission.tipo)} · Meta:{' '}
+                  {goalLabel(selectedMission.tipo, selectedMission.goal_value)}
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setSelectedMission(null);
-                  setDetail(null);
-                }}
-                className="p-1 rounded-lg border border-white/10 hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                type="button"
+                onClick={closeDetail}
+                className="flex h-9 w-9 items-center justify-center border-2 border-on-background bg-surface-container-lowest text-on-surface shadow-[2px_2px_0_0_#1d1c17]"
+                aria-label="Cerrar"
               >
-                <span className="material-symbols-outlined block leading-none">close</span>
+                <span className="material-symbols-outlined">close</span>
               </button>
-            </div>
+            </header>
 
-            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+            <div className="flex-1 overflow-y-auto p-sm md:p-md">
               {detailLoading ? (
-                <div className="flex justify-center items-center py-12">
-                  <svg className="animate-spin h-8 w-8 text-cyan-400" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                <p className="py-md text-center font-mono text-xs uppercase text-on-surface-variant">
+                  Cargando progreso…
+                </p>
+              ) : detailError ? (
+                <div className="border-2 border-on-background bg-error-container p-sm text-sm font-bold text-on-error-container">
+                  {detailError}
                 </div>
               ) : detail ? (
-                <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-950/40">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/10 text-xs font-semibold text-slate-400 uppercase bg-slate-900/80">
-                        <th className="px-4 py-3">Estudiante</th>
-                        <th className="px-4 py-3">Progreso</th>
-                        <th className="px-4 py-3">Estado</th>
-                        <th className="px-4 py-3">Completado el</th>
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-on-background bg-surface-container">
+                      <th className="p-sm font-mono text-xs uppercase">Estudiante</th>
+                      <th className="p-sm font-mono text-xs uppercase">Progreso</th>
+                      <th className="p-sm font-mono text-xs uppercase">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.students.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="p-md text-center font-mono text-xs uppercase text-on-surface-variant"
+                        >
+                          No hay estudiantes inscritos en este paralelo.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {detail.students.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                            No hay estudiantes inscritos en esta clase.
+                    ) : (
+                      detail.students.map((student) => (
+                        <tr
+                          key={student.user_id}
+                          className="border-b-2 border-on-background last:border-b-0"
+                        >
+                          <td className="p-sm">
+                            <p className="font-bold">{student.nombre}</p>
+                            <p className="font-mono text-xxs text-on-surface-variant">
+                              {student.email}
+                            </p>
+                          </td>
+                          <td className="p-sm font-mono text-xs">
+                            {student.current_value} / {detail.goal_value} {unitLabel(detail.tipo)}
+                          </td>
+                          <td className="p-sm">
+                            {student.completado ? (
+                              <span className="inline-flex items-center gap-xs border-2 border-on-background bg-primary-container px-sm py-xs font-mono text-xxs font-bold uppercase text-on-primary-container">
+                                <span className="material-symbols-outlined text-sm">
+                                  check_circle
+                                </span>
+                                Completado
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-xs border-2 border-on-background bg-surface-variant px-sm py-xs font-mono text-xxs font-bold uppercase">
+                                <span className="material-symbols-outlined text-sm">pending</span>
+                                En progreso
+                              </span>
+                            )}
                           </td>
                         </tr>
-                      ) : (
-                        detail.students.map((student) => (
-                          <tr key={student.user_id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3 font-semibold text-white">
-                              <div>
-                                <p>{student.nombre}</p>
-                                <p className="text-xxs font-normal text-slate-500">{student.email}</p>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-slate-300 font-mono">
-                              {student.current_value} / {detail.goal_value}
-                              {detail.tipo === 'PLAY_TIME' && ' min'}
-                              {detail.tipo === 'PLAY_DISTINCT' && ' juegos'}
-                              {detail.tipo === 'ANSWER_CORRECT' && ' correctas'}
-                            </td>
-                            <td className="px-4 py-3">
-                              {student.completado ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
-                                  <span className="material-symbols-outlined text-xs leading-none">check_circle</span>
-                                  Completado
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/25">
-                                  <span className="material-symbols-outlined text-xs leading-none">pending</span>
-                                  En progreso
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-slate-400 text-xs">
-                              {student.completed_at 
-                                ? new Date(student.completed_at).toLocaleDateString()
-                                : '-'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-center text-slate-500">No se pudo cargar el progreso.</p>
-              )}
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              ) : null}
             </div>
-            
-            <div className="p-4 border-t border-white/10 bg-slate-900/60 flex justify-end">
+
+            <footer className="border-t-4 border-on-background bg-surface-container p-sm text-right md:p-md">
               <button
-                onClick={() => {
-                  setSelectedMission(null);
-                  setDetail(null);
-                }}
-                className="px-5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-300 hover:text-white transition-all font-semibold text-sm"
+                type="button"
+                onClick={closeDetail}
+                className="border-2 border-on-background bg-surface px-md py-2 font-headline text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
               >
                 Cerrar
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}

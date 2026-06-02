@@ -16,7 +16,6 @@ export const SlidingPuzzleGamePage: React.FC = () => {
         parent,
         scene: [Preloader, MainMenu, Game],
       }),
-    { useFallback: false },
   );
 
   return (

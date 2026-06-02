@@ -18,10 +18,15 @@ import { Tema } from '@prisma/client';
 const SAFE_TEXT = /^[\w\sáéíóúÁÉÍÓÚñÑüÜ.,;:¿?¡!()\-'"\n\r]*$/;
 
 export class GenerateQuestionsDto {
+  // `tema` used to gate which games each question fed; the bank is now
+  // global per teacher so the value is mostly a legacy classification
+  // tag. Kept optional so old UIs still work; the service defaults to
+  // LECTURA when missing.
+  @IsOptional()
   @IsEnum(Tema, {
     message: 'tema debe ser un valor válido del enum Tema.',
   })
-  tema: Tema;
+  tema?: Tema;
 
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -69,10 +74,13 @@ export class SaveQuestionsItemDto {
 }
 
 export class SaveQuestionsDto {
+  // Same story as in GenerateQuestionsDto: `tema` is now a legacy tag,
+  // the bank is global per teacher.
+  @IsOptional()
   @IsEnum(Tema, {
     message: 'tema debe ser un valor válido del enum Tema.',
   })
-  tema: Tema;
+  tema?: Tema;
 
   @IsOptional()
   @IsUUID()

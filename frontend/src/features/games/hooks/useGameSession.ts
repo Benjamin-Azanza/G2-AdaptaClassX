@@ -4,11 +4,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useAuthStore } from '../../auth/store/authStore';
 import { getHomeRoute, routePaths } from '../../../app/router/routePaths';
-import { questions as fallbackQuestions } from '../../questions/questions';
 
 // Single source of truth for the shape every Phaser scene reads from
 // game.registry.get('preguntasDelNivel'). Backend rows come in with the
 // Spanish field names; we normalize to this once at the boundary.
+//
+// When no questions come back (no paralelo, teacher hasn't seeded the bank,
+// etc.) we hand the scenes an empty array — every scene reads with `|| []`
+// and the ones that need questions to function have their own inline
+// fallback. There is no global hardcoded bank anymore.
 export interface GameQuestion {
   id?: string;
   q: string;
@@ -31,15 +35,12 @@ interface BackendQuestionRow {
 }
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const HEARTBEAT_MINUTES = 0.5;
+// Heartbeats below this threshold (≈1 second) are dropped — protects the
+// backend from a flood of zero-minute pings when nothing real happened.
+const MIN_HEARTBEAT_MINUTES = 1 / 60;
 const REGISTRY_KEY = 'preguntasDelNivel';
 
 type BuildGame = (parent: HTMLElement, questions: GameQuestion[]) => Phaser.Game;
-
-interface UseGameSessionOptions {
-  /** If true (default) fall back to a built-in question bank when /games has none. */
-  useFallback?: boolean;
-}
 
 /**
  * Owns the lifecycle every game page used to copy-paste:
@@ -54,8 +55,7 @@ interface UseGameSessionOptions {
  *
  * Each game page only contributes the Phaser configuration via `buildGame`.
  */
-export function useGameSession(buildGame: BuildGame, options: UseGameSessionOptions = {}) {
-  const { useFallback = true } = options;
+export function useGameSession(buildGame: BuildGame) {
   const gameRef = useRef<HTMLDivElement>(null);
   const phaserGame = useRef<Phaser.Game | null>(null);
   const navigate = useNavigate();
@@ -66,6 +66,39 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
 
   const buildGameRef = useRef(buildGame);
   const sessionIdRef = useRef<string | null>(null);
+  // Tracks whether the player did anything meaningful in this session.
+  // Flipped on by the first heartbeat tick or the first answered question.
+  // If still false when they quit, we skip the results page (showing it
+  // with all-zero stats reads as broken — the screen the user complained
+  // about) and send them back to the catalog instead.
+  const hadActivityRef = useRef(false);
+  // Timestamp of the last heartbeat we successfully posted (or the
+  // session start). Used so each heartbeat sends the *real* elapsed
+  // minutes since the previous one — including the final flush when the
+  // student quits mid-interval, so 15-second sessions still count.
+  const lastHeartbeatAtRef = useRef<number>(0);
+
+  // POSTs a heartbeat carrying the time elapsed since the previous one.
+  // Returns nothing — callers fire-and-forget except for `routeAway`,
+  // which awaits this so the final flush lands before navigation.
+  const sendHeartbeat = useCallback(async () => {
+    if (user?.role !== 'STUDENT' || !sessionIdRef.current) return;
+    const now = Date.now();
+    const minutesSinceLast = (now - lastHeartbeatAtRef.current) / 60_000;
+    if (minutesSinceLast < MIN_HEARTBEAT_MINUTES) return;
+    lastHeartbeatAtRef.current = now;
+    hadActivityRef.current = true;
+    try {
+      await api.post(
+        `/game-sessions/${sessionIdRef.current}/heartbeat`,
+        { played_minutes: minutesSinceLast },
+      );
+      // Time-based missions advanced; nudge the in-game overlay.
+      window.dispatchEvent(new CustomEvent('mission:refresh'));
+    } catch (err) {
+      console.error('Heartbeat failed', err);
+    }
+  }, [user?.role]);
 
   // buildGame is a closure that almost certainly changes identity every
   // render. Stash it in a ref so it doesn't keep retriggering the game
@@ -75,14 +108,28 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
   }, [buildGame]);
 
   // Centralised routing so the in-Phaser `game:quit` event and the React
-  // "Salir" button can't drift.
-  const routeAwayFromGame = useCallback(() => {
-    if (sessionIdRef.current) {
-      navigate(`${routePaths.studentResult}?sessionId=${sessionIdRef.current}`);
-    } else {
-      navigate(getHomeRoute(user?.role));
+  // "Salir" button can't drift. Three cases:
+  //   - student WITH activity → results page with the session id
+  //   - student WITHOUT activity (or no session at all) → games catalog
+  //   - teacher previewing → teacher dashboard (their home)
+  //
+  // Async because we flush a final heartbeat first — that's what lets a
+  // 20-second session still count toward a PLAY_TIME mission (otherwise
+  // anything under the 30s interval was lost to the void).
+  const routeAwayFromGame = useCallback(async () => {
+    if (user?.role === 'STUDENT' && sessionIdRef.current) {
+      await sendHeartbeat();
     }
-  }, [navigate, user?.role]);
+    if (user?.role !== 'STUDENT') {
+      navigate(getHomeRoute(user?.role));
+      return;
+    }
+    if (sessionIdRef.current && hadActivityRef.current) {
+      navigate(`${routePaths.studentResult}?sessionId=${sessionIdRef.current}`);
+      return;
+    }
+    navigate(routePaths.studentGames);
+  }, [navigate, sendHeartbeat, user?.role]);
 
   useEffect(() => {
     if (!gameStarted) return;
@@ -90,13 +137,22 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
     let cancelled = false;
     let heartbeat: number | null = null;
 
-    const handleQuit = () => routeAwayFromGame();
-    const handleComplete = () => routeAwayFromGame();
+    // Phaser events can't await — fire-and-forget the async navigation.
+    const handleQuit = () => {
+      void routeAwayFromGame();
+    };
+    const handleComplete = () => {
+      void routeAwayFromGame();
+    };
 
     const handleAnswer = (e: Event) => {
       const customEvent = e as CustomEvent<{ question_id: string; correct: boolean }>;
       const { question_id, correct } = customEvent.detail;
+      // Defensive: never post attempts for teachers in preview mode, even
+      // if a stale sessionId somehow leaked in.
+      if (user?.role !== 'STUDENT') return;
       if (!sessionIdRef.current || !question_id) return;
+      hadActivityRef.current = true;
       api.post(`/game-sessions/${sessionIdRef.current}/attempt`, {
         question_id,
         correcta: correct,
@@ -116,7 +172,7 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
 
     async function init() {
       if (!gameRef.current || phaserGame.current) return;
-      const questions = await loadQuestions(gameId, useFallback);
+      const questions = await loadQuestions(gameId);
       if (cancelled || !gameRef.current) return;
 
       if (user?.role === 'STUDENT' && gameId) {
@@ -124,20 +180,13 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
           const sessionRes = await api.post<{ id: string }>('/game-sessions', { game_id: gameId });
           if (!cancelled) {
             sessionIdRef.current = sessionRes.data.id;
+            // Reset per-session tracking so a brand-new run doesn't
+            // inherit refs from a previous one. Anchor the heartbeat
+            // clock at session start.
+            hadActivityRef.current = false;
+            lastHeartbeatAtRef.current = Date.now();
             heartbeat = window.setInterval(() => {
-              if (sessionIdRef.current) {
-                api
-                  .post(`/game-sessions/${sessionIdRef.current}/heartbeat`, {
-                    played_minutes: HEARTBEAT_MINUTES,
-                  })
-                  .then(() => {
-                    // Time-based missions advanced; refresh the overlay.
-                    window.dispatchEvent(new CustomEvent('mission:refresh'));
-                  })
-                  .catch((err) => {
-                    console.error('Heartbeat failed', err);
-                  });
-              }
+              void sendHeartbeat();
             }, HEARTBEAT_INTERVAL_MS);
           }
         } catch (err) {
@@ -156,43 +205,40 @@ export function useGameSession(buildGame: BuildGame, options: UseGameSessionOpti
       window.removeEventListener('game:quit', handleQuit);
       window.removeEventListener('game:complete', handleComplete);
       window.removeEventListener('game:answer', handleAnswer as EventListener);
+      // Wipe the question registry before destroying so the next mount can't
+      // inherit a stale list from a previous role's preview.
+      phaserGame.current?.registry?.reset();
       phaserGame.current?.sound?.stopAll();
       phaserGame.current?.destroy(true);
       phaserGame.current = null;
+      sessionIdRef.current = null;
+      hadActivityRef.current = false;
       if (heartbeat) window.clearInterval(heartbeat);
     };
-  }, [gameStarted, gameId, navigate, user?.role, useFallback, routeAwayFromGame]);
+  }, [gameStarted, gameId, navigate, user?.role, routeAwayFromGame, sendHeartbeat]);
 
   // The wrapper's "Salir" button calls this directly.
-  const quitHandler = useCallback(() => routeAwayFromGame(), [routeAwayFromGame]);
+  const quitHandler = useCallback(() => {
+    void routeAwayFromGame();
+  }, [routeAwayFromGame]);
 
   return { gameRef, phaserGame, gameStarted, setGameStarted, quitHandler };
 }
 
-async function loadQuestions(
-  gameId: string | null,
-  useFallback: boolean,
-): Promise<GameQuestion[]> {
-  if (gameId) {
-    try {
-      const res = await api.get<BackendQuestionRow[]>(`/games/${gameId}/questions`);
-      const apiQuestions = res.data.flatMap((row) =>
-        (row.preguntas_json ?? []).map<GameQuestion>((q) => ({
-          id: q.id,
-          q: q.texto ?? q.prompt ?? '',
-          options: q.opciones ?? q.options ?? [],
-          answer: q.respuestaCorrecta ?? q.correctOptionIndex ?? 0,
-        })),
-      );
-      if (apiQuestions.length > 0) return apiQuestions;
-    } catch (error) {
-      console.error('Failed to load questions, using fallback', error);
-    }
+async function loadQuestions(gameId: string | null): Promise<GameQuestion[]> {
+  if (!gameId) return [];
+  try {
+    const res = await api.get<BackendQuestionRow[]>(`/games/${gameId}/questions`);
+    return res.data.flatMap((row) =>
+      (row.preguntas_json ?? []).map<GameQuestion>((q) => ({
+        id: q.id,
+        q: q.texto ?? q.prompt ?? '',
+        options: q.opciones ?? q.options ?? [],
+        answer: q.respuestaCorrecta ?? q.correctOptionIndex ?? 0,
+      })),
+    );
+  } catch (error) {
+    console.error('Failed to load questions for game', error);
+    return [];
   }
-  if (!useFallback) return [];
-  return fallbackQuestions.map((q) => ({
-    q: q.q,
-    options: q.options,
-    answer: q.answer,
-  }));
 }

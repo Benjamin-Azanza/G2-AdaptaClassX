@@ -1,6 +1,6 @@
 import api from '../../../services/api';
 import type { AuthUser } from '../../../types/auth';
-import type { StudentAssignment, StudentGame, StudentProfile } from '../types/student.types';
+import type { StudentGame, StudentProfile } from '../types/student.types';
 
 interface BackendGame {
   id: string;
@@ -10,6 +10,9 @@ interface BackendGame {
   tipo: 'BASE' | 'CAMBIANTE';
   thumbnail_url?: string | null;
   config_default?: { rutaJuego?: string } | null;
+  // Server now adds this to every /games row — total questions in the
+  // teacher's bank that will be served to this student in any game.
+  questionsCount?: number;
 }
 
 const temaLabels: Record<string, string> = {
@@ -42,6 +45,7 @@ function mapBackendGame(game: BackendGame): StudentGame {
     imageUrl: game.thumbnail_url ?? undefined,
     route: getGameRoute(game, { gameId: game.id }),
     locked: false,
+    questionsCount: game.questionsCount ?? 0,
   };
 }
 

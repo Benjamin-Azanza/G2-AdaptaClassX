@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { StudentShell } from '../components/StudentShell';
 import { useAuthStore } from '../../auth/store/authStore';
 import { routePaths } from '../../../app/router/routePaths';
@@ -64,6 +64,22 @@ export function StudentResultPage() {
     };
   }, [sessionId, hydrate]);
 
+  // Missing sessionId in the URL means the page was opened directly or after
+  // a quit-before-play — there's nothing to show, send them back to pick a
+  // game. The same applies to an empty session (zero minutes AND zero
+  // attempts), which used to render a depressing all-zero result screen.
+  if (!loading && !sessionId) {
+    return <Navigate to={routePaths.studentGames} replace />;
+  }
+  if (
+    !loading &&
+    session &&
+    Number(session.minutos_jugados) === 0 &&
+    session.preguntas_intentadas === 0
+  ) {
+    return <Navigate to={routePaths.studentGames} replace />;
+  }
+
   if (loading) {
     return (
       <StudentShell title="¡Buen trabajo!">
@@ -79,15 +95,15 @@ export function StudentResultPage() {
 
   return (
     <StudentShell title="¡Buen trabajo!">
-      <section className="mx-auto w-[90%] md:w-[500px] max-w-xl border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[8px_8px_0_0_#1d1c17]">
+      <section className="mx-auto w-full max-w-[560px] border-4 border-on-background bg-surface-container-lowest p-md text-center shadow-[6px_6px_0_0_#1d1c17] md:p-lg md:shadow-[8px_8px_0_0_#1d1c17]">
         <span
-          className="material-symbols-outlined text-[96px] text-primary"
+          className="material-symbols-outlined text-[72px] text-primary md:text-[96px]"
           style={{ fontVariationSettings: "'FILL' 1" }}
         >
           emoji_events
         </span>
-        <h2 className="mt-md font-headline text-3xl font-bold uppercase md:text-5xl">
-          {xpEarned > 0 ? '¡Misión Completada!' : '¡Buen intento!'}
+        <h2 className="mt-sm break-words font-headline text-2xl font-bold uppercase leading-tight md:mt-md md:text-4xl">
+          {xpEarned > 0 ? '¡Misión completada!' : '¡Buen intento!'}
         </h2>
         {session && (
           <p className="mt-sm text-base text-on-surface-variant md:text-lg">
@@ -95,23 +111,23 @@ export function StudentResultPage() {
           </p>
         )}
 
-        <div className="mt-lg grid grid-cols-2 gap-md">
-          <div className="border-4 border-on-background bg-primary-container p-md text-on-primary-container">
+        <div className="mt-md grid grid-cols-2 gap-sm md:mt-lg md:gap-md">
+          <div className="border-4 border-on-background bg-primary-container p-sm text-on-primary-container md:p-md">
             <p className="font-mono text-xs uppercase">XP ganado</p>
-            <p className="mt-xs font-headline text-3xl font-bold md:text-5xl">+{xpEarned}</p>
+            <p className="mt-xs font-headline text-2xl font-bold md:text-4xl">+{xpEarned}</p>
           </div>
-          <div className="border-4 border-on-background bg-secondary-container p-md text-on-secondary-container">
+          <div className="border-4 border-on-background bg-secondary-container p-sm text-on-secondary-container md:p-md">
             <p className="font-mono text-xs uppercase">XP total</p>
-            <p className="mt-xs font-headline text-3xl font-bold md:text-5xl">{currentXp}</p>
+            <p className="mt-xs font-headline text-2xl font-bold md:text-4xl">{currentXp}</p>
           </div>
         </div>
 
         {session && (
-          <div className="mt-lg border-2 border-on-background bg-surface-container p-md text-left">
-            <h3 className="font-headline text-lg font-bold uppercase text-primary mb-sm">
-              Estadísticas de la partida:
+          <div className="mt-md border-2 border-on-background bg-surface-container p-sm text-left md:mt-lg md:p-md">
+            <h3 className="mb-sm font-headline text-base font-bold uppercase text-primary md:text-lg">
+              Estadísticas de la partida
             </h3>
-            <ul className="space-y-xs font-mono text-sm">
+            <ul className="space-y-xs font-mono text-xs md:text-sm">
               <li>
                 ⏱️ Tiempo: <strong>{Number(session.minutos_jugados).toFixed(1)}</strong> minutos
               </li>
@@ -125,7 +141,7 @@ export function StudentResultPage() {
           </div>
         )}
 
-        <div className="mt-lg flex flex-col items-stretch justify-center gap-sm md:flex-row">
+        <div className="mt-md flex flex-col items-stretch justify-center gap-sm md:mt-lg md:flex-row">
           <Link
             to={routePaths.studentTasks}
             className="border-4 border-on-background bg-primary px-lg py-md font-headline text-base font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17]"

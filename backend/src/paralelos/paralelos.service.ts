@@ -67,10 +67,6 @@ export class ParalelosService {
       throw new NotFoundException('Código no encontrado');
     }
 
-    if (!paralelo.activo) {
-      throw new BadRequestException('Este paralelo está archivado');
-    }
-
     const student = await this.prisma.student.findUnique({
       where: { user_id: studentUserId },
     });
@@ -115,19 +111,13 @@ export class ParalelosService {
   }
 
   /**
-   * Scoped list for a single teacher. Previously this returned ALL active
-   * paralelos which leaked other teachers' classrooms. The controller still
-   * passes the teacher id so the contract is opt-in safe.
+   * Scoped list for a single teacher. The `activo` column is kept in the
+   * schema for legacy reasons but the archived/unarchived UX was removed —
+   * every paralelo of a teacher is now returned regardless of `activo`.
    */
-  async findAllForTeacher(teacherId: string, includeArchived = false) {
-    const where: { teacher_id: string; activo?: boolean } = {
-      teacher_id: teacherId,
-    };
-    if (!includeArchived) {
-      where.activo = true;
-    }
+  async findAllForTeacher(teacherId: string) {
     return this.prisma.paralelo.findMany({
-      where,
+      where: { teacher_id: teacherId },
       include: {
         _count: { select: { students: true } },
         teacher: { include: { teacher: true } },
@@ -156,24 +146,6 @@ export class ParalelosService {
     }
 
     return paralelo;
-  }
-
-  async archive(id: string, teacherId: string) {
-    const paralelo = await this.prisma.paralelo.findUnique({ where: { id } });
-
-    if (!paralelo) {
-      throw new NotFoundException('Paralelo no encontrado');
-    }
-    if (paralelo.teacher_id !== teacherId) {
-      throw new ForbiddenException('Este paralelo no te pertenece');
-    }
-
-    // Do NOT detach students from this paralelo anymore (non-destructive archivation)
-
-    return this.prisma.paralelo.update({
-      where: { id },
-      data: { activo: false },
-    });
   }
 
   /**

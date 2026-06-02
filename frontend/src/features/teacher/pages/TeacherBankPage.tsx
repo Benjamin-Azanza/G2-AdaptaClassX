@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { TeacherShell } from '../components/TeacherShell';
 import api from '../../../services/api';
+import { getApiErrorMessage } from '../../../lib/httpErrors';
 
 interface QuestionSource {
   id: string;
   filename: string;
   source_hash: string;
-  tema: string;
+  tema: string; // legacy classification tag (kept on the wire, hidden in UI)
   created_at: string;
   _count: {
     questions: number;
@@ -22,27 +23,19 @@ interface Question {
   created_at: string;
 }
 
-const TEMAS = [
-  { value: 'LECTURA', label: 'Lectura' },
-  { value: 'ESCRITURA', label: 'Escritura' },
-  { value: 'LITERATURA', label: 'Literatura' },
-  { value: 'LENGUA_CULTURA', label: 'Lengua y Cultura' },
-  { value: 'COMUNICACION_ORAL', label: 'Comunicación Oral' },
-];
-
 export function TeacherBankPage() {
   const [activeTab, setActiveTab] = useState<'sources' | 'questions'>('sources');
-  
-  // Question sources state
+
+  // Question sources (uploaded documents) state
   const [sources, setSources] = useState<QuestionSource[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
 
-  // Questions state
+  // Individual questions state. No more `tema` filter — the bank is now
+  // global per teacher; every question feeds every game.
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
-  const [filterTema, setFilterTema] = useState<string>('LECTURA');
 
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -54,8 +47,7 @@ export function TeacherBankPage() {
       const res = await api.get<QuestionSource[]>('/question-sources');
       setSources(res.data);
     } catch (err) {
-      setSourcesError('Error al cargar el historial de documentos.');
-      console.error(err);
+      setSourcesError(getApiErrorMessage(err, 'Error al cargar el historial de documentos.'));
     } finally {
       setSourcesLoading(false);
     }
@@ -65,17 +57,14 @@ export function TeacherBankPage() {
     setQuestionsLoading(true);
     setQuestionsError(null);
     try {
-      const res = await api.get<Question[]>('/questions', {
-        params: { tema: filterTema },
-      });
+      const res = await api.get<Question[]>('/questions');
       setQuestions(res.data);
     } catch (err) {
-      setQuestionsError('Error al cargar el banco de preguntas.');
-      console.error(err);
+      setQuestionsError(getApiErrorMessage(err, 'Error al cargar el banco de preguntas.'));
     } finally {
       setQuestionsLoading(false);
     }
-  }, [filterTema]);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -96,11 +85,12 @@ export function TeacherBankPage() {
     setActionError(null);
     setActionSuccess(null);
     try {
-      const res = await api.post<{ message: string }>(`/question-sources/${sourceId}/regenerate`);
+      const res = await api.post<{ message: string }>(
+        `/question-sources/${sourceId}/regenerate`,
+      );
       setActionSuccess(res.data.message);
     } catch (err) {
-      setActionError('No se pudo regenerar el documento.');
-      console.error(err);
+      setActionError(getApiErrorMessage(err, 'No se pudo regenerar el documento.'));
     }
   };
 
@@ -113,45 +103,43 @@ export function TeacherBankPage() {
       setQuestions((prev) => prev.filter((q) => q.id !== qId));
       setActionSuccess('Pregunta eliminada del banco exitosamente.');
     } catch (err) {
-      setActionError('No se pudo eliminar la pregunta.');
-      console.error(err);
+      setActionError(getApiErrorMessage(err, 'No se pudo eliminar la pregunta.'));
     }
-  };
-
-  const getTemaLabel = (val: string) => {
-    return TEMAS.find((t) => t.value === val)?.label ?? val;
   };
 
   return (
     <TeacherShell title="Banco de Preguntas">
       <section className="mb-lg border-b-4 border-on-background pb-md">
-        <h2 className="font-headline text-2xl font-bold uppercase tracking-normal md:text-5xl">Banco de Preguntas</h2>
-        <p className="mt-xs max-w-3xl text-sm md:text-lg leading-relaxed text-on-surface-variant">
-          Gestiona los documentos de lectura que has subido y consulta o elimina preguntas individuales de tu banco global.
+        <h2 className="font-headline text-2xl font-bold uppercase tracking-normal md:text-5xl">
+          Banco de Preguntas
+        </h2>
+        <p className="mt-xs max-w-3xl text-sm leading-relaxed text-on-surface-variant md:text-lg">
+          Gestiona los documentos que has subido y consulta o elimina preguntas de tu banco. Las
+          preguntas guardadas aquí se usan en <strong>todos los juegos</strong> que jueguen tus
+          estudiantes.
         </p>
       </section>
 
-      {/* Action Messages */}
       {actionSuccess && (
-        <div className="mb-md border-4 border-on-background p-md bg-primary-container text-on-primary-container shadow-[4px_4px_0_0_#1d1c17]">
+        <div className="mb-md border-4 border-on-background bg-primary-container p-md text-on-primary-container shadow-[4px_4px_0_0_#1d1c17]">
           {actionSuccess}
         </div>
       )}
       {actionError && (
-        <div className="mb-md border-4 border-on-background p-md bg-error-container text-on-error-container shadow-[4px_4px_0_0_#1d1c17]">
+        <div className="mb-md border-4 border-on-background bg-error-container p-md text-on-error-container shadow-[4px_4px_0_0_#1d1c17]">
           {actionError}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b-4 border-on-background mb-lg">
+      <div className="mb-lg flex border-b-4 border-on-background">
         <button
           onClick={() => setActiveTab('sources')}
           className={[
-            'px-6 py-3 font-headline font-bold uppercase border-t-4 border-x-4 border-transparent -mb-1 select-none transition-all',
+            'select-none border-x-4 border-t-4 border-transparent -mb-1 px-6 py-3 font-headline font-bold uppercase transition-all',
             activeTab === 'sources'
-              ? 'bg-surface border-on-background border-t-primary text-primary translate-y-0.5'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low',
+              ? 'translate-y-0.5 border-on-background border-t-primary bg-surface text-primary'
+              : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface',
           ].join(' ')}
         >
           Documentos Base ({sources.length})
@@ -159,10 +147,10 @@ export function TeacherBankPage() {
         <button
           onClick={() => setActiveTab('questions')}
           className={[
-            'px-6 py-3 font-headline font-bold uppercase border-t-4 border-x-4 border-transparent -mb-1 select-none transition-all',
+            'select-none border-x-4 border-t-4 border-transparent -mb-1 px-6 py-3 font-headline font-bold uppercase transition-all',
             activeTab === 'questions'
-              ? 'bg-surface border-on-background border-t-primary text-primary translate-y-0.5'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low',
+              ? 'translate-y-0.5 border-on-background border-t-primary bg-surface text-primary'
+              : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface',
           ].join(' ')}
         >
           Preguntas Individuales
@@ -181,32 +169,33 @@ export function TeacherBankPage() {
             </div>
           ) : sources.length === 0 ? (
             <div className="border-4 border-dashed border-on-background bg-surface-container-lowest p-lg text-center text-on-surface-variant">
-              Aún no has subido ningún documento. Usa el Generador de Preguntas IA para cargar tu primer archivo.
+              Aún no has subido ningún documento. Usa el Generador de Preguntas IA para cargar tu
+              primer archivo.
             </div>
           ) : (
             <div className="grid gap-md md:grid-cols-2">
               {sources.map((source) => (
-                <article key={source.id} className="border-4 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17]">
-                  <div className="flex justify-between items-start gap-sm">
-                    <div>
-                      <h4 className="font-headline text-xl font-bold uppercase text-primary break-all">{source.filename}</h4>
-                      <span className="inline-block mt-xs border border-on-background bg-primary-fixed px-2.5 py-0.5 text-xs font-bold uppercase text-on-primary-fixed">
-                        {getTemaLabel(source.tema)}
-                      </span>
-                    </div>
+                <article
+                  key={source.id}
+                  className="border-4 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17]"
+                >
+                  <div className="flex items-start justify-between gap-sm">
+                    <h4 className="break-all font-headline text-xl font-bold uppercase text-primary">
+                      {source.filename}
+                    </h4>
                     <span className="shrink-0 border-2 border-on-background bg-secondary-container px-2 py-1 text-xs font-bold uppercase text-on-secondary-container">
                       {source._count.questions} preguntas
                     </span>
                   </div>
 
-                  <p className="mt-md text-xs text-on-surface-variant font-mono truncate">
+                  <p className="mt-md truncate font-mono text-xs text-on-surface-variant">
                     Hash: {source.source_hash}
                   </p>
                   <p className="mt-xs text-xs text-on-surface-variant">
                     Subido el: {new Date(source.created_at).toLocaleDateString()}
                   </p>
 
-                  <div className="mt-md pt-md border-t-2 border-on-background flex justify-end">
+                  <div className="mt-md flex justify-end border-t-2 border-on-background pt-md">
                     <button
                       onClick={() => handleRegenerate(source.id)}
                       className="border-2 border-on-background bg-surface px-4 py-1.5 text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
@@ -221,24 +210,6 @@ export function TeacherBankPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Filters */}
-          <div className="flex items-center gap-sm mb-md border-4 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17]">
-            <label className="flex items-center gap-sm text-sm font-bold uppercase">
-              Filtrar por Tema:
-              <select
-                className="border-2 border-on-background bg-surface px-sm py-1.5 font-normal normal-case shadow-[2px_2px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
-                value={filterTema}
-                onChange={(e) => setFilterTema(e.target.value)}
-              >
-                {TEMAS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
           {questionsLoading ? (
             <div className="border-4 border-on-background bg-surface-container-lowest p-lg text-center shadow-[4px_4px_0_0_#1d1c17]">
               Cargando banco de preguntas...
@@ -249,33 +220,42 @@ export function TeacherBankPage() {
             </div>
           ) : questions.length === 0 ? (
             <div className="border-4 border-dashed border-on-background bg-surface-container-lowest p-lg text-center text-on-surface-variant">
-              No hay preguntas registradas para este tema en tu banco de preguntas.
+              Aún no tienes preguntas en tu banco. Súbelas con el Generador de Preguntas IA o
+              agrégalas manualmente.
             </div>
           ) : (
             <div className="space-y-4">
+              <p className="font-mono text-xs uppercase text-on-surface-variant">
+                {questions.length} {questions.length === 1 ? 'pregunta' : 'preguntas'} en tu banco
+              </p>
               {questions.map((q, idx) => (
-                <div key={q.id} className="relative border-4 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] flex flex-col md:flex-row gap-md justify-between items-start md:items-center">
+                <div
+                  key={q.id}
+                  className="relative flex flex-col items-start justify-between gap-md border-4 border-on-background bg-surface-container-lowest p-md shadow-[4px_4px_0_0_#1d1c17] md:flex-row md:items-center"
+                >
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-sm">
-                      <span className="bg-on-background text-surface text-xs font-bold px-2 py-0.5">
+                      <span className="bg-on-background px-2 py-0.5 text-xs font-bold text-surface">
                         Q{idx + 1}
                       </span>
-                      <p className="font-bold text-lg text-on-surface">{q.texto}</p>
+                      <p className="text-lg font-bold text-on-surface">{q.texto}</p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm pl-6 text-sm">
+                    <div className="grid grid-cols-1 gap-sm pl-6 text-sm sm:grid-cols-2">
                       {q.opciones.map((opt, oIdx) => {
                         const isCorrect = opt === q.respuesta_correcta;
                         return (
                           <div
                             key={oIdx}
                             className={[
-                              'px-3 py-1.5 border-2',
+                              'border-2 px-3 py-1.5',
                               isCorrect
-                                ? 'bg-primary-container border-primary font-semibold text-on-primary-container'
-                                : 'bg-surface border-on-background/20 text-on-surface-variant',
+                                ? 'border-primary bg-primary-container font-semibold text-on-primary-container'
+                                : 'border-on-background/20 bg-surface text-on-surface-variant',
                             ].join(' ')}
                           >
-                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)})</span>
+                            <span className="mr-1.5 font-bold">
+                              {String.fromCharCode(65 + oIdx)})
+                            </span>
                             {opt}
                           </div>
                         );
@@ -285,7 +265,7 @@ export function TeacherBankPage() {
 
                   <button
                     onClick={() => handleDeleteQuestion(q.id)}
-                    className="shrink-0 border-2 border-error bg-error-container text-on-error-container px-3 py-1.5 text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] hover:bg-error hover:text-white transition-colors"
+                    className="shrink-0 border-2 border-error bg-error-container px-3 py-1.5 text-xs font-bold uppercase text-on-error-container shadow-[2px_2px_0_0_#1d1c17] transition-colors hover:bg-error hover:text-white"
                   >
                     Eliminar
                   </button>
