@@ -252,9 +252,7 @@ export class AuthService {
       let newRacha: number | null = null;
 
       if (user.student.last_login_date) {
-        const lastKey = user.student.last_login_date
-          .toISOString()
-          .slice(0, 10);
+        const lastKey = user.student.last_login_date.toISOString().slice(0, 10);
 
         if (lastKey !== todayKey) {
           const lastAnchor = new Date(`${lastKey}T00:00:00.000Z`);
