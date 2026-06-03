@@ -630,18 +630,14 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         </div>
       </div>
  
-      {/* Middle Pause Buttons */}
-      <div className="flex flex-col items-center gap-1">
-        <button
-          onTouchStart={(e) => { e.preventDefault(); handlePause(); }}
-          onMouseDown={(e) => { e.preventDefault(); handlePause(); }}
-          className="flex h-10 w-16 items-center justify-center border-4 border-slate-950 bg-slate-700 active:bg-slate-600 font-mono text-[10px] font-black uppercase text-slate-300 shadow-[2px_2px_0_0_#000] cursor-pointer rounded-sm"
-        >
-          Pausa
-        </button>
-        <span className="font-mono text-[8px] font-black uppercase text-slate-500">Start</span>
-      </div>
- 
+      {/* The middle "Pausa / Start" button used to live here, but it
+          duplicated the working pause icon already pinned to the top-right
+          of the game canvas (line ~710) and confused testers because the
+          retro-styled gamepad button looked clickable yet routed to the
+          same handler. Removed for the mobile gamepad layout only — the
+          desktop layout has its own dedicated pause button in the top
+          action bar (line ~749) and is untouched. */}
+
       {/* Action Buttons A / B */}
       <div className="flex items-center gap-5 pr-1">
         {/* Button B */}
@@ -694,11 +690,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   const pauseOverlay = isPaused ? renderPauseModal() : null;
 
   // On Mobile and hasGamepad configured: 70% game area + 30% retro control chassis
+  // Uses `dvh` so the layout follows the dynamic viewport on mobile (the
+  // URL bar appearing / disappearing) instead of getting clipped under it.
   if (isMobile && hasGamepad) {
     return (
       <div className="fixed inset-0 flex flex-col bg-slate-950 overflow-hidden select-none" style={{ touchAction: 'none' }}>
-        {/* Top Game viewport (70% height) */}
-        <div className="relative flex h-[68vh] w-full items-center justify-center bg-black p-1">
+        {/* Top Game viewport (~68% of the dynamic viewport height) */}
+        <div className="relative flex h-[68dvh] w-full items-center justify-center bg-black p-1">
           {/* Retro Game Frame Border */}
           <div className="relative flex h-full w-full max-w-[800px] flex-col border-4 border-slate-800 bg-black">
             {/* Retro Battery Light detail */}
@@ -733,8 +731,20 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   }
 
   // Desktop or Mobile (without gamepad - full-screen touch mode)
+  //
+  // Layout notes (kept here because the responsive bug history is easy to
+  // re-introduce): the wrapper used to `justify-center` the whole card,
+  // which on short viewports (laptops with devtools open, narrow popup
+  // windows, Vercel previews on weird sizes) centered the 4:3 board
+  // vertically — making the top get clipped under the absolute "Salir /
+  // Pausa" bar and the bottom run past the visible area. Fix:
+  //   - `justify-start` + top padding that reserves room for the buttons
+  //   - `max-h-[calc(100dvh-…)]` on the board itself so it never exceeds
+  //     the usable viewport regardless of aspect ratio
+  //   - keep `overflow-y-auto` on the page as the safety net if the user
+  //     is on a truly tiny screen
   return (
-    <div className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-4 md:p-8 overflow-y-auto ${gameStarted ? 'select-none' : ''}`} style={{ touchAction: gameStarted ? 'none' : 'auto' }}>
+    <div className={`relative flex min-h-dvh w-full flex-col items-center justify-start bg-surface-container px-4 pb-4 pt-20 md:pt-24 md:px-8 md:pb-8 overflow-y-auto ${gameStarted ? 'select-none' : ''}`} style={{ touchAction: gameStarted ? 'none' : 'auto' }}>
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
 
       {/* Top action bar */}
@@ -761,7 +771,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         )}
       </div>
 
-      <div 
+      <div
         className="z-10 flex w-full flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]"
         style={{ width: '90%', maxWidth: '800px', boxSizing: 'border-box' }}
       >
@@ -772,12 +782,24 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         </div>
 
         <div className="flex w-full justify-center bg-surface-container-lowest p-3">
-          {/* Main game board */}
+          {/* Main game board.
+              - aspect-ratio 4:3 = the canvas Phaser scenes are built for
+              - max-height clamps to (viewport − ~14rem reserved for the
+                top action bar + the card title + paddings). Without this
+                clamp, tall enough aspect ratio + narrow viewports clip the
+                bottom of the canvas in production. `dvh` instead of `vh`
+                so it follows the actual visible area on mobile (the URL
+                bar appearing/disappearing).
+              - `min-h-0` lets flex shrink the child when constrained by
+                max-height.
+              - keep `w-full` + `max-w-full` so width still adapts when
+                the card is narrower than the height-derived width. */}
           <div
-            className="relative w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner bg-black"
+            className="relative min-h-0 w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner bg-black"
             style={{
               aspectRatio: '4 / 3',
               maxWidth: '100%',
+              maxHeight: 'calc(100dvh - 14rem)',
             }}
           >
             {children}
