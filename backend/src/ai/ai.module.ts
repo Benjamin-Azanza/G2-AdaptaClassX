@@ -20,7 +20,13 @@ import { AuthModule } from '../auth/auth.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService): ThrottlerModuleOptions => {
         const base: ThrottlerModuleOptions = {
-          throttlers: [{ name: 'ai-generate', ttl: 60_000, limit: 5 }],
+          // Two named buckets so AI teacher generation and student chat
+          // never share a counter — different cost profiles, different
+          // limits. ChatModule re-uses this storage via its own guard.
+          throttlers: [
+            { name: 'ai-generate', ttl: 60_000, limit: 5 },
+            { name: 'chat-ask', ttl: 60_000, limit: 20 },
+          ],
         };
         const url = config.get<string>('REDIS_URL');
         if (!url) return base;
@@ -42,6 +48,10 @@ import { AuthModule } from '../auth/auth.module';
   ],
   controllers: [AiController],
   providers: [AiService, RedisDraftService, AiThrottlerGuard],
-  exports: [AiService],
+  // ThrottlerModule must be re-exported so ChatModule's guard hits the
+  // same (Redis-backed) storage instance instead of a fresh in-memory
+  // one — otherwise the chat-ask bucket would silently fall back to
+  // per-instance counts.
+  exports: [AiService, ThrottlerModule],
 })
 export class AiModule {}

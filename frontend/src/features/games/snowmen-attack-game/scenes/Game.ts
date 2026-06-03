@@ -174,6 +174,11 @@ export default class MainGame extends Phaser.Scene
 
     startQuestionEvent ()
     {
+        // Re-entrancy guard: snowmen overlap + periodic timer can fire on
+        // the same tick before isQuestionMode propagates, stacking overlays.
+        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+            return;
+        }
         this.isQuestionMode = true;
         this.physics.pause();
         

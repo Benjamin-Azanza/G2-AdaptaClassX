@@ -273,6 +273,11 @@ export default class MainGame extends Phaser.Scene
     }
 
     startQuestionSequence() {
+        // Re-entrancy guard: completing two matches in the same frame
+        // can call this twice before isQuestionMode propagates.
+        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+            return;
+        }
         this.isQuestionMode = true;
         if (this.timer) {
             this.timer.paused = true;

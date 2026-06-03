@@ -7,5 +7,6 @@ import { AuthModule } from '../auth/auth.module';
   imports: [AuthModule],
   controllers: [ParalelosController],
   providers: [ParalelosService],
+  exports: [ParalelosService],
 })
 export class ParalelosModule {}

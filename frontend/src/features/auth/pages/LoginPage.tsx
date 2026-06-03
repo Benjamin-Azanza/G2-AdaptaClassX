@@ -43,7 +43,7 @@ export function LoginPage() {
           )}
 
           <label className="flex flex-col gap-xs text-sm font-bold uppercase">
-            Correo electronico
+            Correo electrónico
             <input
               className="border-2 border-on-background bg-surface px-sm py-2 font-normal normal-case shadow-[3px_3px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
               type="email"
@@ -55,7 +55,7 @@ export function LoginPage() {
           </label>
 
           <label className="flex flex-col gap-xs text-sm font-bold uppercase">
-            Contrasena
+            Contraseña
             <input
               className="border-2 border-on-background bg-surface px-sm py-2 font-normal normal-case shadow-[3px_3px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
               type="password"
@@ -71,14 +71,14 @@ export function LoginPage() {
             disabled={isLoading}
             className="mt-xs border-2 border-on-background bg-primary px-md py-2.5 font-headline text-base font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] disabled:cursor-wait disabled:opacity-70"
           >
-            {isLoading ? 'Ingresando...' : 'Iniciar sesion'}
+            {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
 
         <p className="mt-sm text-center text-sm text-on-surface-variant">
-          No tienes cuenta?{' '}
+          ¿No tienes cuenta?{' '}
           <Link className="font-bold text-primary underline" to={routePaths.register}>
-            Registrate aqui
+            Regístrate aquí
           </Link>
         </p>
       </section>

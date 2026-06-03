@@ -1,9 +1,19 @@
-import type { ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { routePaths } from '../../../app/router/routePaths';
 import { useAuthStore } from '../../auth/store/authStore';
 import { buildStudentProfile } from '../services/student.service';
 import { NotificationsBell } from '../../notifications/components/NotificationsBell';
+import {
+  chatService,
+  type ChatConfigResponse,
+} from '../../chat/services/chat.service';
+
+// Lazy so the chat hook + axios payload only ships when a student is
+// actually on a student page (it isn't bundled into teacher views).
+const StudentChatbotWidget = lazy(
+  () => import('../../chat/components/StudentChatbotWidget'),
+);
 
 interface StudentShellProps {
   title: string;
@@ -21,6 +31,31 @@ export function StudentShell({ title, children }: StudentShellProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const profile = buildStudentProfile(user);
+
+  // Chatbot config is loaded once per shell mount (not per-page) so the
+  // FAB doesn't flicker between routes. We deliberately fetch eagerly
+  // rather than on first FAB click — that way if the teacher disabled
+  // the chatbot for the paralelo, the FAB never renders and there's no
+  // "ghost button" experience. The request is a single cheap Paralelo
+  // lookup; see ChatService.getConfigForStudent.
+  const [chatConfig, setChatConfig] = useState<ChatConfigResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    chatService
+      .getConfig()
+      .then((cfg) => {
+        if (!cancelled) setChatConfig(cfg);
+      })
+      .catch(() => {
+        // Silent failure — the widget just won't mount. Logging here
+        // would spam the console on every page mount if the endpoint
+        // is misconfigured locally.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -134,6 +169,18 @@ export function StudentShell({ title, children }: StudentShellProps) {
       <main className="min-h-screen px-margin-mobile pb-24 pt-[72px] md:ml-64 md:px-lg md:pt-[88px] md:pb-lg">
         <div className="mx-auto max-w-[1280px]">{children}</div>
       </main>
+
+      {chatConfig?.enabled && (
+        // Suspense fallback intentionally null — the FAB is non-critical
+        // chrome. If the chunk is mid-load the user just doesn't see it
+        // for a frame.
+        <Suspense fallback={null}>
+          <StudentChatbotWidget
+            personaName={chatConfig.persona_name}
+            initialSuggestions={chatConfig.suggestions}
+          />
+        </Suspense>
+      )}
 
       {/* Mobile bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t-4 border-on-background bg-surface px-2 py-1 shadow-[0_-4px_0_0_#1d1c17] md:hidden">

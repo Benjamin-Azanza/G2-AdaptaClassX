@@ -110,6 +110,12 @@ class Play extends Phaser.Scene
     }
 
     _showQuestion() {
+        // Re-entrancy guard: callers (overlap callbacks and the periodic
+        // timer) can fire back-to-back before isQuestionMode propagates,
+        // which stacks overlays on top of each other.
+        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+            return;
+        }
         this.isQuestionMode = true;
         this.physics.pause();
         

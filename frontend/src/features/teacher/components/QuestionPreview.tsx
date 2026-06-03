@@ -176,7 +176,7 @@ export function QuestionPreview({ questions = [], onSave, onQuestionsChange }: Q
           <p className="mt-xs text-on-surface-variant">
             {hasQuestions
               ? `${questions.length} pregunta${questions.length !== 1 ? 's' : ''} generadas — pasa el cursor sobre cada una para editarla.`
-              : 'Las preguntas apareceran aqui despues de generar contenido desde un documento.'}
+              : 'Las preguntas aparecerán aquí después de generar contenido desde un documento.'}
           </p>
         </div>
         {hasQuestions && onSave && (

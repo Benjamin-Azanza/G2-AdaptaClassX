@@ -530,6 +530,12 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private showQuestion() {
+        // Re-entrancy guard: bomb + aid pickups can resolve on the same
+        // physics tick (player runs into both at once) before isQuestionActive
+        // propagates to the second callback. Bail if a modal is already up.
+        if (this.questionModalGroup && this.questionModalGroup.getLength() > 0) {
+            return;
+        }
         const qData = Phaser.Utils.Array.GetRandom(this.questions);
         if (!qData) {
             this.resumeGame();

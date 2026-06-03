@@ -309,6 +309,11 @@ export default class MainGame extends Phaser.Scene
     }
 
     startSalvationQuestion() {
+        // Re-entrancy guard: a salvation question can be queued by a
+        // delayedCall while another question is already on screen.
+        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+            return;
+        }
         this.isQuestionMode = true;
         this.questionOverlayObjects = [];
         
@@ -423,8 +428,13 @@ export default class MainGame extends Phaser.Scene
 
     startQuestionEvent(time)
     {
+        // Re-entrancy guard: the periodic question timer can race with a
+        // door-triggered question event in the same tick.
+        if (this.isQuestionMode) {
+            return;
+        }
         this.isQuestionMode = true;
-        
+
         // Pick random question
         const questionIndex = Phaser.Math.RND.between(0, this.preguntas.length - 1);
         this.currentQuestion = this.preguntas[questionIndex];

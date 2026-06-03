@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         streakBonusXp: streak_bonus_xp ?? 0,
       });
     } catch (error: unknown) {
-      const message = getApiErrorMessage(error, 'Error al iniciar sesion');
+      const message = getApiErrorMessage(error, 'Error al iniciar sesión');
       set({ error: message, isLoading: false });
       throw error;
     }

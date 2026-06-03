@@ -304,6 +304,12 @@ export default class Breakout extends Phaser.Scene {
     }
 
     triggerQuestionModal(reason: 'WORD_HIT' | 'BALL_DROP') {
+        // Re-entrancy guard: ball drop + word brick hit can resolve in the
+        // same physics step; without this we'd stack two question modals
+        // and the text would smear on top of itself.
+        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+            return;
+        }
         this.isQuestionMode = true;
         this.physics.pause();
         

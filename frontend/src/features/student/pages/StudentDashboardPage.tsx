@@ -128,7 +128,7 @@ export function StudentDashboardPage() {
           <button
             type="button"
             onClick={clearStreakBonus}
-            className="border-2 border-on-background bg-surface-container-lowest px-sm py-xs font-mono text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+            className="border-2 border-on-background bg-surface-container-lowest px-sm py-xs font-mono text-xs font-bold uppercase text-on-surface shadow-[2px_2px_0_0_#1d1c17]"
           >
             ¡Vamos!
           </button>

@@ -578,6 +578,12 @@ export default class Game extends Phaser.Scene
     }
 
     triggerMoveQuestion() {
+        // Re-entrancy guard: fast consecutive moves can call this twice
+        // before the overlay cleanup runs, stacking overlays on top of
+        // each other.
+        if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
+            return;
+        }
         const fallbacks = [
             { q: "¿Qué palabra es un sustantivo?", options: ["mesa", "cantar", "azul", "rápidamente"], answer: 0 },
             { q: "Sinónimo de 'estudiante':", options: ["alumno", "profesor", "aula", "libro"], answer: 0 },

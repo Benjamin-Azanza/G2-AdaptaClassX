@@ -7,6 +7,7 @@ import { paralelosService } from '../../paralelos/services/paralelos.service';
 import { MissionForm } from '../../missions/components/MissionForm';
 import { ParaleloDetailPanel } from '../components/ParaleloDetailPanel';
 import { MissionsPanel } from '../../missions/components/MissionsPanel';
+import { ChatbotConfigPanel } from '../components/ChatbotConfigPanel';
 
 function formatGrade(grade: number) {
   const labels: Record<number, string> = {
@@ -20,7 +21,7 @@ function formatGrade(grade: number) {
 // Three independent collapsible panels per card. Tracked by id so only one
 // card can have a particular panel open at a time, and so refreshing the
 // parent list doesn't accidentally close them.
-type PanelKey = 'assign' | 'students' | 'tasks';
+type PanelKey = 'assign' | 'students' | 'tasks' | 'chatbot';
 
 export function TeacherClassroomPage() {
   const { paralelos, isLoading, error, refresh } = useParalelos();
@@ -207,6 +208,13 @@ export function TeacherClassroomPage() {
                   >
                     {activePanel === 'tasks' ? 'Ocultar misiones' : 'Ver misiones'}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(paralelo.id, 'chatbot')}
+                    className="border-2 border-on-background bg-surface px-sm py-xs text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17]"
+                  >
+                    {activePanel === 'chatbot' ? 'Cerrar chatbot' : 'Chatbot'}
+                  </button>
                 </div>
 
                 {activePanel === 'assign' && (
@@ -230,6 +238,11 @@ export function TeacherClassroomPage() {
                     paraleloId={paralelo.id}
                     refreshKey={missionsBump[paralelo.id] ?? 0}
                   />
+                )}
+                {activePanel === 'chatbot' && (
+                  <div className="mt-md">
+                    <ChatbotConfigPanel paraleloId={paralelo.id} />
+                  </div>
                 )}
               </article>
             );

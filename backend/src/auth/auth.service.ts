@@ -236,15 +236,31 @@ export class AuthService {
     let streakBonusXp = 0;
 
     if (user.role === Role.STUDENT && user.student) {
-      // Compare dates as UTC YYYY-MM-DD strings. The old code used
-      // `setHours(0,0,0,0)` which interprets the Date in *local* time;
-      // combined with Postgres returning the `@db.Date` column as UTC
-      // midnight, that subtraction wrapped to ~1 day in any TZ west of
-      // UTC (we're UTC-5 in Ecuador). Result: the streak ticked up
-      // every single login. Comparing two YYYY-MM-DD strings sidesteps
-      // the whole timezone trap.
-      const now = new Date();
-      const todayKey = now.toISOString().slice(0, 10);
+      // Date comparisons must happen in the user's CALENDAR timezone
+      // (America/Guayaquil, UTC-5), not UTC. Reason: between 19:00 and
+      // 23:59 Ecuador local, UTC has already rolled over to "tomorrow",
+      // so a previous version of this code that compared UTC date strings
+      // counted every evening login as a new streak day.
+      //
+      // Implementation: use Intl.DateTimeFormat with en-CA (emits
+      // YYYY-MM-DD) anchored to America/Guayaquil for `todayKey`.
+      // `last_login_date` is a @db.Date column — Prisma returns it as UTC
+      // midnight of the stored day, so `.toISOString().slice(0,10)` round-
+      // trips back to the same key we wrote at the previous login, and
+      // the two strings are directly comparable.
+      const ECUADOR_TZ = 'America/Guayaquil';
+      const ecuadorDayFmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: ECUADOR_TZ,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+
+      const todayKey = ecuadorDayFmt.format(new Date());
+      // Anchor we persist back to the DB. Storing UTC midnight of the
+      // Ecuador day keeps Postgres @db.Date stable: it'll come back as
+      // `<todayKey>T00:00:00Z`, and `.toISOString().slice(0,10)` round-
+      // trips to the same `todayKey` on the next login.
       const todayAnchor = new Date(`${todayKey}T00:00:00.000Z`);
 
       // The streak value after this login, or null when no change applies

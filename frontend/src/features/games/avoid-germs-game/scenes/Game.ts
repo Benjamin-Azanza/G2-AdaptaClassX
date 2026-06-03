@@ -235,6 +235,14 @@ export default class MainGame extends Phaser.Scene
     }
 
     _showQuestion() {
+        // Re-entrancy guard: physics.add.overlap can fire the same frame
+        // for multiple germs/pickups before isQuestionMode propagates,
+        // which used to stack overlays on top of each other (the smeared
+        // text bug). Bail out if a question is already up, and destroy
+        // any stray overlay objects as a belt-and-suspenders cleanup.
+        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+            return;
+        }
         this.isQuestionMode = true;
         this.physics.pause();
         this.player.body.stop();

@@ -336,6 +336,11 @@ export class StackerGame extends Phaser.Scene {
     }
 
     showQuizOverlay(title, subtitle, qData, onCorrect, onIncorrect) {
+        // Re-entrancy guard: salvation + milestone quizzes can queue back-
+        // to-back when a drop triggers game-over right on a milestone row.
+        if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
+            return;
+        }
         const cx = 400;
         const cy = 300;
 

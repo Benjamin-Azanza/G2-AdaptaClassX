@@ -70,7 +70,7 @@ export function TeacherShell({ title, children, action }: TeacherShellProps) {
             <div className="overflow-hidden">
               <p className="truncate text-sm font-bold">{user?.nombre ?? 'Profesor'}</p>
               <button className="text-xs font-mono uppercase text-on-surface-variant" onClick={handleLogout}>
-                Cerrar sesion
+                Cerrar sesión
               </button>
             </div>
           </div>
@@ -95,7 +95,7 @@ export function TeacherShell({ title, children, action }: TeacherShellProps) {
           <button className="material-symbols-outlined p-xs hover:text-secondary hidden md:block" type="button" aria-label="Ajustes">
             settings
           </button>
-          <button className="material-symbols-outlined p-xs md:hidden" type="button" onClick={handleLogout} aria-label="Cerrar sesion">
+          <button className="material-symbols-outlined p-xs md:hidden" type="button" onClick={handleLogout} aria-label="Cerrar sesión">
             logout
           </button>
         </div>

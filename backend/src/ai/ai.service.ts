@@ -12,6 +12,7 @@ import OpenAI from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 import * as mammoth from 'mammoth';
 import { Tema } from '@prisma/client';
@@ -326,6 +327,55 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
         'Error generating questions from LLM',
       );
     }
+  }
+
+  /**
+   * Thin wrapper around `openai.chat.completions.create` for non-JSON
+   * chat use-cases (e.g. the student chatbot fallback). Returns the
+   * trimmed assistant text plus token usage so callers can log cost.
+   *
+   * Kept inside AiService so a single class owns provider config / retries
+   * / timeouts. ChatService consumes this via dependency injection.
+   */
+  async chatCompletion(
+    messages: ChatCompletionMessageParam[],
+    opts: { maxTokens?: number; model?: string } = {},
+  ): Promise<{
+    text: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    finishReason?: string | null;
+  }> {
+    const model =
+      opts.model ||
+      this.configService.get<string>('AI_MODEL') ||
+      'z-ai/glm-4.5-air:free';
+
+    const response = await this.openai.chat.completions.create({
+      model,
+      messages,
+      max_tokens: opts.maxTokens ?? 200,
+    });
+
+    const choice = response.choices[0];
+    // Some providers (OpenRouter "thinking" models) split content from a
+    // reasoning_content field. Try content first; if empty, look for the
+    // reasoning field via a permissive cast so we don't lose the answer.
+    const msg = choice?.message as unknown as
+      | { content?: string; reasoning_content?: string }
+      | undefined;
+    const raw =
+      (msg?.content ?? '').trim() || (msg?.reasoning_content ?? '').trim();
+    const text = raw;
+
+    return {
+      text,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
+      totalTokens: response.usage?.total_tokens,
+      finishReason: choice?.finish_reason ?? null,
+    };
   }
 
   private async callLlmWithJsonModeFallback(

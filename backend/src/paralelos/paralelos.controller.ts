@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ParalelosService } from './paralelos.service';
 import { CreateParaleloDto, JoinParaleloDto } from './dto/paralelos.dto';
+import { UpdateChatbotConfigDto } from '../chat/dto/update-chatbot-config.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -61,5 +62,25 @@ export class ParalelosController {
   @Roles(Role.TEACHER)
   async rotateCode(@Param('id') id: string, @Request() req: any) {
     return this.paralelosService.rotateCode(id, req.user.sub);
+  }
+
+  // ─── Chatbot config (per-paralelo, teacher-managed) ─────────────────
+  // GET returns the full config so the teacher panel can render its
+  // initial state without guessing defaults. PATCH accepts a partial.
+
+  @Get(':id/chatbot-config')
+  @Roles(Role.TEACHER)
+  async getChatbotConfig(@Param('id') id: string, @Request() req: any) {
+    return this.paralelosService.getChatbotConfig(id, req.user.sub);
+  }
+
+  @Patch(':id/chatbot-config')
+  @Roles(Role.TEACHER)
+  async updateChatbotConfig(
+    @Param('id') id: string,
+    @Body() dto: UpdateChatbotConfigDto,
+    @Request() req: any,
+  ) {
+    return this.paralelosService.updateChatbotConfig(id, req.user.sub, dto);
   }
 }

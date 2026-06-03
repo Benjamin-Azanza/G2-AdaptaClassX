@@ -74,13 +74,13 @@ export function RegisterPage() {
               className="border-2 border-on-background bg-surface px-sm py-sm font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
               value={form.nombre}
               onChange={(event) => setForm({ ...form, nombre: event.target.value })}
-              placeholder="Juan Perez"
+              placeholder="Juan Pérez"
               required
             />
           </label>
 
           <label className="flex flex-col gap-xs text-sm font-bold uppercase md:col-span-2">
-            Correo electronico
+            Correo electrónico
             <input
               className="border-2 border-on-background bg-surface px-sm py-sm font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
               type="email"
@@ -92,7 +92,7 @@ export function RegisterPage() {
           </label>
 
           <label className="flex flex-col gap-xs text-sm font-bold uppercase">
-            Contrasena
+            Contraseña
             <input
               className="border-2 border-on-background bg-surface px-sm py-sm font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
               type="password"
@@ -157,9 +157,9 @@ export function RegisterPage() {
         </form>
 
         <p className="mt-md text-center text-sm text-on-surface-variant">
-          Ya tienes cuenta?{' '}
+          ¿Ya tienes cuenta?{' '}
           <Link className="font-bold text-primary underline" to={routePaths.login}>
-            Inicia sesion
+            Inicia sesión
           </Link>
         </p>
       </section>

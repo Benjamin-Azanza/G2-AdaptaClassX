@@ -8,6 +8,7 @@ import {
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateParaleloDto, JoinParaleloDto } from './dto/paralelos.dto';
+import { UpdateChatbotConfigDto } from '../chat/dto/update-chatbot-config.dto';
 
 @Injectable()
 export class ParalelosService {
@@ -211,5 +212,85 @@ export class ParalelosService {
       puntos_xp: s.puntos_xp,
       racha_dias: s.racha_dias,
     }));
+  }
+
+  /**
+   * Read the chatbot config for a paralelo (teacher view). The student
+   * view goes through ChatService.getConfigForStudent which only exposes
+   * fields the FAB needs.
+   */
+  async getChatbotConfig(paraleloId: string, teacherId: string) {
+    const paralelo = await this.prisma.paralelo.findUnique({
+      where: { id: paraleloId },
+      select: {
+        teacher_id: true,
+        chatbot_enabled: true,
+        chatbot_llm_enabled: true,
+        chatbot_persona_name: true,
+        chatbot_extra_suggestions: true,
+      },
+    });
+    if (!paralelo) throw new NotFoundException('Paralelo no encontrado');
+    if (paralelo.teacher_id !== teacherId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
+    return {
+      chatbot_enabled: paralelo.chatbot_enabled,
+      chatbot_llm_enabled: paralelo.chatbot_llm_enabled,
+      chatbot_persona_name: paralelo.chatbot_persona_name,
+      chatbot_extra_suggestions: paralelo.chatbot_extra_suggestions ?? [],
+    };
+  }
+
+  /**
+   * Update chatbot config. Ownership is enforced — a teacher can only
+   * touch their own paralelos. Each DTO field is optional so the panel
+   * can patch only what changed.
+   */
+  async updateChatbotConfig(
+    paraleloId: string,
+    teacherId: string,
+    dto: UpdateChatbotConfigDto,
+  ) {
+    const paralelo = await this.prisma.paralelo.findUnique({
+      where: { id: paraleloId },
+      select: { teacher_id: true },
+    });
+    if (!paralelo) throw new NotFoundException('Paralelo no encontrado');
+    if (paralelo.teacher_id !== teacherId) {
+      throw new ForbiddenException('Este paralelo no te pertenece');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.chatbot_enabled !== undefined)
+      data.chatbot_enabled = dto.chatbot_enabled;
+    if (dto.chatbot_llm_enabled !== undefined)
+      data.chatbot_llm_enabled = dto.chatbot_llm_enabled;
+    if (dto.chatbot_persona_name !== undefined)
+      data.chatbot_persona_name = dto.chatbot_persona_name;
+    if (dto.chatbot_extra_suggestions !== undefined) {
+      // Defensive trim — drop empty strings after the class-validator
+      // pass so storing the array doesn't reserve UI space for blanks.
+      data.chatbot_extra_suggestions = dto.chatbot_extra_suggestions
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
+
+    const updated = await this.prisma.paralelo.update({
+      where: { id: paraleloId },
+      data,
+      select: {
+        chatbot_enabled: true,
+        chatbot_llm_enabled: true,
+        chatbot_persona_name: true,
+        chatbot_extra_suggestions: true,
+      },
+    });
+    return {
+      chatbot_enabled: updated.chatbot_enabled,
+      chatbot_llm_enabled: updated.chatbot_llm_enabled,
+      chatbot_persona_name: updated.chatbot_persona_name,
+      chatbot_extra_suggestions: updated.chatbot_extra_suggestions ?? [],
+    };
   }
 }

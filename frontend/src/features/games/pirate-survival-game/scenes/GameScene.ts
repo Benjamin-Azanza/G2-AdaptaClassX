@@ -337,6 +337,11 @@ export class GameScene extends Phaser.Scene {
   // ── Question system ───────────────────────────────────────────────────────
 
   _showQuestion() {
+    // Re-entrancy guard: round-end + damage event can fire in the same
+    // tick and trigger two question modals stacked on each other.
+    if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+      return;
+    }
     this.isQuestionMode = true;
     const cam = this.cameras.main;
     const cx  = cam.width * 0.5;
@@ -933,6 +938,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   _showItemQuestion(type) {
+    // Re-entrancy guard: picking up two buff items in the same frame
+    // would otherwise stack overlays.
+    if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+      return;
+    }
     this.pendingItemBuff = type;
     this.isQuestionMode = true;
     const cam = this.cameras.main;

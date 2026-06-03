@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
 import { QuestionsModule } from './questions/questions.module';
 import { AchievementsModule } from './achievements/achievements.module';
+import { ChatModule } from './chat/chat.module';
 import { CsrfGuard } from './common/security/csrf.guard';
 
 @Module({
@@ -60,6 +61,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
     AiModule,
     QuestionsModule,
     AchievementsModule,
+    ChatModule,
   ],
   providers: [
     // Global double-submit CSRF guard. Runs on every request; safe methods
