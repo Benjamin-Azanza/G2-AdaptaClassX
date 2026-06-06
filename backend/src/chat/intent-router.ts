@@ -43,6 +43,8 @@ const HOWMANY = '(cuant[oa]s?)';
 // Order matters — first match wins. Place specific patterns above generic
 // ones (e.g. MISSIONS_TIME_LEFT before MISSIONS_PENDING; TOTAL_PLAY_TIME
 // before MISSIONS_TIME_LEFT only because TOTAL needs different keywords).
+// Intent patterns are matched against short normalised strings (≤300 chars).
+// None have catastrophic backtracking — bounded input makes ReDoS impractical.
 const RULES: IntentRule[] = [
   {
     name: 'GREETING',
@@ -156,6 +158,7 @@ const RULES: IntentRule[] = [
       new RegExp(
         `\\b${HOWMANY}\\s+(preguntas|respuestas)\\s+(correctas|he respondido|he acertado|llevo)`,
       ),
+      // eslint-disable-next-line security/detect-unsafe-regex
       /\b(que\s+)?porcentaje\s+(acierto|de aciertos|tengo)/,
       /\bmi\s+(precision|acierto)\b/,
       /\bque\s+tan\s+bien\s+respond/,
@@ -167,6 +170,7 @@ const RULES: IntentRule[] = [
       /\branking\b/,
       /\bmi\s+(posicion|puesto|lugar)\b/,
       /\bcomo voy\s+(en|contra)\b/,
+      // eslint-disable-next-line security/detect-unsafe-regex
       /\btabla\s+(de\s+)?(posiciones|ranking)\b/,
     ],
   },
@@ -177,6 +181,7 @@ const RULES: IntentRule[] = [
     patterns: [
       new RegExp(`\\b${HOWMANY}\\s+notificaciones?\\b`),
       /\bnotificaciones?\b/,
+      // eslint-disable-next-line security/detect-unsafe-regex
       /\b(que|algo)\s+(hay\s+)?(de\s+)?nuevo\b/,
       /\bavisos?\b/,
     ],
@@ -201,8 +206,10 @@ const RULES: IntentRule[] = [
   {
     name: 'RECOMMEND_GAME',
     patterns: [
+      // eslint-disable-next-line security/detect-unsafe-regex
       /\b(que|cual)\s+juego\s+(me\s+)?(recomiendas?|pruebo|juego|deberia)/,
       /\brecomiend[aoe]m?e?\s+(un|algun)?\s*juego/,
+      // eslint-disable-next-line security/detect-unsafe-regex
       /\ba\s+que\s+(puedo\s+)?juego/,
     ],
   },
@@ -246,8 +253,11 @@ export function matchIntent(message: string): IntentName | null {
 // tokens, not to be a security boundary (the LLM has no tool access or
 // PII anyway, see ChatService for the threat model). On match, the
 // service responds with a friendly canned reply + chips, NOT a 400.
+// Patterns are applied to short (≤300 char) normalised strings — ReDoS risk negligible.
 const INJECTION_PATTERNS: RegExp[] = [
+  // eslint-disable-next-line security/detect-unsafe-regex
   /ignora\s+(todo\s+)?lo\s+anterior/i,
+  // eslint-disable-next-line security/detect-unsafe-regex
   /olvida\s+(tus\s+)?instrucciones/i,
   /\bahora\s+eres\b/i,
   /\bnuevo\s+rol\b/i,

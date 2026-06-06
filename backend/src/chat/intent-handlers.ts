@@ -300,7 +300,9 @@ const HANDLERS: Record<
       where: { student_id: ctx.studentId },
       _count: { _all: true },
     });
-    const countByGame = new Map(sessions.map((s) => [s.game_id, s._count._all]));
+    const countByGame = new Map(
+      sessions.map((s) => [s.game_id, s._count._all]),
+    );
     const ranked = [...games].sort((a, b) => {
       const ca = countByGame.get(a.id) ?? 0;
       const cb = countByGame.get(b.id) ?? 0;
@@ -438,5 +440,7 @@ export async function handleIntent(
   intent: IntentName,
   ctx: IntentContext,
 ): Promise<IntentResult> {
+  // intent is typed as IntentName (a closed union) — not user-controlled input.
+  // eslint-disable-next-line security/detect-object-injection
   return HANDLERS[intent](ctx);
 }

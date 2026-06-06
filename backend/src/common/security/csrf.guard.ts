@@ -39,7 +39,10 @@ export class CsrfGuard implements CanActivate {
     if (skip) return true;
 
     const cookies = parseCookies(req);
+    // Keys are module-level constants, not user input — object injection false positive.
+    // eslint-disable-next-line security/detect-object-injection
     const cookieToken = cookies[CSRF_COOKIE];
+    // eslint-disable-next-line security/detect-object-injection
     const rawHeader = req.headers[CSRF_HEADER];
     const headerToken = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
 

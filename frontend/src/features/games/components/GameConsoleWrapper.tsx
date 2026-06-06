@@ -104,17 +104,21 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     };
     document.addEventListener('touchmove', blockTouch, { passive: false });
 
-    // Prevent pinch-zoom via gesturestart (Safari)
+    // Prevent pinch-zoom via gesturestart (Safari). NB: pinch is already
+    // blocked by `touchAction: 'none'` above + the touchmove preventDefault,
+    // these gesture* listeners are belt-and-suspenders for older Safari.
     const blockGesture = (e: Event) => e.preventDefault();
     document.addEventListener('gesturestart', blockGesture, { passive: false } as any);
     document.addEventListener('gesturechange', blockGesture, { passive: false } as any);
 
-    // Set viewport meta to prevent zoom
-    let viewportMeta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
-    const origViewportContent = viewportMeta?.content || '';
-    if (viewportMeta) {
-      viewportMeta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
-    }
+    // NOTE: previously this effect overwrote the <meta name="viewport"> with
+    // `maximum-scale=1, user-scalable=no` while the game was running. That
+    // forced the browser back to initial-scale=1 the moment the student
+    // entered any game — overriding whatever browser zoom (Ctrl +/-) they
+    // had applied. Symptom reported by the user: "in Vercel I need to zoom
+    // out to 70% on every page, but the game pages snap back to 100% and
+    // look huge". The touch/gesture handlers above already prevent pinch
+    // zoom on mobile, so leaving the meta tag untouched is safe.
 
     return () => {
       html.style.overflow = origHtmlOverflow;
@@ -131,10 +135,6 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       document.removeEventListener('touchmove', blockTouch);
       document.removeEventListener('gesturestart', blockGesture);
       document.removeEventListener('gesturechange', blockGesture);
-
-      if (viewportMeta) {
-        viewportMeta.content = origViewportContent;
-      }
     };
   }, [gameStarted]);
 
@@ -348,29 +348,25 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.height = '100%';
 
-    // 3. Prevent page scaling/zoom via viewport meta tag
-    const viewportMeta = document.querySelector('meta[name="viewport"]');
-    const originalViewportContent = viewportMeta ? viewportMeta.getAttribute('content') : '';
-    if (viewportMeta) {
-      viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-    }
+    // 3. Viewport meta is INTENTIONALLY left alone. The previous version of
+    // this effect overrode it with `maximum-scale=1.0, user-scalable=no`,
+    // which had the side effect of resetting the browser zoom level the
+    // moment a game started — making the page look enormous to anyone
+    // viewing the app at less than 100% zoom. Touch handlers above already
+    // prevent pinch zoom on mobile.
 
     return () => {
       document.removeEventListener('touchmove', preventTouchMove);
-      
+
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
       document.body.style.height = '';
       document.body.style.touchAction = '';
-      
+
       document.documentElement.style.overflow = '';
       document.documentElement.style.height = '';
       document.documentElement.style.touchAction = '';
-
-      if (viewportMeta && originalViewportContent) {
-        viewportMeta.setAttribute('content', originalViewportContent);
-      }
     };
   }, [gameStarted, isPaused]);
 
@@ -690,13 +686,11 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   const pauseOverlay = isPaused ? renderPauseModal() : null;
 
   // On Mobile and hasGamepad configured: 70% game area + 30% retro control chassis
-  // Uses `dvh` so the layout follows the dynamic viewport on mobile (the
-  // URL bar appearing / disappearing) instead of getting clipped under it.
   if (isMobile && hasGamepad) {
     return (
       <div className="fixed inset-0 flex flex-col bg-slate-950 overflow-hidden select-none" style={{ touchAction: 'none' }}>
-        {/* Top Game viewport (~68% of the dynamic viewport height) */}
-        <div className="relative flex h-[68dvh] w-full items-center justify-center bg-black p-1">
+        {/* Top Game viewport (70% height) */}
+        <div className="relative flex h-[68vh] w-full items-center justify-center bg-black p-1">
           {/* Retro Game Frame Border */}
           <div className="relative flex h-full w-full max-w-[800px] flex-col border-4 border-slate-800 bg-black">
             {/* Retro Battery Light detail */}
@@ -731,20 +725,8 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   }
 
   // Desktop or Mobile (without gamepad - full-screen touch mode)
-  //
-  // Layout notes (kept here because the responsive bug history is easy to
-  // re-introduce): the wrapper used to `justify-center` the whole card,
-  // which on short viewports (laptops with devtools open, narrow popup
-  // windows, Vercel previews on weird sizes) centered the 4:3 board
-  // vertically — making the top get clipped under the absolute "Salir /
-  // Pausa" bar and the bottom run past the visible area. Fix:
-  //   - `justify-start` + top padding that reserves room for the buttons
-  //   - `max-h-[calc(100dvh-…)]` on the board itself so it never exceeds
-  //     the usable viewport regardless of aspect ratio
-  //   - keep `overflow-y-auto` on the page as the safety net if the user
-  //     is on a truly tiny screen
   return (
-    <div className={`relative flex min-h-dvh w-full flex-col items-center justify-start bg-surface-container px-4 pb-4 pt-20 md:pt-24 md:px-8 md:pb-8 overflow-y-auto ${gameStarted ? 'select-none' : ''}`} style={{ touchAction: gameStarted ? 'none' : 'auto' }}>
+    <div className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-4 md:p-8 overflow-y-auto ${gameStarted ? 'select-none' : ''}`} style={{ touchAction: gameStarted ? 'none' : 'auto' }}>
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
 
       {/* Top action bar */}
@@ -782,24 +764,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
         </div>
 
         <div className="flex w-full justify-center bg-surface-container-lowest p-3">
-          {/* Main game board.
-              - aspect-ratio 4:3 = the canvas Phaser scenes are built for
-              - max-height clamps to (viewport − ~14rem reserved for the
-                top action bar + the card title + paddings). Without this
-                clamp, tall enough aspect ratio + narrow viewports clip the
-                bottom of the canvas in production. `dvh` instead of `vh`
-                so it follows the actual visible area on mobile (the URL
-                bar appearing/disappearing).
-              - `min-h-0` lets flex shrink the child when constrained by
-                max-height.
-              - keep `w-full` + `max-w-full` so width still adapts when
-                the card is narrower than the height-derived width. */}
+          {/* Main game board */}
           <div
-            className="relative min-h-0 w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner bg-black"
+            className="relative w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner bg-black"
             style={{
               aspectRatio: '4 / 3',
               maxWidth: '100%',
-              maxHeight: 'calc(100dvh - 14rem)',
             }}
           >
             {children}

@@ -70,6 +70,15 @@ export class LlmRateLimiterService implements OnModuleDestroy {
     }
 
     const now = Date.now();
+
+    // Purge expired entries periodically to prevent unbounded memory growth
+    // when many students use the LLM path over the lifetime of the process.
+    if (this.inMem.size > 500) {
+      for (const [k, v] of this.inMem) {
+        if (v.resetAt < now) this.inMem.delete(k);
+      }
+    }
+
     const entry = this.inMem.get(userId);
     if (!entry || entry.resetAt < now) {
       this.inMem.set(userId, { count: 1, resetAt: now + this.windowMs });

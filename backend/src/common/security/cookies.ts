@@ -8,19 +8,25 @@ export const CSRF_HEADER = 'x-csrf-token';
  * Parse the Cookie request header into a plain object.
  * Implemented locally to avoid adding a cookie-parser dependency.
  */
+// Cookie names that could cause prototype pollution if used as object keys.
+const UNSAFE_COOKIE_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function parseCookies(req: Request): Record<string, string> {
   const header = req.headers.cookie;
   if (!header) return {};
-  const out: Record<string, string> = {};
+  const out = Object.create(null) as Record<string, string>;
   for (const part of header.split(';')) {
     const eq = part.indexOf('=');
     if (eq < 0) continue;
     const name = part.slice(0, eq).trim();
     const value = part.slice(eq + 1).trim();
-    if (!name) continue;
+    // Skip empty names and names that could pollute the prototype chain.
+    if (!name || UNSAFE_COOKIE_NAMES.has(name)) continue;
     try {
+      // eslint-disable-next-line security/detect-object-injection
       out[name] = decodeURIComponent(value);
     } catch {
+      // eslint-disable-next-line security/detect-object-injection
       out[name] = value;
     }
   }

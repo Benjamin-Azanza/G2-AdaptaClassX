@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -20,6 +20,7 @@ import {
   parseDurationMs,
   setAuthCookies,
 } from '../common/security/cookies';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @Controller('auth')
 export class AuthController {
@@ -36,6 +37,7 @@ export class AuthController {
   ) {
     const { access_token, user } = await this.authService.register(dto);
     this.emitSession(res, access_token);
+    res.setHeader('Cache-Control', 'no-store');
     return { user };
   }
 
@@ -48,6 +50,7 @@ export class AuthController {
     const { access_token, user, streak_bonus_xp } =
       await this.authService.login(dto);
     this.emitSession(res, access_token);
+    res.setHeader('Cache-Control', 'no-store');
     return { user, streak_bonus_xp };
   }
 
@@ -55,13 +58,13 @@ export class AuthController {
   @HttpCode(204)
   async logout(@Res({ passthrough: true }) res: Response) {
     clearAuthCookies(res);
+    res.setHeader('Cache-Control', 'no-store');
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async me(@Req() req: Request) {
-    const userId = (req as any).user.sub;
-    const user = await this.authService.findById(userId);
+  async me(@Req() req: AuthenticatedRequest) {
+    const user = await this.authService.findById(req.user.sub);
     return { user };
   }
 

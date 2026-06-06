@@ -324,6 +324,27 @@ Toda env nueva debe pasar por `ConfigModule`/Joi si es backend.
 
 ---
 
+## Reglas de Seguridad Obligatorias
+
+Para evitar la reintroducción de brechas de seguridad o falsos positivos descontrolados en futuros desarrollos, todos los agentes e IAs deben adherirse estrictamente a estas reglas:
+
+1. **Sanitización de Prompts y LLMs**: Cualquier dato proporcionado por el usuario (como `student.nombre` o campos de texto libre) que sea inyectado en un prompt para la IA debe sanitizarse con regex restrictivas (por ejemplo, permitiendo únicamente letras, números, espacios y puntuación básica) y limitando su longitud antes de enviarlo al LLM. Esto previene ataques de prompt injection.
+2. **Prevención de Prototype Pollution**: Al parsear manualmente inputs serializados como cookies, queries o payloads de red a objetos de JS:
+   - Crear los objetos receptores sin prototipo usando `Object.create(null)`.
+   - Bloquear explícitamente claves inseguras como `__proto__`, `constructor`, y `prototype`.
+3. **Prevención de fugas de memoria (Memory Leaks)**: Evitar el crecimiento ilimitado de Maps o cachés en memoria. Cualquier estructura en memoria que guarde datos acumulativos por usuario o petición debe contar con un límite máximo (ej. 500 entradas) y un mecanismo de purga periódico de registros expirados.
+4. **Tipado de Peticiones y Controladores**: No usar `@Req() req: any` o `@Request() req: any` en los controladores para obtener el usuario autenticado. Utilizar la interfaz fuertemente tipada `AuthenticatedRequest` (que define `req.user: JwtPayload`) para evitar el uso del tipo `any` y accesos inseguros a propiedades.
+5. **Políticas de Caché Seguras (Cache-Control)**: Los endpoints de autenticación y datos de sesión (`/api/auth/*`) deben forzar la cabecera `Cache-Control: no-store, no-cache, must-revalidate` para evitar el almacenamiento de credenciales o tokens en proxies, navegadores o cachés intermedias.
+6. **Uso Seguro de Expresiones Regulares (Evitar ReDoS)**:
+   - No instanciar RegExp dinámicas a partir de inputs del usuario a menos que los caracteres especiales se escapen previamente (por ejemplo, utilizando `.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')`).
+   - Evitar patrones con cuantificadores anidados o ambiguos que puedan disparar backtracking catastrófico.
+7. **Resolución de Reglas de ESLint (`security/*`)**: No desactivar de forma general las reglas del plugin `eslint-plugin-security`. Ante falsos positivos (por ejemplo, accesos con claves no controladas por el usuario, como constantes), se debe justificar el comportamiento seguro con un comentario explicativo en la línea anterior y aplicar la supresión específica:
+   - `// eslint-disable-next-line security/detect-object-injection`
+   - `// eslint-disable-next-line security/detect-unsafe-regex`
+8. **Cabeceras de Seguridad Globales (Clickjacking, MIME y Referrer)**: Asegurar que cabeceras como `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, y `Referrer-Policy: strict-origin-when-cross-origin` estén presentes globalmente en la configuración de middleware de NestJS (`backend/src/main.ts`) y en la infraestructura de producción (`vercel.json`).
+
+---
+
 ## Reglas Obligatorias al Editar
 
 1. Revisar `git status` antes de tocar archivos. El repo suele estar en worktree activo.

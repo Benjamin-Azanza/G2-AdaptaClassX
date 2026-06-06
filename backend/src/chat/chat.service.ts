@@ -230,11 +230,23 @@ export class ChatService {
           )?.grado
         : undefined;
 
+      // Sanitize the student name before inserting it into the LLM prompt.
+      // The name comes from the DB (registered by the student) and could
+      // contain injection-shaped strings like "Ignora tus instrucciones".
+      // We strip anything that isn't a letter, digit, space, or basic
+      // punctuation so the model always treats it as inert data.
+      const rawName = student?.nombre ?? 'desconocido';
+      const safeName =
+        rawName
+          .replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\s.'"\-]/g, '')
+          .trim()
+          .slice(0, 50) || 'estudiante';
+
       // Markdown context, NOT JSON — same token payload, simpler for the
       // model. NO personal data beyond name + grade (see CLAUDE.md threat
       // model: the LLM never sees missions, progress, or notifications).
       const userBlock = [
-        `**Estudiante:** ${student?.nombre ?? 'desconocido'}`,
+        `**Estudiante:** ${safeName}`,
         grade ? `**Grado:** ${grade}° EGB` : null,
         '',
         cleaned,

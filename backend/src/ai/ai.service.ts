@@ -125,7 +125,8 @@ export class AiService {
     const out: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      // eslint-disable-next-line security/detect-object-injection
+      const line = lines[i]; // i is a bounded numeric loop index — not user-controlled
       const trimmed = line.trim();
 
       if (!trimmed) {
@@ -460,9 +461,12 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     if (Array.isArray(parsed)) return parsed;
     if (parsed && typeof parsed === 'object') {
       const obj = parsed as Record<string, unknown>;
+      // k and arrayKey come from Object.keys() of a parsed JSON object — not user-controlled keys.
+      // eslint-disable-next-line security/detect-object-injection
       const arrayKey = Object.keys(obj).find((k) => Array.isArray(obj[k]));
       if (arrayKey) {
         this.logger.debug(`Unwrapping array from key=${arrayKey}`);
+        // eslint-disable-next-line security/detect-object-injection
         return obj[arrayKey] as unknown[];
       }
     }

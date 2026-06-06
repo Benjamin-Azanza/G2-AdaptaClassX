@@ -28,7 +28,7 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-      (request as any).user = payload;
+      (request as unknown as { user: unknown }).user = payload;
     } catch {
       throw new UnauthorizedException('Token inválido o expirado');
     }
@@ -42,6 +42,8 @@ export class JwtAuthGuard implements CanActivate {
    * CLAUDE.md "JWT en localStorage" for why.
    */
   private extractToken(request: Request): string | undefined {
+    // ACCESS_COOKIE is a module-level constant — object injection false positive.
+    // eslint-disable-next-line security/detect-object-injection
     return parseCookies(request)[ACCESS_COOKIE];
   }
 }

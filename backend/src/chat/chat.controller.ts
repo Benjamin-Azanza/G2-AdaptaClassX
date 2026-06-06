@@ -14,6 +14,7 @@ import { Role } from '@prisma/client';
 import { AskChatDto } from './dto/ask-chat.dto';
 import { ChatService } from './chat.service';
 import { ChatThrottlerGuard } from './chat-throttler.guard';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,7 +28,7 @@ export class ChatController {
    */
   @Get('config')
   @Roles(Role.STUDENT)
-  async getConfig(@Request() req: any) {
+  async getConfig(@Request() req: AuthenticatedRequest) {
     return this.chatService.getConfigForStudent(req.user.sub);
   }
 
@@ -39,7 +40,7 @@ export class ChatController {
   @Roles(Role.STUDENT)
   @UseGuards(ChatThrottlerGuard)
   @Throttle({ 'chat-ask': { limit: 20, ttl: 60_000 } })
-  async ask(@Body() dto: AskChatDto, @Request() req: any) {
+  async ask(@Body() dto: AskChatDto, @Request() req: AuthenticatedRequest) {
     return this.chatService.handle(req.user.sub, dto.message);
   }
 }

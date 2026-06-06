@@ -23,7 +23,11 @@ function buildCorsOrigins(): boolean | string[] | RegExp[] {
     return allowlist;
   }
 
-  // Development: localhost + 127.0.0.1 + LAN 10/172.16/192.168 on any port
+  // Development: localhost + 127.0.0.1 + LAN 10/172.16/192.168 on any port.
+  // Patterns are anchored and match fixed IP structures only.
+  // The dynamic RegExp escapes all special chars before constructing — safe against ReDoS.
+  // Patterns are anchored and match fixed IP/hostname structures — safe.
+  /* eslint-disable security/detect-unsafe-regex, security/detect-non-literal-regexp */
   return [
     /^http:\/\/localhost(:\d+)?$/,
     /^http:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -34,6 +38,7 @@ function buildCorsOrigins(): boolean | string[] | RegExp[] {
       (o) => new RegExp(`^${o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
     ),
   ];
+  /* eslint-enable security/detect-unsafe-regex, security/detect-non-literal-regexp */
 }
 
 async function bootstrap() {
