@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { chatService } from '../services/chat.service';
 import type { ChatReplySource } from '../services/chat.service';
 
@@ -50,6 +51,13 @@ export function useChatbot({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track the route at SEND time so the backend can resolve "what game
+  // is the student on?" without us having to add a prop chain through
+  // every page that mounts the widget. We use a ref-style capture via
+  // useLocation re-renders so the latest pathname is always the one
+  // shipped on click.
+  const location = useLocation();
+
   const pushTurn = useCallback((turn: Omit<ChatTurn, 'id' | 'ts'>) => {
     setTurns((prev) => [
       ...prev,
@@ -67,7 +75,7 @@ export function useChatbot({
       setError(null);
 
       try {
-        const result = await chatService.ask(trimmed);
+        const result = await chatService.ask(trimmed, location.pathname);
         pushTurn({
           role: 'bot',
           text: result.reply,
@@ -93,7 +101,7 @@ export function useChatbot({
         setIsSending(false);
       }
     },
-    [isSending, pushTurn],
+    [isSending, location.pathname, pushTurn],
   );
 
   const reset = useCallback(() => {

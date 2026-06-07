@@ -72,6 +72,24 @@ export class MissionsService {
   }
 
   async getMyMissions(studentUserId: string) {
+    return this.getMissionsInternal(studentUserId, true);
+  }
+
+  /**
+   * Read-only variant used by the chatbot to inject mission context into
+   * the LLM prompt. Crucially, it does NOT call recalculateMissionsFor —
+   * recalc is a heavy write path (aggregates + DB writes + achievement
+   * re-evaluation) and we don't want every chat message to trigger one.
+   *
+   * The trade-off: the chatbot may show progress that's up to one
+   * heartbeat (~30s) stale, which is acceptable for a conversational
+   * answer. Game heartbeats and attempts still trigger recalc directly.
+   */
+  async getMyMissionsReadOnly(studentUserId: string) {
+    return this.getMissionsInternal(studentUserId, false);
+  }
+
+  private async getMissionsInternal(studentUserId: string, recalc: boolean) {
     const student = await this.prisma.student.findUnique({
       where: { user_id: studentUserId },
     });
@@ -80,8 +98,10 @@ export class MissionsService {
       return { pending: [], completed: [] };
     }
 
-    // Ejecuta el recálculo al listar para tener el valor actualizado
-    await this.recalculateMissionsFor(studentUserId);
+    if (recalc) {
+      // Ejecuta el recálculo al listar para tener el valor actualizado
+      await this.recalculateMissionsFor(studentUserId);
+    }
 
     const missions = await this.prisma.mission.findMany({
       where: { paralelo_id: student.paralelo_id },

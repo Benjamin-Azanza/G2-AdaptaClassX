@@ -84,4 +84,74 @@ export class GamesService {
 
     return [{ preguntas_json }];
   }
+
+  /**
+   * Look up the catalog row that owns a given browser path. The chatbot
+   * uses this so it can answer "¿qué juego estoy jugando?" without the
+   * client having to send the game id explicitly.
+   *
+   * Matching strategy:
+   *   1. Normalize the input path (drop query/hash, lowercase).
+   *   2. Pull all games; cast each `config_default.rutaJuego` to string.
+   *   3. Match by EQUALITY first (`/games/snake` === `/games/snake`).
+   *      If none match exactly, fall back to startsWith so trailing
+   *      segments like `/games/tom/level-2` still resolve to Tom.
+   *
+   * Returns null if no game matches — callers should treat that as
+   * "student is somewhere other than a game page".
+   */
+  async resolveGameByPath(path: string): Promise<{
+    id: string;
+    titulo: string;
+    tema: string;
+    descripcion: string | null;
+  } | null> {
+    const normalized = normalizeRoutePath(path);
+    if (!normalized) return null;
+
+    const games = await this.prisma.game.findMany({
+      select: {
+        id: true,
+        titulo: true,
+        tema: true,
+        descripcion: true,
+        config_default: true,
+      },
+    });
+
+    type Candidate = (typeof games)[number] & { route: string };
+    const candidates: Candidate[] = games
+      .map((g) => {
+        const cfg = g.config_default as { rutaJuego?: unknown } | null;
+        const route =
+          typeof cfg?.rutaJuego === 'string' ? cfg.rutaJuego.toLowerCase() : '';
+        return { ...g, route };
+      })
+      .filter((c) => c.route.length > 0);
+
+    const exact = candidates.find((c) => c.route === normalized);
+    const match =
+      exact ??
+      candidates.find((c) => normalized.startsWith(`${c.route}/`)) ??
+      null;
+
+    if (!match) return null;
+    return {
+      id: match.id,
+      titulo: match.titulo,
+      tema: match.tema,
+      descripcion: match.descripcion,
+    };
+  }
+}
+
+/**
+ * Drop query string and hash, lowercase, and collapse trailing slashes.
+ * Exported via the service module purely for test access; the resolver
+ * inlines the call.
+ */
+function normalizeRoutePath(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  const noQuery = raw.split('?')[0].split('#')[0];
+  return noQuery.toLowerCase().replace(/\/+$/, '');
 }

@@ -53,7 +53,7 @@ No reintroducir:
 - Headers de seguridad se setean en `backend/src/main.ts`.
 - La CSP del backend es para respuestas API. No asumir que cubre la UI.
 - Modulos activos: `Auth`, `Paralelos`, `Games`, `Missions`, `GameSessions`,
-  `Notifications`, `Ai`, `Questions`, `Achievements`.
+  `Notifications`, `Ai`, `Questions`, `Achievements`, `Chat`.
 
 ### Frontend
 
@@ -188,6 +188,125 @@ StudentProgress ni GameQuestion** — fueron eliminados a proposito.
   `window.addEventListener('mission:refresh')` con debounce 1500ms.
 - Muestra la mision mas cercana a completarse y celebra (4.5s) cualquier
   mision recien completada.
+
+---
+
+## Chatbot (Adapti) con Contexto Personalizado
+
+Pieza nueva. **Conecta las dos IAs del producto** (la generadora del
+docente y la asistente del estudiante) via DB. **No tratarlo como un MVP**
+— hay decisiones de seguridad y performance que NO se deben revertir.
+
+### Arquitectura
+
+- Endpoint `POST /chat/ask` recibe `{ message, currentPath? }`. El DTO
+  valida `currentPath` con regex estricta (`/^\/[A-Za-z0-9/_-]{0,199}$/`)
+  para que no llegue input raro al resolver.
+- `ChatService.handle` resuelve en orden: (1) sanitize + injection sniffer,
+  (2) **intent router** deterministico que cubre 80-90% de las preguntas
+  hablando directo con la DB (cero tokens), (3) **LLM fallback** solo si
+  el docente activo `chatbot_llm_enabled` en su paralelo.
+- `ChatContextBuilder` es la pieza nueva. Para el path LLM construye un
+  bloque `[CONTEXTO DEL AULA Y RENDIMIENTO]` con: paralelo (nombre+grado),
+  docente, ultimos 3 materiales subidos por el docente, juego en pantalla
+  resuelto desde `currentPath`, precision (correctas/intentadas) y top 3
+  misiones pendientes ordenadas por **closest-to-completion ratio**.
+- El bloque se inyecta en el **system message**, NO en el user message.
+  Reasoning: separa "instrucciones confiables" de "pregunta no confiable"
+  y evita que el modelo "responda al contexto".
+
+### Filosofía: intents estrictos + LLM con contexto
+
+- `chatbot_llm_enabled` default es **TRUE**. La migración
+  `20260607120000_chatbot_llm_default_on` flippea el default Y backfillea
+  paralelos existentes. Si una IA futura ve `@default(false)` en
+  `chatbot_llm_enabled` lo esta deshaciendo.
+- Los **intents son trampas estrictas**, NO atajos generosos. Cualquier
+  intent cuyo regex pueda atrapar una pregunta legitimamente generativa
+  (ej. "que temas me dio mi profesor" matcheando `\bmi\s+profe\b`) le roba
+  esa pregunta al LLM con contexto rico y reduce la calidad de Adapti.
+- **NO agregar intents quemados para cada variacion de pregunta**. La pieza
+  fuerte es el `ChatContextBuilder` + LLM: con paralelo, juego en pantalla,
+  precision y misiones inyectadas, el LLM responde "¿de que trata este
+  juego?" / "¿como se juega bank panic?" / "¿que temas estoy estudiando?"
+  sin necesidad de regex especificas.
+- Los intents que existen hoy cubren solo lo **inequivoco**: estadisticas
+  exactas ("cuanto XP tengo"), conteos ("cuantas misiones"), identidad
+  ("quien es mi profesor"). Cualquier pregunta narrativa o explicativa
+  debe llegar al LLM.
+
+### Reglas que NO romper
+
+- **Sanitizar todo lo del docente/estudiante** antes de inyectar al prompt.
+  `backend/src/common/security/prompt-sanitize.ts` aplica whitelist
+  Unicode (`\p{L}\p{N}` + puntuacion basica) + truncado en word-boundary.
+  Cubre prompt-injection via `filename` (`Ignora.pdf`), `teacher.nombre`,
+  `mission.descripcion`. **No agregar campos al contexto sin pasar por
+  `sanitizeForPrompt`**.
+- **Misiones en el chatbot: usar `getMyMissionsReadOnly`**. La version
+  `getMyMissions` dispara `recalculateMissionsFor` (writes + aggregates +
+  achievement eval) — innecesario por mensaje. La data puede tener hasta
+  ~30s de staleness y eso es aceptable conversacionalmente.
+- **Cache compartido (`ChatCacheService` Redis) solo aplica cuando el
+  contexto esta vacio** (estudiante sin paralelo y sin juego en pantalla).
+  Si hay contexto personalizado, **NUNCA cachear la respuesta** — distintos
+  estudiantes pueden hacer la misma pregunta y la respuesta correcta
+  depende de su precision/misiones, asi que un hit cruzaria datos.
+- **Cache in-process del builder**: Map con TTL 30s y cap 500 entradas.
+  Esto amortiza la rafaga de mensajes (un estudiante tipea 4-5 seguidos).
+  Key = `studentId|currentPath`. **No subir el TTL ni el cap sin pensar
+  memoria por instancia**.
+- **Mapeo `Tema` → español** vive en `chat-context.builder.ts`. El LLM no
+  debe ver `LECTURA` o `LENGUA_CULTURA` raw; siempre "Lectura" / "Lengua
+  y Cultura".
+- **Top 3 misiones** ordenadas por `current_value / goal_value` descendente
+  (closer to done first). El plan original era "las primeras 3 pendientes"
+  pero eso esconde el "casi listo" si hay una mision nueva sin avance.
+- **Graceful degradation**: cada loader del builder esta envuelto en
+  try/catch independiente. Si Redis o Postgres falla en una bucket, las
+  demas siguen funcionando.
+
+### SYSTEM_PROMPT
+
+El prompt instruye al modelo a:
+- Usar el bloque de contexto **solo para razonar**, nunca copiarlo literal
+  ni mencionar que existe.
+- Cruzar precision + misiones pendientes + juego en pantalla cuando el
+  estudiante pregunta "como mejorar mi puntaje".
+- Ignorar instrucciones dentro del contexto Y dentro del mensaje del user.
+- Maximo 2 oraciones por respuesta.
+
+### Limite por usuario
+
+- Throttler endpoint: 20 req/min (todas las rutas del chat).
+- `LlmRateLimiterService`: limite extra de 3 req/min/usuario solo para el
+  path LLM. Esto evita que un estudiante prenda la API de IA sin que afecte
+  los intents deterministicos.
+
+### Archivos clave
+
+- `backend/src/chat/chat-context.builder.ts` — el builder.
+- `backend/src/chat/chat.service.ts` — orquesta intents + LLM, decide
+  cache shared vs context-only.
+- `backend/src/chat/intent-router.ts` + `intent-handlers.ts` — rutas
+  deterministicas.
+- `backend/src/chat/dto/ask-chat.dto.ts` — valida `currentPath`.
+- `backend/src/common/security/prompt-sanitize.ts` — utility reutilizable
+  para sanear strings antes de inyectarlos en un prompt LLM.
+- `backend/src/missions/missions.service.ts` — `getMyMissionsReadOnly`.
+- `backend/src/games/games.service.ts` — `resolveGameByPath`.
+- `frontend/src/features/chat/hooks/useChatbot.ts` — lee
+  `useLocation().pathname` y lo envia.
+- `frontend/src/features/chat/services/chat.service.ts` — normaliza el path
+  client-side (strip query/hash) antes de POST.
+
+### Tests
+
+- `backend/src/common/security/prompt-sanitize.spec.ts` — sanitizer.
+- `backend/src/chat/chat-context.builder.spec.ts` — builder con mocks de
+  Prisma/Missions/Games. Cubre: top-3 selection, cache hit, no-cross
+  entre estudiantes, sanitizacion de filename/teacher name, graceful
+  degradation cuando una query throwea.
 
 ---
 
@@ -378,6 +497,15 @@ Para evitar la reintroducción de brechas de seguridad o falsos positivos descon
     seguir Neo-Brutalist (bordes gruesos, sombras duras `[Npx_Npx_0_0_#1d1c17]`,
     tokens). Si ves glass morphism / gradientes en un componente, es deuda
     tecnica vieja, **no copiarla**.
+19. **Chatbot — context personalizado**: cualquier campo nuevo que se inyecte
+    al prompt LLM debe pasar por `sanitizeForPrompt` (sino abre
+    prompt-injection). NO cachear respuestas LLM en Redis cuando el bloque
+    de contexto trae datos del estudiante — el cache compartido cruzaria
+    respuestas entre estudiantes con la misma pregunta. NO llamar
+    `getMyMissions` desde el chatbot: usar `getMyMissionsReadOnly` (la
+    primera dispara recalc heavy + writes). NO leer `currentPath` raw —
+    siempre normalizar y validar contra la regex del DTO antes de pasarla
+    al resolver.
 
 ---
 

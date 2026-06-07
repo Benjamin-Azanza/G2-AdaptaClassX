@@ -187,39 +187,59 @@ const RULES: IntentRule[] = [
     ],
   },
   {
+    // ONLY match questions whose subject is the teacher's identity.
+    // We deliberately drop the bare `\bmi\s+profe(sor)?\b` pattern: it
+    // swallowed sentences like "qué temas me DIO mi profesor", which
+    // are really about MATERIALS or TOPICS and should reach the LLM
+    // with the personalized context block.
     name: 'MY_TEACHER',
     patterns: [
       /\bquien\s+es\s+mi\s+(profe|profesor|profesora|maestr[ao])/,
       /\bcomo\s+se\s+llama\s+mi\s+(profe|profesor|profesora|maestr[ao])/,
-      /\bmi\s+(profe|profesor|profesora|maestr[ao])\b/,
+      // The optional `(el\s+)?` is the lone optional group — no
+      // nested quantifier, no catastrophic backtracking. Inputs are
+      // bounded to 300 chars by the DTO. False-positive ReDoS warning.
+      // eslint-disable-next-line security/detect-unsafe-regex
+      /\b(el\s+)?nombre\s+de\s+mi\s+(profe|profesor|profesora|maestr[ao])/,
+      // Very short standalone queries ("mi profe?", "mi profesora")
+      // — anchor to start/end so it doesn't eat full sentences.
+      // eslint-disable-next-line security/detect-unsafe-regex
+      /^(?:cual\s+es\s+)?mi\s+(profe|profesor|profesora|maestr[ao])\??$/,
     ],
   },
   {
+    // Same logic: drop the bare `mi paralelo` catch-all. Keep only
+    // the explicit "what paralelo am I in" phrasings.
     name: 'MY_PARALELO',
     patterns: [
-      /\ben\s+que\s+paralelo\s+estoy\b/,
-      /\bcual\s+es\s+mi\s+paralelo\b/,
+      /\ben\s+que\s+(paralelo|curso|aula|clase)\s+estoy\b/,
+      /\bcual\s+es\s+mi\s+(paralelo|curso|aula|clase)\b/,
       /\bcomo\s+se\s+llama\s+mi\s+(paralelo|curso|aula|clase)\b/,
-      /\bmi\s+(paralelo|curso|aula|clase)\b/,
+      /^mi\s+(paralelo|curso|aula|clase)\??$/,
     ],
   },
   {
+    // Tight: must be a recommendation REQUEST ("recomiéndame", "qué
+    // juego pruebo / juego / debería jugar"). Generic "qué juego" or
+    // "a qué juego" alone is too ambiguous and now reaches the LLM.
     name: 'RECOMMEND_GAME',
     patterns: [
       // eslint-disable-next-line security/detect-unsafe-regex
       /\b(que|cual)\s+juego\s+(me\s+)?(recomiendas?|pruebo|juego|deberia)/,
       /\brecomiend[aoe]m?e?\s+(un|algun)?\s*juego/,
-      // eslint-disable-next-line security/detect-unsafe-regex
-      /\ba\s+que\s+(puedo\s+)?juego/,
     ],
   },
   {
+    // Tight: only match catalog-listing questions ("¿qué juegos hay?",
+    // "¿qué juegos puedo jugar?", "¿cuántos juegos hay?"). Open-ended
+    // questions like "¿de qué tratan los juegos?" now reach the LLM.
     name: 'GAMES_AVAILABLE',
     patterns: [
       new RegExp(`\\b${HOWMANY}\\s+juegos?\\b`),
-      /\bque\s+juegos?\b/,
-      /\bjuegos?\s+(hay|tengo|puedo jugar|disponibles)\b/,
+      /\bque\s+juegos?\s+(hay|tengo|puedo\s+jugar|estan\s+disponibles)/,
+      /\bjuegos?\s+(hay|tengo|puedo\s+jugar|disponibles)\b/,
       /\bcatalogo\s+de\s+juegos\b/,
+      /\blistame?\s+los?\s+juegos/,
     ],
   },
 ];

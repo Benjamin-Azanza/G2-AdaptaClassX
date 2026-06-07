@@ -41,6 +41,6 @@ export class ChatController {
   @UseGuards(ChatThrottlerGuard)
   @Throttle({ 'chat-ask': { limit: 20, ttl: 60_000 } })
   async ask(@Body() dto: AskChatDto, @Request() req: AuthenticatedRequest) {
-    return this.chatService.handle(req.user.sub, dto.message);
+    return this.chatService.handle(req.user.sub, dto.message, dto.currentPath);
   }
 }

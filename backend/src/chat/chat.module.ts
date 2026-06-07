@@ -10,6 +10,7 @@ import { AchievementsModule } from '../achievements/achievements.module';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatCacheService } from './chat-cache.service';
+import { ChatContextBuilder } from './chat-context.builder';
 import { ChatThrottlerGuard } from './chat-throttler.guard';
 import { LlmRateLimiterService } from './llm-rate-limiter.service';
 
@@ -32,6 +33,7 @@ import { LlmRateLimiterService } from './llm-rate-limiter.service';
   providers: [
     ChatService,
     ChatCacheService,
+    ChatContextBuilder,
     ChatThrottlerGuard,
     LlmRateLimiterService,
   ],

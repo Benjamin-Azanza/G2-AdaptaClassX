@@ -27,8 +27,27 @@ export const chatService = {
     return res.data;
   },
 
-  ask: async (message: string): Promise<ChatAskResponse> => {
-    const res = await api.post<ChatAskResponse>('/chat/ask', { message });
+  ask: async (
+    message: string,
+    currentPath?: string,
+  ): Promise<ChatAskResponse> => {
+    const safePath = normalizeCurrentPath(currentPath);
+    const payload: { message: string; currentPath?: string } = { message };
+    if (safePath) payload.currentPath = safePath;
+    const res = await api.post<ChatAskResponse>('/chat/ask', payload);
     return res.data;
   },
 };
+
+/**
+ * Mirror the backend DTO's rules client-side so a malformed location.
+ * pathname never trips the 400 — silently drops it instead. Strips
+ * query / hash and validates the same character class the DTO expects.
+ */
+function normalizeCurrentPath(input: string | undefined): string | undefined {
+  if (typeof input !== 'string' || input.length === 0) return undefined;
+  const head = input.split('?')[0].split('#')[0];
+  if (head.length === 0 || head.length > 200) return undefined;
+  if (!/^\/[A-Za-z0-9/_-]{0,199}$/.test(head)) return undefined;
+  return head;
+}
