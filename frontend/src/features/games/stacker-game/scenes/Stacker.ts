@@ -34,18 +34,18 @@ export class Boot extends Phaser.Scene {
 export class Instructions extends Phaser.Scene {
     constructor() { super('instructions'); }
     create() {
-        this.add.image(400, 300, 'bg');
-        this.add.image(400, 430, 'grid').setDisplaySize(800, 376);
-        this.add.text(720, 0, 'S\n t\na\n c\nk\n e\nr', { fontFamily: 'bebas', fontSize: 74, color: '#ffffff', lineSpacing: -10 }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(20, 40, 'Instructions', { fontFamily: 'bebas', fontSize: 70, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.image(512, 384, 'bg').setDisplaySize(1024, 768);
+        this.add.image(512, 540, 'grid').setDisplaySize(1024, 450);
+        this.add.text(880, 50, 'S\n t\na\n c\nk\n e\nr', { fontFamily: 'bebas', fontSize: 74, color: '#ffffff', lineSpacing: -10 }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(100, 80, 'Instrucciones', { fontFamily: 'bebas', fontSize: 70, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         const help = [
             'Construye una torre hasta la parte superior de la pantalla.',
             'Alinea las filas de bloques. ¡Cuidado: se vuelve mas rapido,',
-            'pierdes bloques si no aterrizas perfectamente,',
+            'pierdes bloques si no aciertas perfectamente,',
             'pero puedes salvarlos y mantener tu tamano respondiendo preguntas!',
         ];
-        this.add.text(20, 180, help, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', lineSpacing: 6 }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(20, 450, 'Barra Espaciadora o Clic para colocar una fila', { fontFamily: 'bebas', fontSize: 32, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(100, 240, help, { fontFamily: 'bebas', fontSize: 28, color: '#ffffff', lineSpacing: 8 }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(100, 580, 'Barra Espaciadora o Clic para colocar una fila', { fontFamily: 'bebas', fontSize: 32, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         this.input.keyboard.once('keydown-SPACE', this.start, this);
         this.input.once('pointerdown', this.start, this);
     }
@@ -58,7 +58,7 @@ export class StackerGame extends Phaser.Scene {
         this.grid = null;
         this.gridWidth = 7;
         this.gridHeight = 15;
-        this.gridSize = 32;
+        this.gridSize = 40;
         this.block1 = null;
         this.block2 = null;
         this.block3 = null;
@@ -66,13 +66,15 @@ export class StackerGame extends Phaser.Scene {
         this.direction = 0;
         this.currentY = 0;
         this.timer = null;
-        this.offset = { x: this.gridSize * 6, y: this.gridSize * 2 };
+        this.offset = { x: 372, y: 84 };
         this.isQuestionMode = false;
         this.questions = [];
         this.questionOverlayObjects = [];
         this.placedBlocks = [];
         this.score = 0;
         this.scoreText = null;
+        this.levelText = null;
+        this.level = 1;
     }
     init() {
         this.grid = [];
@@ -83,6 +85,7 @@ export class StackerGame extends Phaser.Scene {
         this.questionOverlayObjects = [];
         this.placedBlocks = [];
         this.score = 0;
+        this.level = 1;
     }
     create() {
         const ox = this.offset.x;
@@ -92,14 +95,15 @@ export class StackerGame extends Phaser.Scene {
         const size = this.gridSize;
         const rows = [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1];
         const prizes = ['Major Prize!', '', '' ,'' ,'', 'Minor Prize', '', '' ,'' ,'', 'Bonus'];
-        this.add.image(400, 300, 'bg');
-        this.add.image(400, 430, 'grid').setDisplaySize(800, 376);
+        this.add.image(512, 384, 'bg').setDisplaySize(1024, 768);
+        this.add.image(512, 540, 'grid').setDisplaySize(1024, 450);
         this.add.text(720, 0, 'S\n t\na\n c\nk\n e\nr', { fontFamily: 'bebas', fontSize: 74, color: '#ffffff', lineSpacing: -10 }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(ox - 32, oy, rows, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.text(ox + (gw * size) + size/2, oy, prizes, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true);
         this.add.grid(ox, oy, gw * size, gh * size, size, size, 0x999999, 1, 0x666666).setOrigin(0);
         
         this.scoreText = this.add.text(20, 20, 'PUNTOS: 0', { fontFamily: 'bebas', fontSize: 36, color: '#22c55e' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.levelText = this.add.text(20, 70, 'NIVEL: 1', { fontFamily: 'bebas', fontSize: 36, color: '#ffd700' }).setShadow(2, 2, '#333333', 2, false, true);
         
         this.questions = this.registry.get('preguntasDelNivel') || [];
 
@@ -341,24 +345,24 @@ export class StackerGame extends Phaser.Scene {
         if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
             return;
         }
-        const cx = 400;
-        const cy = 300;
+        const cx = 512;
+        const cy = 384;
 
-        const overlay = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(200).setInteractive();
+        const overlay = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.85).setDepth(200).setInteractive();
         this.questionOverlayObjects.push(overlay);
 
-        const titleTxt = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
+        const titleTxt = this.add.text(cx, cy - 220, title, {
+            fontFamily: 'monospace', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(titleTxt);
 
-        const subTxt = this.add.text(cx, cy - 140, subtitle, {
-            fontFamily: 'monospace', fontSize: '15px', color: '#ffd700'
+        const subTxt = this.add.text(cx, cy - 170, subtitle, {
+            fontFamily: 'monospace', fontSize: '20px', color: '#ffd700'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(subTxt);
 
         const questionTxt = this.add.text(cx, cy - 80, qData.q, {
-            fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 680 }, align: 'center'
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(questionTxt);
 
@@ -367,8 +371,8 @@ export class StackerGame extends Phaser.Scene {
         Phaser.Utils.Array.Shuffle(options);
         const correctIdx = options.indexOf(correctString);
 
-        const btnW = 300, btnH = 50, gapX = 20, gapY = 16;
-        const gridX = cx - btnW - gapX / 2, gridY = cy + 10;
+        const btnW = 420, btnH = 70, gapX = 40, gapY = 25;
+        const gridX = cx - btnW - gapX / 2, gridY = cy + 20;
 
         options.forEach((option, i) => {
             const col = i % 2, row = Math.floor(i / 2);
@@ -383,7 +387,7 @@ export class StackerGame extends Phaser.Scene {
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
             }).setOrigin(0.5).setDepth(202);
             this.questionOverlayObjects.push(btnText);
 
@@ -404,8 +408,8 @@ export class StackerGame extends Phaser.Scene {
                 btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-                const feedbackText = this.add.text(cx, cy + 180, correct ? '¡CORRECTO!' : 'INCORRECTO', {
-                    fontFamily: 'monospace', fontSize: '26px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+                const feedbackText = this.add.text(cx, cy + 220, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+                    fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(202);
                 this.questionOverlayObjects.push(feedbackText);
 
@@ -442,6 +446,10 @@ export class StackerGame extends Phaser.Scene {
         this.score += 100; // Big bonus for completing the tower
         this.scoreText.setText('PUNTOS: ' + this.score);
         this.showFloatingText('+100 TOWER BONUS!', 400, 200, '#eab308', 32);
+
+        this.level++;
+        this.levelText.setText('NIVEL: ' + this.level);
+        this.speed = Math.max(50, Math.floor(this.speed * 0.85));
 
         // Find the block objects that are at the top (mapY === 0, y ~ offset.y)
         const winBlocks = [];
@@ -513,9 +521,9 @@ export class StackerGame extends Phaser.Scene {
 export class GameOver extends Phaser.Scene {
     constructor() { super('gameOver'); }
     create() {
-        this.add.rectangle(400, 300, 640, 500, 0x000000, 0.7);
+        this.add.rectangle(512, 384, 800, 600, 0x000000, 0.7);
         const list = ['Tiny Bonus:', '', 'Minor Prize:', '', 'Major Prize:'];
-        const prizes1 = ['Un clip', 'Medio sandwich', 'Un huevo duro', 'Un chicle', 'Un pez dorado'];
+        const prizes1 = ['Un pez de colores', 'Medio sandwich', 'Un chicle gigante', 'Stickers retro', 'Un trompo de madera'];
         const prizes2 = ['Stickers de Mario', 'SNES Joypad', 'Capa de Superman', 'Maquina burbujas', 'Skateboard'];
         const prizes3 = ['Playstation 5', 'Una Tardis', 'Un X-Wing', 'Maquina de Arcade', 'Huevo de Dragon'];
         const score = this.registry.get('score');
@@ -532,12 +540,12 @@ export class GameOver extends Phaser.Scene {
         if (estRows >= 15 || score >= 150) { prizelist[4] = Phaser.Utils.Array.GetRandom(prizes3); title = '¡GANASTE!'; }
         if (score < 50) this.sound.play('gamelost'); else this.sound.play('gamewon');
         
-        this.add.text(400, 100, title, { fontFamily: 'bebas', fontSize: 80, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
-        this.add.text(400, 160, `PUNTAJE FINAL: ${score} PUNTOS`, { fontFamily: 'bebas', fontSize: 32, color: '#22c55e' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
-        this.add.text(400, 220, 'Premio obtenido:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
-        this.add.text(100, 270, list, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(260, 270, prizelist, { fontFamily: 'bebas', fontSize: 26, color: '#ffff00' }).setShadow(2, 2, '#333333', 2, false, true);
-        this.add.text(400, 500, 'Espacio o Clic para volver a intentar', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(512, 160, title, { fontFamily: 'bebas', fontSize: 80, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(512, 230, `PUNTAJE FINAL: ${score} PUNTOS`, { fontFamily: 'bebas', fontSize: 32, color: '#22c55e' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(512, 300, 'Premio obtenido:', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
+        this.add.text(200, 360, list, { fontFamily: 'bebas', fontSize: 26, color: '#ffffff', align: 'right' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(370, 360, prizelist, { fontFamily: 'bebas', fontSize: 26, color: '#ffff00' }).setShadow(2, 2, '#333333', 2, false, true);
+        this.add.text(512, 600, 'Espacio o Clic para volver a intentar', { fontFamily: 'bebas', fontSize: 26, color: '#ffffff' }).setShadow(2, 2, '#333333', 2, false, true).setOrigin(0.5);
         
         this.input.keyboard.once('keydown-SPACE', this.restart, this);
         this.input.once('pointerdown', this.restart, this);

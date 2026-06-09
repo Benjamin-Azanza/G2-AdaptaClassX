@@ -28,10 +28,10 @@ export default class MainGame extends Phaser.Scene
 
     create ()
     {
-        this.add.image(400, 300, 'background');
+        this.add.image(400, 400, 'background').setDisplaySize(800, 800);
 
-        this.circle1 = this.add.circle(0, 0, 42).setStrokeStyle(3, 0xf8960e);
-        this.circle2 = this.add.circle(0, 0, 42).setStrokeStyle(3, 0x00ff00);
+        this.circle1 = this.add.circle(0, 0, 58).setStrokeStyle(4, 0xf8960e);
+        this.circle2 = this.add.circle(0, 0, 58).setStrokeStyle(4, 0x00ff00);
 
         this.circle1.setVisible(false);
         this.circle2.setVisible(false);
@@ -45,10 +45,10 @@ export default class MainGame extends Phaser.Scene
             gridAlign: {
                 width: 4,
                 height: 4,
-                cellWidth: 90,
-                cellHeight: 90,
-                x: 280,
-                y: 200
+                cellWidth: 120,
+                cellHeight: 120,
+                x: 220,
+                y: 220
             }
         });
 
@@ -74,6 +74,7 @@ export default class MainGame extends Phaser.Scene
 
         children.forEach((child) => {
 
+            child.setScale(1.35);
             child.setInteractive();
 
         });
@@ -119,13 +120,13 @@ export default class MainGame extends Phaser.Scene
             //  Is it a match?
             if (emoji.frame.name === this.selectedEmoji.frame.name)
             {
-                this.circle1.setStrokeStyle(3, 0x00ff00);
+                this.circle1.setStrokeStyle(4, 0x00ff00);
                 this.circle2.setPosition(emoji.x, emoji.y);
                 this.circle2.setVisible(true);
 
                 this.tweens.add({
                     targets: [ this.child1, this.child2 ],
-                    scale: 1.4,
+                    scale: 1.8,
                     angle: '-=30',
                     yoyo: true,
                     ease: 'sine.inout',
@@ -154,7 +155,7 @@ export default class MainGame extends Phaser.Scene
 
         this.scoreText.setText('Found: ' + this.score);
 
-        this.circle1.setStrokeStyle(3, 0xf8960e);
+        this.circle1.setStrokeStyle(4, 0xf8960e);
 
         this.circle1.setVisible(false);
         this.circle2.setVisible(false);
@@ -207,7 +208,7 @@ export default class MainGame extends Phaser.Scene
         //  Stagger tween them all in
         this.tweens.add({
             targets: children,
-            scale: { start: 0, from: 0, to: 1 },
+            scale: { start: 0, from: 0, to: 1.35 },
             ease: 'bounce.out',
             duration: 600,
             delay: this.tweens.stagger(100, { grid: [ 4, 4 ], from: 'center' })
@@ -296,7 +297,7 @@ export default class MainGame extends Phaser.Scene
         }
 
         const cx = 400;
-        const cy = 300;
+        const cy = 400;
         const idx = Phaser.Math.Between(0, this.questions.length - 1);
         this.currentQuestion = this.questions[idx];
 
@@ -311,23 +312,23 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects = [];
 
         // Dark background overlay
-        const bg = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(100).setInteractive();
+        const bg = this.add.rectangle(cx, cy, 800, 800, 0x000000, 0.85).setDepth(100).setInteractive();
         this.questionOverlayObjects.push(bg);
 
-        const titleText = this.add.text(cx, cy - 150, `DESAFÍO FIN DE NIVEL (${this.sequenceIndex + 1}/3)`, {
-            fontFamily: 'monospace', fontSize: '24px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 220, `DESAFÍO FIN DE NIVEL (${this.sequenceIndex + 1}/3)`, {
+            fontFamily: 'monospace', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
-        const questionText = this.add.text(cx, cy - 80, this.currentQuestion.q, {
-            fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 700 }, align: 'center'
+        const questionText = this.add.text(cx, cy - 130, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 740 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 560;
-        const btnH = 46;
-        const gapY = 12;
-        const startY = cy - 10;
+        const btnW = 740;
+        const btnH = 80;
+        const gapY = 16;
+        const startY = cy - 20;
 
         options.forEach((option, i) => {
             const by = startY + i * (btnH + gapY);
@@ -341,7 +342,7 @@ export default class MainGame extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 
@@ -366,8 +367,8 @@ export default class MainGame extends Phaser.Scene
         btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
         btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-        const resultText = this.add.text(400, 480, correct ? '¡CORRECTO! (+4s)' : 'FALLASTE (-2s)', {
-            fontFamily: 'monospace', fontSize: '20px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        const resultText = this.add.text(400, 330, correct ? '¡CORRECTO! (+4s)' : 'FALLASTE (-2s)', {
+            fontFamily: 'monospace', fontSize: '28px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(102);
         this.questionOverlayObjects.push(resultText);
 

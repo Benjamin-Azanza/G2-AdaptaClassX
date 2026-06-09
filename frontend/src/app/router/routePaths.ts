@@ -20,7 +20,6 @@ export const routePaths = {
   cardMemoryGame: '/games/card-memory',
   emojiMatchGame: '/games/emoji-match',
   slidingPuzzleGame: '/games/sliding-puzzle',
-  snakeGame: '/games/snake',
   snowmenAttackGame: '/games/snowmen-attack',
   stackerGame: '/games/stacker',
   tomGame: '/games/tom',

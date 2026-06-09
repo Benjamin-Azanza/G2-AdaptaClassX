@@ -89,7 +89,7 @@ export class Play extends Phaser.Scene
     create ()
     {
         // Background
-        this.add.image(0, 0, "background").setOrigin(0).setDisplaySize(800, 600);
+        this.add.image(0, 0, "background").setOrigin(0).setDisplaySize(800, 900);
 
         const currentTheme = this.getCurrentTheme();
         const displayThemeName = currentTheme === 'sinonimos' ? 'SINÓNIMOS' 
@@ -239,7 +239,7 @@ export class Play extends Phaser.Scene
                                     this.add.tween({
                                         targets: winnerText,
                                         ease: Phaser.Math.Easing.Bounce.Out,
-                                        y: 300,
+                                        y: 450,
                                     });
                                 }
                             });
@@ -279,7 +279,7 @@ export class Play extends Phaser.Scene
                             this.add.tween({
                                 targets: gameOverText,
                                 ease: Phaser.Math.Easing.Bounce.Out,
-                                y: 300,
+                                y: 450,
                             });
                             this.canMove = false;
                         }
@@ -355,25 +355,25 @@ export class Play extends Phaser.Scene
         }
         const rows = Math.ceil(cardCount / cols);
 
-        const paddingX = 16;
-        const paddingY = 14;
+        const paddingX = 24;
+        const paddingY = 20;
         const wAvail = 760; // 20px padding left and right
-        const hAvail = 420; // leaves space at top for headers (lives, theme name, etc.)
-
+        const hAvail = 770; // leaves space at top for headers (lives, theme name, etc.)
+ 
         // Compute maximum scale that fits within both available width and height
         const scaleW = (wAvail - (cols - 1) * paddingX) / (cols * 98);
         const scaleH = (hAvail - (rows - 1) * paddingY) / (rows * 128);
-        const scale = Math.min(1.0, scaleW, scaleH);
-
+        const scale = Math.min(1.5, scaleW, scaleH);
+ 
         const cardW = 98 * scale;
         const cardH = 128 * scale;
-
+ 
         const gridW = cols * (cardW + paddingX) - paddingX;
         const gridH = rows * (cardH + paddingY) - paddingY;
-
-        // Center the grid dynamically in the canvas (800x600)
+ 
+        // Center the grid dynamically in the canvas (800x900)
         const xStart = (800 - gridW) / 2 + cardW / 2;
-        const yStart = 140 + (420 - gridH) / 2 + cardH / 2;
+        const yStart = 100 + (800 - gridH) / 2 + cardH / 2;
 
         return shuffledDefs.map((def, index) => {
             const col = index % cols;

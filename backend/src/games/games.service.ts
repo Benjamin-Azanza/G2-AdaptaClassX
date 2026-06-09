@@ -93,7 +93,7 @@ export class GamesService {
    * Matching strategy:
    *   1. Normalize the input path (drop query/hash, lowercase).
    *   2. Pull all games; cast each `config_default.rutaJuego` to string.
-   *   3. Match by EQUALITY first (`/games/snake` === `/games/snake`).
+   *   3. Match by EQUALITY first (`/games/tom` === `/games/tom`).
    *      If none match exactly, fall back to startsWith so trailing
    *      segments like `/games/tom/level-2` still resolve to Tom.
    *

@@ -38,6 +38,7 @@ export default class GameScene extends Phaser.Scene {
 
     private questionSource: 'bomb' | 'aid' | null = null;
     private activeAid: any = null;
+    private activeBomb: any = null;
 
     private isPaused: boolean = false;
     private pauseMenuGroup!: Phaser.GameObjects.Group;
@@ -61,6 +62,7 @@ export default class GameScene extends Phaser.Scene {
         this.groundBaddies = 0;
         this.questionSource = null;
         this.activeAid = null;
+        this.activeBomb = null;
         this.isPaused = false;
     }
 
@@ -408,7 +410,7 @@ export default class GameScene extends Phaser.Scene {
         this.showQuestion();
     }
 
-    private hitBomb(_player: any, _bomb: any) {
+    private hitBomb(_player: any, bomb: any) {
         if (this.isQuestionActive || this.gameOver) return;
 
         this.physics.pause();
@@ -417,6 +419,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.isQuestionActive = true;
         this.questionSource = 'bomb';
+        this.activeBomb = bomb;
         this.showQuestion();
     }
 
@@ -424,6 +427,7 @@ export default class GameScene extends Phaser.Scene {
         this.isQuestionActive = false;
         this.questionSource = null;
         this.activeAid = null;
+        this.activeBomb = null;
         this.player.clearTint();
         this.physics.resume();
     }
@@ -567,43 +571,52 @@ export default class GameScene extends Phaser.Scene {
             btnBg.on('pointerout', () => btnBg.setFillStyle(0x1e293b));
 
             btnBg.on('pointerdown', () => {
-                this.questionModalGroup.clear(true, true);
-                
-                const isCorrect = i === qData.answer;
-                if (qData && qData.id) {
-                    window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: qData.id, correct: isCorrect } }));
-                }
+                this.questionModalGroup.getChildren().forEach(obj => {
+                    obj.disableInteractive();
+                });
 
-                if (isCorrect) {
-                    // Respuesta Correcta
-                    if (this.questionSource === 'aid') {
-                        this.aidboomSnd.play();
-                        if (this.hp < 2) {
-                            let heartsArray = this.heartsGroup.getChildren();
-                            (heartsArray[this.hp] as Phaser.GameObjects.Sprite).setVisible(true);
-                            this.hp++;
-                        }
-                        if (this.activeAid) this.activeAid.destroy();
+                this.time.delayedCall(50, () => {
+                    this.questionModalGroup.clear(true, true);
+                    
+                    const isCorrect = i === qData.answer;
+                    if (qData && qData.id) {
+                        window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: qData.id, correct: isCorrect } }));
                     }
-                    this.resumeGame();
-                } else {
-                    // Respuesta Incorrecta
-                    const correctAnswer = qData.options[qData.answer];
 
-                    if (this.questionSource === 'bomb') {
-                        this.showWrongFeedback(correctAnswer, () => {
-                            this.loseHeart();
-                            if (this.hp > 0) {
-                                this.resumeGame();
+                    if (isCorrect) {
+                        // Respuesta Correcta
+                        if (this.questionSource === 'aid') {
+                            this.aidboomSnd.play();
+                            if (this.hp < 2) {
+                                let heartsArray = this.heartsGroup.getChildren();
+                                (heartsArray[this.hp] as Phaser.GameObjects.Sprite).setVisible(true);
+                                this.hp++;
                             }
-                        });
-                    } else if (this.questionSource === 'aid') {
-                        this.showWrongFeedback(correctAnswer, () => {
                             if (this.activeAid) this.activeAid.destroy();
-                            this.resumeGame();
-                        });
+                        } else if (this.questionSource === 'bomb') {
+                            if (this.activeBomb) this.activeBomb.destroy();
+                        }
+                        this.resumeGame();
+                    } else {
+                        // Respuesta Incorrecta
+                        const correctAnswer = qData.options[qData.answer];
+
+                        if (this.questionSource === 'bomb') {
+                            this.showWrongFeedback(correctAnswer, () => {
+                                if (this.activeBomb) this.activeBomb.destroy();
+                                this.loseHeart();
+                                if (this.hp > 0) {
+                                    this.resumeGame();
+                                }
+                            });
+                        } else if (this.questionSource === 'aid') {
+                            this.showWrongFeedback(correctAnswer, () => {
+                                if (this.activeAid) this.activeAid.destroy();
+                                this.resumeGame();
+                            });
+                        }
                     }
-                }
+                });
             });
         }
     }

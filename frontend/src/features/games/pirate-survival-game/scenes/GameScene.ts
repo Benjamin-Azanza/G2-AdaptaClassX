@@ -134,7 +134,7 @@ export class GameScene extends Phaser.Scene {
     // Items & Buffs
     this.itemGroup            = this.add.group();
     this.itemsSpawnedThisRound= 0;
-    this.itemSpawnTimer       = 15;
+    this.itemSpawnTimer       = 6;
     this.attackBuffTimer      = 0;
     this.speedBuffTimer       = 0;
     this.hasAttackBuff        = false;
@@ -142,7 +142,7 @@ export class GameScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
 
-    this.add.image(cam.centerX, cam.centerY, 'pirate-background').setDisplaySize(cam.width, cam.height);
+    this.add.image(600, 350, 'pirate-background').setDisplaySize(1200, 700);
 
     // Register pirate animations
     for (const { action, frames, fps, loop } of ANIM_CONFIG) {
@@ -161,6 +161,10 @@ export class GameScene extends Phaser.Scene {
     this.player.setOrigin(PIRATE_ORIGIN.x, PIRATE_ORIGIN.y);
     this.player.setScale(CHAR_SCALE);
     this.player.play('lobit-pirate-idle');
+
+    // Enable camera follow and world boundaries
+    this.cameras.main.setBounds(0, 0, 1200, 700);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
     // HUD
     this.hudGraphics = this.add.graphics().setDepth(199).setScrollFactor(0);
@@ -273,7 +277,7 @@ export class GameScene extends Phaser.Scene {
     this.roundPhase      = 'intro';
     this.roundPhaseTimer = WAVE_CONFIG.ROUND_INTRO_DURATION;
     this.itemsSpawnedThisRound = 0;
-    this.itemSpawnTimer = 15;
+    this.itemSpawnTimer = 6;
     this._showRoundIntro(n);
   }
 
@@ -307,10 +311,10 @@ export class GameScene extends Phaser.Scene {
     const cam        = this.cameras.main;
     const topBound   = DISPLAY_FRAME * PIRATE_ORIGIN.y;
     const side       = Math.random() < 0.5 ? 'left' : 'right';
-    const spawnX     = side === 'left' ? 80 : cam.width - 80;
+    const spawnX     = side === 'left' ? 80 : 1200 - 80;
     const spawnY     = Phaser.Math.Clamp(
       this.player.y + Phaser.Math.Between(-80, 80),
-      topBound + 20, cam.height - 20
+      topBound + 20, 700 - 20
     );
     const difficulty = getRoundDifficulty(this.roundNumber);
 
@@ -363,12 +367,12 @@ export class GameScene extends Phaser.Scene {
     this.questionOverlayObjects.push(bg);
 
     // Question text
-    const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
+    const questionText = this.add.text(cx, cy - 130, this.currentQuestion.q, {
       fontFamily: 'monospace',
-      fontSize: '26px',
+      fontSize: '32px',
       color: '#ffffff',
       fontStyle: 'bold',
-      wordWrap: { width: cam.width - 80 },
+      wordWrap: { width: cam.width - 120 },
       align: 'center',
       shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
@@ -376,19 +380,19 @@ export class GameScene extends Phaser.Scene {
 
     const instrText = this.add.text(cx, cy - 60, '¡SELECCIONA LA RESPUESTA CORRECTA!', {
       fontFamily: 'monospace',
-      fontSize: '18px',
+      fontSize: '22px',
       color: '#facc15',
       shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true },
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
     this.questionOverlayObjects.push(instrText);
 
     // 4 answer buttons in a 2×2 grid
-    const btnW  = 320;
-    const btnH  = 65;
+    const btnW  = 460;
+    const btnH  = 85;
     const gapX  = 24;
-    const gapY  = 20;
+    const gapY  = 16;
     const gridX = cx - btnW - gapX / 2;
-    const gridY = cy - 40;
+    const gridY = cy - 20;
 
     options.forEach((option, i) => {
       const col = i % 2;
@@ -406,9 +410,9 @@ export class GameScene extends Phaser.Scene {
       const label = String.fromCharCode(65 + i); // A, B, C, D
       const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: '22px',
         color: '#ffffff',
-        wordWrap: { width: btnW - 24 },
+        wordWrap: { width: btnW - 30 },
         align: 'center',
       }).setOrigin(0.5).setDepth(302).setScrollFactor(0);
       this.questionOverlayObjects.push(btnText);
@@ -455,10 +459,10 @@ export class GameScene extends Phaser.Scene {
     btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
     const cam = this.cameras.main;
-    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 120,
+    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 160,
       correct ? '¡CORRECTO! +1 HP' : 'INCORRECTO! -1 HP', {
         fontFamily: 'monospace',
-        fontSize: '28px',
+        fontSize: '36px',
         color: correct ? '#22c55e' : '#ef4444',
         fontStyle: 'bold',
         shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
@@ -657,8 +661,8 @@ export class GameScene extends Phaser.Scene {
       const halfW    = DISPLAY_FRAME * PIRATE_ORIGIN.x;
       const topBound = DISPLAY_FRAME * PIRATE_ORIGIN.y;
 
-      this.player.x = Phaser.Math.Clamp(this.player.x + dx, halfW, cam.width - halfW);
-      this.player.y = Phaser.Math.Clamp(this.player.y + dy, topBound, cam.height);
+      this.player.x = Phaser.Math.Clamp(this.player.x + dx, halfW, 1200 - halfW);
+      this.player.y = Phaser.Math.Clamp(this.player.y + dy, topBound, 700);
     }
 
     if (this.playerState === 'attack' && !this.pirateHasDealtDamage) {
@@ -688,8 +692,8 @@ export class GameScene extends Phaser.Scene {
     const cam      = this.cameras.main;
     const halfW    = DISPLAY_FRAME * PIRATE_ORIGIN.x;
     const topBound = DISPLAY_FRAME * PIRATE_ORIGIN.y;
-    this.player.x = Phaser.Math.Clamp(this.player.x + this.knockbackVx * dt, halfW, cam.width - halfW);
-    this.player.y = Phaser.Math.Clamp(this.player.y + this.knockbackVy * dt, topBound, cam.height);
+    this.player.x = Phaser.Math.Clamp(this.player.x + this.knockbackVx * dt, halfW, 1200 - halfW);
+    this.player.y = Phaser.Math.Clamp(this.player.y + this.knockbackVy * dt, topBound, 700);
   }
 
   _decayKnockback(dt) {
@@ -873,14 +877,14 @@ export class GameScene extends Phaser.Scene {
     
     this.itemSpawnTimer -= dt;
     if (this.itemSpawnTimer <= 0) {
-      this.itemSpawnTimer = 7;
+      this.itemSpawnTimer = 6;
       const types = ['ATTACK', 'VELOCIDAD', 'VIDA'];
       const type = types[Math.floor(Math.random() * types.length)];
       
       const cam = this.cameras.main;
       const topBound = DISPLAY_FRAME * PIRATE_ORIGIN.y;
-      const spawnX = Phaser.Math.Between(100, cam.width - 100);
-      const spawnY = Phaser.Math.Between(topBound + 40, cam.height - 40);
+      const spawnX = Phaser.Math.Between(100, 1200 - 100);
+      const spawnY = Phaser.Math.Between(topBound + 40, 700 - 40);
       
       const scale = type === 'VIDA' ? 0.068 : 0.08;
       const item = this.add.sprite(spawnX, spawnY, `item-${type}`).setScale(scale).setDepth(80);
@@ -962,20 +966,20 @@ export class GameScene extends Phaser.Scene {
     bg.fillRect(0, 0, cam.width, cam.height);
     this.questionOverlayObjects.push(bg);
 
-    const titleText = this.add.text(cx, cy - 180, `¡PREGUNTA POR PODER: ${type}!`, {
-      fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold',
+    const titleText = this.add.text(cx, cy - 210, `¡PREGUNTA POR PODER: ${type}!`, {
+      fontFamily: 'monospace', fontSize: '32px', color: '#facc15', fontStyle: 'bold',
       shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
     this.questionOverlayObjects.push(titleText);
 
     const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
-      fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
-      wordWrap: { width: cam.width - 80 }, align: 'center',
+      fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold',
+      wordWrap: { width: cam.width - 120 }, align: 'center',
       shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
     this.questionOverlayObjects.push(questionText);
 
-    const btnW = 300, btnH = 60, gapX = 20, gapY = 16;
+    const btnW = 460, btnH = 80, gapX = 24, gapY = 20;
     const gridX = cx - btnW - gapX / 2;
     const gridY = cy - 20;
 
@@ -992,7 +996,7 @@ export class GameScene extends Phaser.Scene {
 
       const label = String.fromCharCode(65 + i);
       const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-        fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center',
+        fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center',
       }).setOrigin(0.5).setDepth(302).setScrollFactor(0);
       this.questionOverlayObjects.push(btnText);
 
@@ -1028,9 +1032,9 @@ export class GameScene extends Phaser.Scene {
     btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
     const cam = this.cameras.main;
-    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 120,
+    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 140,
       correct ? '¡PODER OBTENIDO!' : 'FALLASTE (No hay poder)', {
-        fontFamily: 'monospace', fontSize: '28px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold',
+        fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold',
         shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
       }).setOrigin(0.5).setDepth(302).setScrollFactor(0);
     this.questionOverlayObjects.push(resultText);

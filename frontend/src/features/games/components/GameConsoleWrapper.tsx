@@ -4,6 +4,23 @@ import Phaser from 'phaser';
 import { useAuthStore } from '../../auth/store/authStore';
 import { MissionProgressOverlay } from './MissionProgressOverlay';
 
+if (typeof window !== 'undefined') {
+  (window as any).virtualGamepad = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    A: false,
+    B: false,
+    upPressedCount: 0,
+    downPressedCount: 0,
+    leftPressedCount: 0,
+    rightPressedCount: 0,
+    aPressedCount: 0,
+    bPressedCount: 0,
+  };
+}
+
 type GameConsoleWrapperProps = {
   title: string;
   description: string;
@@ -18,6 +35,8 @@ type GameConsoleWrapperProps = {
   setGameStarted: (val: boolean) => void;
   onQuit: () => void;
   children?: React.ReactNode;
+  aspectRatio?: string;
+  gamepadType?: 'joystick' | 'arrows';
 };
 
 export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
@@ -33,6 +52,8 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   setGameStarted,
   onQuit,
   children,
+  aspectRatio,
+  gamepadType,
 }) => {
   // Surface the role so the wrapper can show a "preview mode" banner when
   // a teacher opens a game directly from the catalog. The flag is purely
@@ -42,6 +63,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   const [isPaused, setIsPaused] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isShortScreen, setIsShortScreen] = useState(false);
   const [isBtnAPressed, setIsBtnAPressed] = useState(false);
   const [isBtnBPressed, setIsBtnBPressed] = useState(false);
 
@@ -69,9 +91,11 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     };
   }, []);
 
+
+
   // Block ALL browser scroll, zoom, pull-to-refresh and text selection during gameplay
   useEffect(() => {
-    if (!gameStarted) return;
+    if (!gameStarted || !(isMobile && hasGamepad)) return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -136,7 +160,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       document.removeEventListener('gesturestart', blockGesture);
       document.removeEventListener('gesturechange', blockGesture);
     };
-  }, [gameStarted]);
+  }, [gameStarted, isMobile, hasGamepad]);
 
   const updateJoystickGlobalAndKeys = (dx: number, dy: number, distance: number, maxRadius: number) => {
     const normalX = dx / maxRadius;
@@ -158,6 +182,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       up: normalY < -deadzone,
       down: normalY > deadzone,
     };
+
+    if ((window as any).virtualGamepad) {
+      (window as any).virtualGamepad.left = keys.left;
+      (window as any).virtualGamepad.right = keys.right;
+      (window as any).virtualGamepad.up = keys.up;
+      (window as any).virtualGamepad.down = keys.down;
+    }
 
     const activeKeys = activeKeysRef.current;
 
@@ -292,6 +323,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       intensity: 0,
     };
 
+    if ((window as any).virtualGamepad) {
+      (window as any).virtualGamepad.left = false;
+      (window as any).virtualGamepad.right = false;
+      (window as any).virtualGamepad.up = false;
+      (window as any).virtualGamepad.down = false;
+    }
+
     const activeKeys = activeKeysRef.current;
     if (activeKeys.left) { simulateKey('ArrowLeft', 'ArrowLeft', 37, 'keyup'); activeKeys.left = false; }
     if (activeKeys.right) { simulateKey('ArrowRight', 'ArrowRight', 39, 'keyup'); activeKeys.right = false; }
@@ -305,6 +343,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const isSmall = window.innerWidth < 768;
       setIsMobile(isSmall || isTouch);
+      setIsShortScreen(window.innerHeight < 520);
     };
     checkDevice();
     window.addEventListener('resize', checkDevice);
@@ -329,7 +368,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   // Lock scroll, gestures, and zoom when game starts and is not paused
   useEffect(() => {
-    if (!gameStarted || isPaused) return;
+    if (!gameStarted || isPaused || !(isMobile && hasGamepad)) return;
 
     // 1. Prevent default document touchmove to disable mobile scroll bounce/pull-to-refresh
     const preventTouchMove = (e: TouchEvent) => {
@@ -348,13 +387,6 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.height = '100%';
 
-    // 3. Viewport meta is INTENTIONALLY left alone. The previous version of
-    // this effect overrode it with `maximum-scale=1.0, user-scalable=no`,
-    // which had the side effect of resetting the browser zoom level the
-    // moment a game started — making the page look enormous to anyone
-    // viewing the app at less than 100% zoom. Touch handlers above already
-    // prevent pinch zoom on mobile.
-
     return () => {
       document.removeEventListener('touchmove', preventTouchMove);
 
@@ -368,7 +400,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       document.documentElement.style.height = '';
       document.documentElement.style.touchAction = '';
     };
-  }, [gameStarted, isPaused]);
+  }, [gameStarted, isPaused, isMobile, hasGamepad]);
 
   const handleStart = () => {
     setGameStarted(true);
@@ -456,8 +488,22 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     e.preventDefault();
     const canvas = phaserGameRef.current?.canvas;
     if (canvas) canvas.focus();
-    if (button === 'A') setIsBtnAPressed(true);
-    else setIsBtnBPressed(true);
+    if (button === 'A') {
+      setIsBtnAPressed(true);
+      if ((window as any).virtualGamepad) {
+        (window as any).virtualGamepad.A = true;
+        (window as any).virtualGamepad.aPressedCount = ((window as any).virtualGamepad.aPressedCount || 0) + 1;
+      }
+    } else {
+      setIsBtnBPressed(true);
+      if ((window as any).virtualGamepad) {
+        (window as any).virtualGamepad.B = true;
+        (window as any).virtualGamepad.bPressedCount = ((window as any).virtualGamepad.bPressedCount || 0) + 1;
+      }
+    }
+    // Dispatch custom event for direct response
+    window.dispatchEvent(new CustomEvent('gamepad:A'));
+
     // Both buttons fire Space AND Z so they always do the same thing
     simulateKey(' ', 'Space', 32, 'keydown');
     simulateKey('z', 'KeyZ', 90, 'keydown');
@@ -468,10 +514,77 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   const handleActionButtonUp = (e: React.TouchEvent | React.MouseEvent, button: 'A' | 'B') => {
     e.preventDefault();
-    if (button === 'A') setIsBtnAPressed(false);
-    else setIsBtnBPressed(false);
+    if (button === 'A') {
+      setIsBtnAPressed(false);
+      if ((window as any).virtualGamepad) (window as any).virtualGamepad.A = false;
+    } else {
+      setIsBtnBPressed(false);
+      if ((window as any).virtualGamepad) (window as any).virtualGamepad.B = false;
+    }
     simulateKey(' ', 'Space', 32, 'keyup');
     simulateKey('z', 'KeyZ', 90, 'keyup');
+  };
+
+  const handleDpadButtonDown = (e: React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
+    e.preventDefault();
+    const canvas = phaserGameRef.current?.canvas;
+    if (canvas) canvas.focus();
+    if ((window as any).virtualGamepad) {
+      (window as any).virtualGamepad[key] = true;
+      const counterKey = `${key}PressedCount`;
+      (window as any).virtualGamepad[counterKey] = ((window as any).virtualGamepad[counterKey] || 0) + 1;
+    }
+    // Update virtual joystick for arrow movement
+    if ((window as any).virtualJoystick) {
+      (window as any).virtualJoystick.active = true;
+      (window as any).virtualJoystick.dx = key === 'left' ? -1 : key === 'right' ? 1 : 0;
+      (window as any).virtualJoystick.dy = key === 'up' ? -1 : key === 'down' ? 1 : 0;
+      (window as any).virtualJoystick.intensity = 1;
+    }
+    // Dispatch custom event for direct response
+    window.dispatchEvent(new CustomEvent(`gamepad:${key}`));
+
+    // Simulate keydown
+    const keyMap = {
+      up: { key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 },
+      down: { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40 },
+      left: { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 },
+      right: { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39 },
+    };
+    const keyInfo = keyMap[key];
+    if (keyInfo) {
+      simulateKey(keyInfo.key, keyInfo.code, keyInfo.keyCode, 'keydown');
+    }
+
+    if (window.navigator && window.navigator.vibrate) {
+      try { window.navigator.vibrate(10); } catch { /* ignore */ }
+    }
+  };
+
+  const handleDpadButtonUp = (e: React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
+    e.preventDefault();
+    if ((window as any).virtualGamepad) {
+      (window as any).virtualGamepad[key] = false;
+    }
+    // Reset virtual joystick when any dpad button released
+    if ((window as any).virtualJoystick) {
+      (window as any).virtualJoystick.active = false;
+      (window as any).virtualJoystick.dx = 0;
+      (window as any).virtualJoystick.dy = 0;
+      (window as any).virtualJoystick.intensity = 0;
+    }
+
+    // Simulate keyup
+    const keyMap = {
+      up: { key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 },
+      down: { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40 },
+      left: { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 },
+      right: { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39 },
+    };
+    const keyInfo = keyMap[key];
+    if (keyInfo) {
+      simulateKey(keyInfo.key, keyInfo.code, keyInfo.keyCode, 'keyup');
+    }
   };
 
   const renderInstructionsModal = () => (
@@ -586,45 +699,72 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       {/* Visual background details */}
       <div className="absolute inset-0 opacity-5 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:10px_10px]" />
  
-      {/* Joystick Area (Fixed & Always Visible) */}
-      <div 
-        ref={joystickAreaRef}
-        onTouchStart={handleJoystickStart}
-        onTouchMove={handleJoystickMove}
-        onTouchEnd={handleJoystickEnd}
-        onMouseDown={handleJoystickStart}
-        onMouseMove={handleJoystickMove}
-        onMouseUp={handleJoystickEnd}
-        onMouseLeave={handleJoystickEnd}
-        className="relative flex items-center justify-center cursor-crosshair select-none"
-        style={{ width: '140px', height: '140px' }}
-      >
-        {/* Directional indicators */}
-        <span className="absolute top-0 left-1/2 -translate-x-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyUp ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▲</span>
-        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyDown ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▼</span>
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyLeft ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>◀</span>
-        <span className="absolute right-0 top-1/2 -translate-y-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyRight ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▶</span>
-
-        {/* Fixed Outer Base (Always visible) */}
-        <div 
-          className="absolute rounded-full border-4 border-slate-400/40 bg-slate-700/20 shadow-inner flex items-center justify-center"
-          style={{ width: '120px', height: '120px', pointerEvents: 'none' }}
-        >
-          {/* Stick (inner circle, always visible, moves relative to center) */}
-          <div 
-            className="absolute rounded-full border-4 border-slate-950 bg-gradient-to-br from-orange-400 to-orange-600 shadow-[0_4px_10px_rgba(0,0,0,0.5)] flex items-center justify-center"
-            style={{
-              width: '54px',
-              height: '54px',
-              transform: `translate3d(${joystickState.stickX}px, ${joystickState.stickY}px, 0)`,
-              transition: joystickState.active ? 'none' : 'transform 0.15s ease-out',
-              pointerEvents: 'none',
-            }}
+      {/* Joystick Area or Arrow Buttons */}
+      {gamepadType === 'arrows' ? (
+        <div className="flex gap-4 select-none items-center justify-center" style={{ width: '140px', height: '140px' }}>
+          {/* Left Arrow */}
+          <button
+            onTouchStart={(e) => handleDpadButtonDown(e, 'left')}
+            onTouchEnd={(e) => handleDpadButtonUp(e, 'left')}
+            onMouseDown={(e) => handleDpadButtonDown(e, 'left')}
+            onMouseUp={(e) => handleDpadButtonUp(e, 'left')}
+            onMouseLeave={(e) => handleDpadButtonUp(e, 'left')}
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
           >
-            <div className="w-4 h-4 rounded-full bg-orange-300/60 shadow-inner" />
+            ◀
+          </button>
+          {/* Right Arrow */}
+          <button
+            onTouchStart={(e) => handleDpadButtonDown(e, 'right')}
+            onTouchEnd={(e) => handleDpadButtonUp(e, 'right')}
+            onMouseDown={(e) => handleDpadButtonDown(e, 'right')}
+            onMouseUp={(e) => handleDpadButtonUp(e, 'right')}
+            onMouseLeave={(e) => handleDpadButtonUp(e, 'right')}
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+          >
+            ▶
+          </button>
+        </div>
+      ) : (
+        <div 
+          ref={joystickAreaRef}
+          onTouchStart={handleJoystickStart}
+          onTouchMove={handleJoystickMove}
+          onTouchEnd={handleJoystickEnd}
+          onMouseDown={handleJoystickStart}
+          onMouseMove={handleJoystickMove}
+          onMouseUp={handleJoystickEnd}
+          onMouseLeave={handleJoystickEnd}
+          className="relative flex items-center justify-center cursor-crosshair select-none"
+          style={{ width: '140px', height: '140px' }}
+        >
+          {/* Directional indicators */}
+          <span className="absolute top-0 left-1/2 -translate-x-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyUp ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▲</span>
+          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyDown ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▼</span>
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyLeft ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>◀</span>
+          <span className="absolute right-0 top-1/2 -translate-y-1/2 text-lg select-none pointer-events-none transition-colors duration-75" style={{ color: joyRight ? '#fb923c' : 'rgba(148,163,184,0.35)' }}>▶</span>
+
+          {/* Fixed Outer Base (Always visible) */}
+          <div 
+            className="absolute rounded-full border-4 border-slate-400/40 bg-slate-700/20 shadow-inner flex items-center justify-center"
+            style={{ width: '120px', height: '120px', pointerEvents: 'none' }}
+          >
+            {/* Stick (inner circle, always visible, moves relative to center) */}
+            <div 
+              className="absolute rounded-full border-4 border-slate-950 bg-gradient-to-br from-orange-400 to-orange-600 shadow-[0_4px_10px_rgba(0,0,0,0.5)] flex items-center justify-center"
+              style={{
+                width: '54px',
+                height: '54px',
+                transform: `translate3d(${joystickState.stickX}px, ${joystickState.stickY}px, 0)`,
+                transition: joystickState.active ? 'none' : 'transform 0.15s ease-out',
+                pointerEvents: 'none',
+              }}
+            >
+              <div className="w-4 h-4 rounded-full bg-orange-300/60 shadow-inner" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
  
       {/* The middle "Pausa / Start" button used to live here, but it
           duplicated the working pause icon already pinned to the top-right
@@ -726,50 +866,62 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   // Desktop or Mobile (without gamepad - full-screen touch mode)
   return (
-    <div className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container p-4 md:p-8 overflow-y-auto ${gameStarted ? 'select-none' : ''}`} style={{ touchAction: gameStarted ? 'none' : 'auto' }}>
+    <div 
+      className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container ${isShortScreen ? 'p-1 overflow-hidden' : 'p-1 sm:p-4 md:p-8 overflow-y-auto'} ${gameStarted ? 'select-none' : ''}`} 
+      style={{ touchAction: (isMobile && gameStarted) ? 'none' : 'auto' }}
+    >
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
 
       {/* Top action bar */}
-      <div className="absolute left-4 top-4 z-20 flex gap-2">
+      <div className="absolute left-2 top-2 sm:left-4 sm:top-4 z-20 flex gap-2">
         <button
           onClick={onQuit}
-          className="flex items-center gap-1 border-4 border-on-background bg-surface px-4 py-2 font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
+          className="flex items-center gap-1 border-2 sm:border-4 border-on-background bg-surface px-2 py-1 sm:px-4 sm:py-2 font-headline text-xs sm:text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] sm:shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <span className="material-symbols-outlined text-sm sm:text-base">arrow_back</span>
           Salir
         </button>
         <button
           onClick={handlePause}
-          className="flex items-center gap-1 border-4 border-on-background bg-surface px-4 py-2 font-headline text-sm font-bold uppercase shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
+          className="flex items-center gap-1 border-2 sm:border-4 border-on-background bg-surface px-2 py-1 sm:px-4 sm:py-2 font-headline text-xs sm:text-sm font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] sm:shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
         >
-          <span className="material-symbols-outlined">pause</span>
+          <span className="material-symbols-outlined text-sm sm:text-base">pause</span>
           Pausa
         </button>
         {isTeacherPreview && (
-          <div className="flex items-center gap-1 border-4 border-tertiary bg-tertiary-container px-3 py-2 font-mono text-xs font-bold uppercase text-on-tertiary-container shadow-[4px_4px_0_0_#1d1c17]">
-            <span className="material-symbols-outlined text-base">visibility</span>
+          <div className="flex items-center gap-1 border-2 sm:border-4 border-tertiary bg-tertiary-container px-2 py-1 sm:px-3 sm:py-2 font-mono text-[10px] sm:text-xs font-bold uppercase text-on-tertiary-container shadow-[2px_2px_0_0_#1d1c17] sm:shadow-[4px_4px_0_0_#1d1c17]">
+            <span className="material-symbols-outlined text-xs sm:text-base">visibility</span>
             Modo preview
           </div>
         )}
       </div>
 
       <div
-        className="z-10 flex w-full flex-col border-8 border-on-background bg-surface-container-lowest shadow-[16px_16px_0_0_#1d1c17]"
-        style={{ width: '90%', maxWidth: '800px', boxSizing: 'border-box' }}
+        className="z-10 flex flex-col border-4 sm:border-8 border-on-background bg-surface-container-lowest shadow-[8px_8px_0_0_#1d1c17] sm:shadow-[16px_16px_0_0_#1d1c17] mx-auto"
+        style={{ 
+          width: isShortScreen ? `calc(70vh * (${aspectRatio ?? '4 / 3'}) + 12px)` : '98%', 
+          maxWidth: '800px', 
+          boxSizing: 'border-box' 
+        }}
       >
-        <div className="flex items-center justify-center border-b-8 border-on-background bg-primary px-3 py-4 text-on-primary">
-          <h2 className="flex items-center gap-2 font-headline text-2xl font-bold uppercase tracking-widest text-on-primary">
-            {title}
-          </h2>
-        </div>
+        {!isShortScreen && (
+          <div className="flex items-center justify-center border-b-4 sm:border-b-8 border-on-background bg-primary px-2 py-3 sm:px-3 sm:py-4 text-on-primary">
+            <h2 className="flex items-center gap-2 font-headline text-lg sm:text-2xl font-bold uppercase tracking-widest text-on-primary">
+              {title}
+            </h2>
+          </div>
+        )}
 
-        <div className="flex w-full justify-center bg-surface-container-lowest p-3">
+        <div className="flex w-full justify-center bg-surface-container-lowest p-1 sm:p-3">
           {/* Main game board */}
           <div
-            className="relative w-full overflow-hidden rounded-md border-4 border-on-background shadow-inner bg-black"
+            className="relative overflow-hidden rounded-md border-2 sm:border-4 border-on-background shadow-inner bg-black mx-auto"
             style={{
-              aspectRatio: '4 / 3',
+              aspectRatio: aspectRatio ?? '4 / 3',
               maxWidth: '100%',
+              maxHeight: isShortScreen ? '70vh' : undefined,
+              width: isShortScreen ? `calc(70vh * (${aspectRatio ?? '4 / 3'}))` : '100%',
+              height: 'auto',
             }}
           >
             {children}

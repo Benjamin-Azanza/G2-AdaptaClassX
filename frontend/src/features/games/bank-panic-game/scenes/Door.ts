@@ -38,10 +38,10 @@ export default class Door extends Phaser.GameObjects.Container
 
         this.optionText = scene.add.text(0, 0, '', {
             fontFamily: 'Courier',
-            fontSize: '20px',
+            fontSize: '22px',
             color: '#ffffff',
             padding: { x: 10, y: 6 },
-            wordWrap: { width: 175, useAdvancedWrap: true },
+            wordWrap: { width: 190, useAdvancedWrap: true },
             align: 'center',
             shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 4, fill: true }
         }).setOrigin(0.5);
@@ -52,14 +52,14 @@ export default class Door extends Phaser.GameObjects.Container
         this.setSize(200, 400);
         this.setInteractive();
 
-        this.on('pointerup', this.shoot, this);
+        this.on('pointerdown', this.shoot, this);
 
         scene.add.existing(this);
     }
 
     destroy ()
     {
-        this.off('pointerup');
+        this.off('pointerdown');
     }
 
     start (time)
@@ -100,7 +100,7 @@ export default class Door extends Phaser.GameObjects.Container
         else if (this.characterFrame === 'hat')
         {
             this.isHats = true;
-
+ 
             //  Pick random number of hats
             this.hats = Phaser.Math.RND.between(2, 5);
 
@@ -153,7 +153,7 @@ export default class Door extends Phaser.GameObjects.Container
 
     shoot ()
     {
-        if (!this.isOpen || this.scene.isPaused)
+        if (!this.isOpen || this.scene.isPaused || this.scene.gracePeriod)
         {
             return;
         }
@@ -220,7 +220,7 @@ export default class Door extends Phaser.GameObjects.Container
         //  No more shots at this door
         if (!closeDoor)
         {
-            this.off('pointerup');
+            this.off('pointerdown');
             this.scene.isPaused = true;
         }
     }
@@ -241,7 +241,7 @@ export default class Door extends Phaser.GameObjects.Container
 
     shootYou ()
     {
-        this.off('pointerup');
+        this.off('pointerdown');
 
         this.scene.isPaused = true;
 

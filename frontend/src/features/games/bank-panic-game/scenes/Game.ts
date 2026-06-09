@@ -339,20 +339,20 @@ export default class MainGame extends Phaser.Scene
         const bg = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.85).setDepth(200).setInteractive();
         this.questionOverlayObjects.push(bg);
 
-        const titleText = this.add.text(cx, cy - 180, "¡PREGUNTA DE SALVACIÓN!", {
-            fontFamily: 'Courier', fontSize: '28px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 210, "¡PREGUNTA DE SALVACIÓN!", {
+            fontFamily: 'Courier', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(titleText);
 
-        const questionText = this.add.text(cx, cy - 100, this.currentQuestion.q, {
-            fontFamily: 'Courier', fontSize: '20px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+        const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
+            fontFamily: 'Courier', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 900 }, align: 'center'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 600;
-        const btnH = 50;
+        const btnW = 800;
+        const btnH = 80;
         const gapY = 16;
-        const startY = cy;
+        const startY = cy - 20;
 
         options.forEach((option, i) => {
             const by = startY + i * (btnH + gapY);
@@ -366,7 +366,7 @@ export default class MainGame extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'Courier', fontSize: '16px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'Courier', fontSize: '22px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
             }).setOrigin(0.5).setDepth(202);
             this.questionOverlayObjects.push(btnText);
 
@@ -523,6 +523,13 @@ export default class MainGame extends Phaser.Scene
         else
         {
             // Wrong answer!
+            this.questionText.setVisible(false);
+            this.instructionText.setVisible(false);
+            this.questionPanel.setVisible(false);
+            this.doors.forEach((door) => {
+                if (door.isOpen) door.closeDoor(this.time.now);
+            });
+            this.isQuestionMode = false;
             doorObj.shootYou(); // This will trigger level fail
         }
     }

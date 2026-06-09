@@ -49,8 +49,8 @@ export default class Germs extends Phaser.Physics.Arcade.Group
 
     releaseGerm ()
     {
-        const x = Phaser.Math.RND.between(0, 800);
-        const y = Phaser.Math.RND.between(0, 600);
+        const x = Phaser.Math.RND.between(0, 1024);
+        const y = Phaser.Math.RND.between(0, 768);
 
         let germ;
 

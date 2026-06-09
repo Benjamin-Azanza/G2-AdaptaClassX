@@ -12,7 +12,7 @@ export const EmojiMatchGamePage: React.FC = () => {
     (parent) =>
       new Phaser.Game({
         type: Phaser.AUTO,
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 800 },
         backgroundColor: '#008eb0',
         parent,
         scene: [Boot, Preloader, MainMenu, Game],
@@ -38,6 +38,7 @@ export const EmojiMatchGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="1 / 1"
     />
   );
 };

@@ -43,18 +43,18 @@ export default class MainGame extends Phaser.Scene
         this.itemSpawnTimer = 5;
         this.questionOverlayObjects = [];
 
-        this.add.image(400, 300, 'background').setScale(2);
+        this.add.image(512, 384, 'background').setScale(2);
 
         this.germs = new Germs(this.physics.world, this);
 
         this.pickups = new Pickups(this.physics.world, this);
 
-        this.player = new Player(this, 400, 400);
+        this.player = new Player(this, 512, 512);
 
         this.scoreText = this.add.bitmapText(16, 32, 'slime', 'Score   0', 40).setDepth(1);
         this.livesText = this.add.bitmapText(16, 80, 'slime', `Vidas   ${this.lives}`, 40).setDepth(1);
 
-        this.introText = this.add.bitmapText(400, 300, 'slime', 'Avoid the Germs\nCollect the Rings', 60).setOrigin(0.5).setCenterAlign().setDepth(1);
+        this.introText = this.add.bitmapText(512, 384, 'slime', 'Avoid the Germs\nCollect the Rings', 60).setOrigin(0.5).setCenterAlign().setDepth(1);
 
         this.pickups.start();
         this.showInstructionsCard();
@@ -190,8 +190,8 @@ export default class MainGame extends Phaser.Scene
             this.itemSpawnTimer = 7;
             const types = ['VIDA', 'VELOCIDAD', 'INMUNITY'];
             const type = types[Math.floor(Math.random() * types.length)];
-            const spawnX = Phaser.Math.Between(50, 750);
-            const spawnY = Phaser.Math.Between(50, 550);
+            const spawnX = Phaser.Math.Between(50, 974);
+            const spawnY = Phaser.Math.Between(50, 718);
             
             const scale = type === 'VIDA' ? 0.2 : 0.25; // Player size
             const item = this.add.sprite(spawnX, spawnY, `item-${type}`).setScale(scale).setDepth(2);
@@ -234,6 +234,27 @@ export default class MainGame extends Phaser.Scene
         }
     }
 
+    _destroyRandomGerms(count = 3) {
+        const activeGerms = this.germs.getChildren().filter(child => child.active && child.alpha === 1);
+        Phaser.Utils.Array.Shuffle(activeGerms);
+        const toDestroy = activeGerms.slice(0, count);
+        toDestroy.forEach(germ => {
+            germ.isChasing = false;
+            germ.body.stop();
+            this.tweens.add({
+                targets: germ,
+                alpha: 0,
+                scale: 0,
+                duration: 500,
+                ease: 'Linear',
+                onComplete: () => {
+                    germ.setActive(false);
+                    germ.setVisible(false);
+                }
+            });
+        });
+    }
+
     _showQuestion() {
         // Re-entrancy guard: physics.add.overlap can fire the same frame
         // for multiple germs/pickups before isQuestionMode propagates,
@@ -248,7 +269,7 @@ export default class MainGame extends Phaser.Scene
         this.player.body.stop();
 
         const cam = this.cameras.main;
-        const cx  = 400, cy  = 300;
+        const cx  = 512, cy  = 384;
         const idx = Phaser.Math.Between(0, this.questions.length - 1);
         this.currentQuestion = this.questions[idx];
 
@@ -257,24 +278,24 @@ export default class MainGame extends Phaser.Scene
         Phaser.Utils.Array.Shuffle(options);
         this.correctAnswerIndex = options.indexOf(correctOption);
 
-        const bg = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.8).setDepth(100).setInteractive();
+        const bg = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.8).setDepth(100).setInteractive();
         this.questionOverlayObjects.push(bg);
 
         let title = "¡PREGUNTA POR PODER!";
         if (this.pendingBuff === 'PERIODIC') title = "¡RESPONDE PARA SEGUIR JUGANDO!";
         if (this.pendingBuff === 'GERM') title = "¡RESPONDE PARA SALVAR TU VIDA!";
         
-        const titleText = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'monospace', fontSize: '26px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 220, title, {
+            fontFamily: 'monospace', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
-        const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
-            fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 720 }, align: 'center'
+        const questionText = this.add.text(cx, cy - 130, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 900 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 300, btnH = 60, gapX = 20, gapY = 16;
+        const btnW = 420, btnH = 80, gapX = 30, gapY = 20;
         const gridX = cx - btnW - gapX / 2, gridY = cy - 20;
 
         options.forEach((option, i) => {
@@ -290,7 +311,7 @@ export default class MainGame extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 
@@ -315,12 +336,13 @@ export default class MainGame extends Phaser.Scene
         btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
         btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-        const resultText = this.add.text(400, 300 + 120, correct ? '¡CORRECTO!' : 'FALLASTE', {
-                fontFamily: 'monospace', fontSize: '28px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        const resultText = this.add.text(512, 384 + 190, correct ? '¡CORRECTO!' : 'FALLASTE', {
+                fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(102);
         this.questionOverlayObjects.push(resultText);
 
         if (correct) {
+            this._destroyRandomGerms(3);
             if (this.pendingBuff !== 'PERIODIC' && this.pendingBuff !== 'GERM') {
                 this._applyBuff(this.pendingBuff);
             }
@@ -354,19 +376,19 @@ export default class MainGame extends Phaser.Scene
     {
         this.physics.pause();
         
-        const cx = 400;
-        const cy = 300;
+        const cx = 512;
+        const cy = 384;
         
-        const overlay = this.add.rectangle(cx, cy, 800, 600, 0x000000, 0.85).setDepth(200);
+        const overlay = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.85).setDepth(200);
         
         const cardBg = this.add.graphics().setDepth(201);
         cardBg.fillStyle(0x1e293b, 0.95);
-        cardBg.fillRoundedRect(cx - 280, cy - 220, 560, 440, 12);
+        cardBg.fillRoundedRect(cx - 350, cy - 260, 700, 520, 12);
         cardBg.lineStyle(4, 0x475569, 1);
-        cardBg.strokeRoundedRect(cx - 280, cy - 220, 560, 440, 12);
+        cardBg.strokeRoundedRect(cx - 350, cy - 260, 700, 520, 12);
         
-        const titleText = this.add.text(cx, cy - 180, '¿CÓMO JUGAR?', {
-            fontFamily: 'monospace', fontSize: '28px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 210, '¿CÓMO JUGAR?', {
+            fontFamily: 'monospace', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(202);
         
         const rules = 
@@ -375,32 +397,32 @@ export default class MainGame extends Phaser.Scene
             "Tienes 3 vidas, pero puedes ganar más respondiendo preguntas.\n\n" +
             "¡Hay más bonificaciones, descúbrelas por ti mismo!";
             
-        const text = this.add.text(cx, cy - 40, rules, {
-            fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
-            align: 'left', wordWrap: { width: 500 }, lineSpacing: 4
+        const text = this.add.text(cx, cy - 20, rules, {
+            fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
+            align: 'left', wordWrap: { width: 620 }, lineSpacing: 6
         }).setOrigin(0.5).setDepth(202);
         
         const btnBg = this.add.graphics().setDepth(202);
         btnBg.fillStyle(0x22c55e, 1);
-        btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+        btnBg.fillRoundedRect(cx - 120, cy + 170, 240, 60, 8);
         
-        const btnText = this.add.text(cx, cy + 165, 'JUGAR', {
-            fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
+        const btnText = this.add.text(cx, cy + 200, 'JUGAR', {
+            fontFamily: 'monospace', fontSize: '24px', color: '#ffffff', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(203);
         
-        const hitZone = this.add.rectangle(cx, cy + 165, 200, 50)
+        const hitZone = this.add.rectangle(cx, cy + 200, 240, 60)
             .setDepth(204).setInteractive({ useHandCursor: true });
             
         hitZone.on('pointerover', () => {
             btnBg.clear();
             btnBg.fillStyle(0x16a34a, 1);
-            btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+            btnBg.fillRoundedRect(cx - 120, cy + 170, 240, 60, 8);
         });
         
         hitZone.on('pointerout', () => {
             btnBg.clear();
             btnBg.fillStyle(0x22c55e, 1);
-            btnBg.fillRoundedRect(cx - 100, cy + 140, 200, 50, 6);
+            btnBg.fillRoundedRect(cx - 120, cy + 170, 240, 60, 8);
         });
         
         hitZone.on('pointerdown', () => {

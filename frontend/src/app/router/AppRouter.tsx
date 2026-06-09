@@ -50,11 +50,6 @@ const SlidingPuzzleGamePage = lazy(() =>
     default: module.SlidingPuzzleGamePage,
   })),
 );
-const SnakeGamePage = lazy(() =>
-  import('../../features/games/snake-game/SnakeGamePage').then((module) => ({
-    default: module.SnakeGamePage,
-  })),
-);
 const SnowmenAttackGamePage = lazy(() =>
   import('../../features/games/snowmen-attack-game/SnowmenAttackGamePage').then((module) => ({
     default: module.SnowmenAttackGamePage,
@@ -182,7 +177,6 @@ export function AppRouter() {
       <Route path={routePaths.cardMemoryGame} element={<ProtectedRoute><CardMemoryGamePage /></ProtectedRoute>} />
       <Route path={routePaths.emojiMatchGame} element={<ProtectedRoute><EmojiMatchGamePage /></ProtectedRoute>} />
       <Route path={routePaths.slidingPuzzleGame} element={<ProtectedRoute><SlidingPuzzleGamePage /></ProtectedRoute>} />
-      <Route path={routePaths.snakeGame} element={<ProtectedRoute><SnakeGamePage /></ProtectedRoute>} />
       <Route path={routePaths.snowmenAttackGame} element={<ProtectedRoute><SnowmenAttackGamePage /></ProtectedRoute>} />
       <Route path={routePaths.stackerGame} element={<ProtectedRoute><StackerGamePage /></ProtectedRoute>} />
       <Route path={routePaths.tomGame} element={<ProtectedRoute><TomGamePage /></ProtectedRoute>} />

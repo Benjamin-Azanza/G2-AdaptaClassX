@@ -170,8 +170,12 @@ export class Skeleton {
     if (this.knockbackVx === 0 && this.knockbackVy === 0) return;
     const cam   = this.scene.cameras.main;
     const halfW = DISPLAY_FRAME * ORIGIN.x;
-    this.sprite.x = Phaser.Math.Clamp(this.sprite.x + this.knockbackVx * dt, halfW, cam.width - halfW);
-    this.sprite.y = Phaser.Math.Clamp(this.sprite.y + this.knockbackVy * dt, DISPLAY_FRAME * ORIGIN.y, cam.height);
+    const bounds = cam.getBounds();
+    const mapW = (bounds && bounds.width) ? bounds.width : cam.width;
+    const mapH = (bounds && bounds.height) ? bounds.height : cam.height;
+
+    this.sprite.x = Phaser.Math.Clamp(this.sprite.x + this.knockbackVx * dt, halfW, mapW - halfW);
+    this.sprite.y = Phaser.Math.Clamp(this.sprite.y + this.knockbackVy * dt, DISPLAY_FRAME * ORIGIN.y, mapH);
     const decay = Math.exp(-KNOCKBACK_DECAY * dt);
     this.knockbackVx *= decay;
     this.knockbackVy *= decay;
@@ -187,9 +191,12 @@ export class Skeleton {
       const cam      = this.scene.cameras.main;
       const halfW    = DISPLAY_FRAME * ORIGIN.x;
       const topBound = DISPLAY_FRAME * ORIGIN.y;
+      const bounds   = cam.getBounds();
+      const mapW     = (bounds && bounds.width) ? bounds.width : cam.width;
+      const mapH     = (bounds && bounds.height) ? bounds.height : cam.height;
       const speed    = BASE_SKELETON_SPEED * this.speedMult;
-      this.sprite.x = Phaser.Math.Clamp(this.sprite.x + (rawDx / dist) * speed * dt, halfW, cam.width - halfW);
-      this.sprite.y = Phaser.Math.Clamp(this.sprite.y + (rawDy / dist) * speed * dt, topBound, cam.height);
+      this.sprite.x = Phaser.Math.Clamp(this.sprite.x + (rawDx / dist) * speed * dt, halfW, mapW - halfW);
+      this.sprite.y = Phaser.Math.Clamp(this.sprite.y + (rawDy / dist) * speed * dt, topBound, mapH);
     }
     this.facingLeft = rawDx < 0;
     this.sprite.setFlipX(!this.facingLeft);

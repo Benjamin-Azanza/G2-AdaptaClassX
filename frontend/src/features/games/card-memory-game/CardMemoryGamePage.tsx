@@ -10,7 +10,7 @@ export const CardMemoryGamePage: React.FC = () => {
     (parent) =>
       new Phaser.Game({
         type: Phaser.AUTO,
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 900 },
         backgroundColor: '#192a56',
         parent,
         render: { pixelArt: true },
@@ -37,6 +37,7 @@ export const CardMemoryGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="8 / 9"
     />
   );
 };

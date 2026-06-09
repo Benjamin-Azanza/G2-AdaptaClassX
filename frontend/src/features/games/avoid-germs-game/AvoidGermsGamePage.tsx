@@ -12,7 +12,7 @@ export const AvoidGermsGamePage: React.FC = () => {
     (parent) =>
       new Phaser.Game({
         type: Phaser.AUTO,
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 1024, height: 768 },
         backgroundColor: '#000000',
         parent,
         physics: { default: 'arcade', arcade: { debug: false } },
@@ -39,6 +39,7 @@ export const AvoidGermsGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="4 / 3"
     />
   );
 };

@@ -36,11 +36,13 @@ export const SnowmenAttackGamePage: React.FC = () => {
         'Pausar: Botón Pausa',
       ]}
       hasGamepad={true}
+      gamepadType="arrows"
       phaserGameRef={phaserGame}
       gameRef={gameRef}
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="4 / 3"
     />
   );
 };

@@ -195,16 +195,6 @@ async function main() {
       config_default: { rutaJuego: '/games/sliding-puzzle' },
     },
     {
-      titulo: 'Snake',
-      tema: Tema.LECTURA,
-      tipo: TipoJuego.CAMBIANTE,
-      acepta_preguntas_ia: true,
-      grado_min: 2,
-      grado_max: 6,
-      descripcion: 'El clasico Snake: come y crece sin chocar contigo mismo.',
-      config_default: { rutaJuego: '/games/snake' },
-    },
-    {
       titulo: 'Snowmen Attack',
       tema: Tema.COMUNICACION_ORAL,
       tipo: TipoJuego.CAMBIANTE,

@@ -14,9 +14,9 @@ export default class MainMenu extends Phaser.Scene
         
         this.sound.play('laugh');
 
-        this.add.image(400, 300, 'background').setScale(2);
+        this.add.image(512, 384, 'background').setScale(2);
 
-        const area = new Phaser.Geom.Rectangle(64, 64, 672, 472);
+        const area = new Phaser.Geom.Rectangle(64, 64, 896, 640);
 
         this.addGerm(area, 'germ1');
         this.addGerm(area, 'germ2');
@@ -30,11 +30,11 @@ export default class MainMenu extends Phaser.Scene
             {
                 setUniform('time', this.game.loop.getDuration());
             },
-        }, 400, 300, this.scale.width, this.scale.width);
+        }, 512, 384, this.scale.width, this.scale.height);
 
-        this.add.image(400, 260, 'assets', 'logo');
+        this.add.image(512, 300, 'assets', 'logo');
 
-        this.add.bitmapText(400, 500, 'slime', 'Click to Play', 40).setOrigin(0.5);
+        this.add.bitmapText(512, 600, 'slime', 'Click to Play', 40).setOrigin(0.5);
 
         this.input.once('pointerdown', () => {
 

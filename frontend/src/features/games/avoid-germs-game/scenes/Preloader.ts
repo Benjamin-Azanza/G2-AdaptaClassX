@@ -10,9 +10,9 @@ export default class Preloader extends Phaser.Scene
 
     preload ()
     {
-        this.add.image(400, 300, 'background').setScale(2);
+        this.add.image(512, 384, 'background').setScale(2);
 
-        this.loadText = this.add.bitmapText(400, 300, 'slime', 'Loading ...', 80).setOrigin(0.5);
+        this.loadText = this.add.bitmapText(512, 384, 'slime', 'Loading ...', 80).setOrigin(0.5);
 
         this.load.setPath('/assets/games/germs/');
 

@@ -84,7 +84,7 @@ class Play extends Phaser.Scene
         this.isQuestionMode = false;
         this.questionOverlayObjects = [];
         this.periodicQuestionTimer = this.time.addEvent({
-            delay: 25000,
+            delay: 12000,
             callback: () => {
                 if (this.tomato && this.tomato.life > 0 && !this.isQuestionMode) {
                     this.pendingBuff = 'PERIODIC';
@@ -220,9 +220,10 @@ class Play extends Phaser.Scene
                     this.tomato.setAlpha(1.0);
                 });
             } else if (this.pendingBuff === 'PERIODIC') {
-                // Destroy up to 4 bombs
+                // Destroy 50% of active bombs
                 const activeBombs = this.bombsGroup.getChildren();
-                const toDestroy = activeBombs.slice(0, 4);
+                const countToDestroy = Math.ceil(activeBombs.length * 0.5);
+                const toDestroy = activeBombs.slice(0, countToDestroy);
                 toDestroy.forEach(b => b.destroy());
             }
         } else {

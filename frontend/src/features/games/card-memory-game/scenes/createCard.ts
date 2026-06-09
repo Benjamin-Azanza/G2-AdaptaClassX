@@ -25,11 +25,11 @@ export const createCard = ({
     container.add(bg);
 
     // Dynamically adjust font size based on text length to make it larger and fit nicely
-    let fontSizeVal = '17px';
+    let fontSizeVal = '24px';
     if (textString.length > 25) {
-        fontSizeVal = '12px';
+        fontSizeVal = '16px';
     } else if (textString.length > 15) {
-        fontSizeVal = '14px';
+        fontSizeVal = '20px';
     }
 
     // Text label (hidden by default) - White text with black outline for maximum visibility on illustrations

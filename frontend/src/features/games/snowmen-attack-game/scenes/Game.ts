@@ -50,16 +50,28 @@ export default class MainGame extends Phaser.Scene
         this.doubleThrowActive = false;
         this.isQuestionMode = false;
         this.questionOverlayObjects = [];
+        this.mobileButtons = [];
+        this.hasStarted = false;
+
+
 
         this.input.keyboard.once('keydown-SPACE', this.start, this);
         this.input.keyboard.once('keydown-UP', this.start, this);
         this.input.keyboard.once('keydown-DOWN', this.start, this);
         this.input.keyboard.once('keydown-Z', this.start, this);
+
+        // Allow click to start on mobile too
+        this.input.once('pointerdown', this.start, this);
+
+
     }
 
     start ()
     {
+        this.hasStarted = true;
+
         this.input.keyboard.removeAllListeners();
+        this.input.off('pointerdown');
 
         this.tweens.add({
             targets: this.infoPanel,
@@ -92,6 +104,24 @@ export default class MainGame extends Phaser.Scene
             },
             loop: true
         });
+
+        // Initialize mobile controls if on mobile/touch
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouch) {
+            this.createMobileControls();
+        }
+    }
+
+    createMobileControls() {
+        // Empty - mobile D-pad is now rendered inside the GameBoy console wrapper chassis
+    }
+
+    toggleMobileControls(visible) {
+        this.mobileButtons.forEach(btn => {
+            if (btn && btn.setVisible) {
+                btn.setVisible(visible);
+            }
+        });
     }
 
     gameOver ()
@@ -105,6 +135,7 @@ export default class MainGame extends Phaser.Scene
 
     actualGameOver ()
     {
+        this.toggleMobileControls(false);
         this.infoPanel.setTexture('gameover');
 
         this.tweens.add({
@@ -181,6 +212,7 @@ export default class MainGame extends Phaser.Scene
         }
         this.isQuestionMode = true;
         this.physics.pause();
+        this.toggleMobileControls(false);
         
         if (this.scoreTimer) this.scoreTimer.paused = true;
         if (this.periodicQuestionTimer) this.periodicQuestionTimer.paused = true;
@@ -213,18 +245,18 @@ export default class MainGame extends Phaser.Scene
             title = "¡PREGUNTA PARA DOBLE DISPARO!";
         }
 
-        const titleText = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'Arial', fontSize: '34px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 190, title, {
+            fontFamily: 'Arial', fontSize: '38px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
-        const questionText = this.add.text(cx, cy - 100, this.currentQuestion.q, {
-            fontFamily: 'Arial', fontSize: '26px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+        const questionText = this.add.text(cx, cy - 120, this.currentQuestion.q, {
+            fontFamily: 'Arial', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 640;
-        const btnH = 64;
+        const btnW = 750;
+        const btnH = 80;
         const gapY = 16;
         const startY = cy - 20;
 
@@ -240,7 +272,7 @@ export default class MainGame extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'Arial', fontSize: '22px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
+                fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 
@@ -267,7 +299,7 @@ export default class MainGame extends Phaser.Scene
         btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
         const resultText = this.add.text(512, 630, correct ? '¡CORRECTO!' : 'FALLASTE', {
-            fontFamily: 'Arial', fontSize: '24px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+            fontFamily: 'Arial', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(102);
         this.questionOverlayObjects.push(resultText);
 
@@ -275,7 +307,7 @@ export default class MainGame extends Phaser.Scene
             this.sound.play('hit-snowman');
             if (this.pendingBuff === 'DOUBLE_THROW') {
                 this.doubleThrowActive = true;
-                this.time.delayedCall(5000, () => {
+                this.time.delayedCall(8000, () => {
                     this.doubleThrowActive = false;
                 });
             } else if (this.pendingBuff === 'SALVATION') {
@@ -292,9 +324,35 @@ export default class MainGame extends Phaser.Scene
             if (this.scoreTimer) this.scoreTimer.paused = false;
             if (this.periodicQuestionTimer) this.periodicQuestionTimer.paused = false;
 
+            if (correct || this.pendingBuff !== 'SALVATION') {
+                this.toggleMobileControls(true);
+            }
+
             if (!correct && this.pendingBuff === 'SALVATION') {
                 this.actualGameOver();
             }
         });
+    }
+
+    update ()
+    {
+        const joystick = (window as any).virtualJoystick;
+        const gamepad = (window as any).virtualGamepad;
+        
+        // Start game via virtual gamepad buttons or joystick
+        const anyJoyActive = joystick && joystick.active && (Math.abs(joystick.dx) > 0.4 || Math.abs(joystick.dy) > 0.4);
+        const anyBtnPressed = gamepad && (gamepad.A || gamepad.up || gamepad.down || gamepad.left || gamepad.right);
+
+        if (anyJoyActive || anyBtnPressed)
+        {
+            if (!this.hasStarted)
+            {
+                this.start();
+            }
+            else if (this.player && !this.player.isAlive && !this.isQuestionMode)
+            {
+                this.scene.start('MainMenu');
+            }
+        }
     }
 }

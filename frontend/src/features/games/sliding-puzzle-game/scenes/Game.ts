@@ -88,12 +88,12 @@ export default class Game extends Phaser.Scene
         this.questions = this.registry.get('preguntasDelNivel') || [];
         this.questionOverlayObjects = [];
         this.movesText = this.add.text(20, 20, 'MOVIMIENTOS: 0', {
-            fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 3
+            fontFamily: 'Arial', fontSize: '32px', color: '#ffd700', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
         });
-        this.livesText = this.add.text(20, 50, 'VIDAS: ❤️❤️❤️❤️', {
-            fontFamily: 'Arial', fontSize: '24px', color: '#ff4d4d', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 3
+        this.livesText = this.add.text(620, 20, 'VIDAS: ❤️❤️❤️❤️', {
+            fontFamily: 'Arial', fontSize: '32px', color: '#ff4d4d', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
         });
  
         window.solve = () => {
@@ -148,7 +148,7 @@ export default class Game extends Phaser.Scene
         else
         {
             //  The position sets the top-left of the container for the pieces to expand down from
-            this.pieces = this.add.container(194, 66);
+            this.pieces = this.add.container(160, 42).setScale(1.1);
         }
 
         //  An array to put the texture slices in
@@ -505,13 +505,21 @@ export default class Game extends Phaser.Scene
 
             this.sound.play('win');
 
+            const winText = this.add.text(512, 384, "¡VICTORIA!", {
+                fontFamily: 'Arial', fontSize: '64px', color: '#22c55e', fontStyle: 'bold',
+                stroke: '#000000', strokeThickness: 6
+            }).setOrigin(0.5).setDepth(150);
+
             this.tweens.add({
                 targets: this.spacer,
                 alpha: 1,
                 duration: this.slideSpeed * 2,
                 ease: 'linear',
                 onComplete: () => {
-                    this.input.once('pointerdown', this.nextRound, this);
+                    this.time.delayedCall(2000, () => {
+                        winText.destroy();
+                        this.nextRound();
+                    });
                 }
             });
 
@@ -561,7 +569,7 @@ export default class Game extends Phaser.Scene
             size = 3;
         }
 
-        this.reveal = this.add.image(this.pieces.x, this.pieces.y, nextPhoto).setOrigin(0, 0).setAlpha(0);
+        this.reveal = this.add.image(this.pieces.x, this.pieces.y, nextPhoto).setOrigin(0, 0).setAlpha(0).setScale(1.1);
 
         this.tweens.add({
             targets: this.reveal,
@@ -600,17 +608,17 @@ export default class Game extends Phaser.Scene
         this.questionOverlayObjects.push(overlay);
 
         const titleTxt = this.add.text(cx, cy - 180, "¡RETO DE ORTOGRAFÍA!", {
-            fontFamily: 'Arial', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
+            fontFamily: 'Arial', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(titleTxt);
 
         const subTxt = this.add.text(cx, cy - 140, "Cada 10 movimientos debes responder correctamente para continuar", {
-            fontFamily: 'Arial', fontSize: '18px', color: '#ffd700'
+            fontFamily: 'Arial', fontSize: '22px', color: '#ffd700'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(subTxt);
 
         const questionTxt = this.add.text(cx, cy - 60, qData.q, {
-            fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
+            fontFamily: 'Arial', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 800 }, align: 'center'
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(questionTxt);
 
@@ -619,8 +627,8 @@ export default class Game extends Phaser.Scene
         Phaser.Utils.Array.Shuffle(options);
         const correctIdx = options.indexOf(correctString);
 
-        const btnW = 360, btnH = 60, gapX = 30, gapY = 20;
-        const gridX = cx - btnW - gapX / 2, gridY = cy + 40;
+        const btnW = 420, btnH = 80, gapX = 30, gapY = 20;
+        const gridX = cx - btnW - gapX / 2, gridY = cy + 30;
 
         options.forEach((option, i) => {
             const col = i % 2, row = Math.floor(i / 2);
@@ -635,7 +643,7 @@ export default class Game extends Phaser.Scene
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'Arial', fontSize: '16px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
+                fontFamily: 'Arial', fontSize: '20px', color: '#ffffff', wordWrap: { width: btnW - 20 }, align: 'center'
             }).setOrigin(0.5).setDepth(202);
             this.questionOverlayObjects.push(btnText);
 
@@ -662,7 +670,7 @@ export default class Game extends Phaser.Scene
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
                 const feedbackText = this.add.text(cx, cy + 220, correct ? '¡CORRECTO!' : 'INCORRECTO', {
-                    fontFamily: 'Arial', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+                    fontFamily: 'Arial', fontSize: '36px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(202);
                 this.questionOverlayObjects.push(feedbackText);
 

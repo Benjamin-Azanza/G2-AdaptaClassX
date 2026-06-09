@@ -5,7 +5,7 @@ export default class Breakout extends Phaser.Scene {
     private score: number = 0;
     private highscore: number = 0;
     private consecutiveHits: number = 1;
-    private lives: number = 8;
+    private lives: number = 4;
     private isQuestionMode: boolean = false;
     private ballSpeedMultiplier: number = 1.0;
     private levelBreakout: number = 1;
@@ -48,7 +48,7 @@ export default class Breakout extends Phaser.Scene {
     create() {
         this.score = 0;
         this.consecutiveHits = 1;
-        this.lives = 8;
+        this.lives = 4;
         this.isQuestionMode = false;
         this.ballSpeedMultiplier = 1.0;
         this.levelBreakout = 1;
@@ -70,20 +70,31 @@ export default class Breakout extends Phaser.Scene {
             key: 'assets',
             frame: ['blue1', 'red1', 'green1', 'yellow1', 'silver1', 'purple1'],
             frameQuantity: 10,
-            gridAlign: { width: 10, height: 6, cellWidth: 64, cellHeight: 32, x: 112, y: 150 },
+            gridAlign: { width: 10, height: 6, cellWidth: 76, cellHeight: 38, x: 62, y: 150 },
         });
 
-        this.ball = this.physics.add.image(400, 500, 'assets', 'ball1').setCollideWorldBounds(true).setBounce(1);
-        this.ball.setData('onPaddle', true);
+        // Scale each brick and refresh static physics body
+        this.bricks.getChildren().forEach((brick: Phaser.Physics.Arcade.Image) => {
+            brick.setScale(1.2);
+            brick.body.setSize(brick.width * 1.2, brick.height * 1.2);
+            brick.body.updateFromGameObject();
+        });
 
-        this.paddle = this.physics.add.image(400, 550, 'assets', 'paddle1').setImmovable();
+        this.ball = this.physics.add.image(400, 500, 'assets', 'ball1').setCollideWorldBounds(true).setBounce(1).setScale(1.25);
+        this.ball.setData('onPaddle', true);
+        this.ball.body.setSize(this.ball.width * 1.25, this.ball.height * 1.25);
+        this.ball.body.updateFromGameObject();
+
+        this.paddle = this.physics.add.image(400, 550, 'assets', 'paddle1').setImmovable().setScale(1.25);
+        this.paddle.body.setSize(this.paddle.width * 1.25, this.paddle.height * 1.25);
+        this.paddle.body.updateFromGameObject();
 
         this.physics.add.collider(this.ball, this.bricks, this.hitBrick, null, this);
         this.physics.add.collider(this.ball, this.paddle, this.hitPaddle, null, this);
 
         // HUD Text elements
         this.scoreText = this.add.text(16, 16, 'Puntos: 0', { fontFamily: 'monospace', fontSize: '24px', color: '#ffffff', fontStyle: 'bold' });
-        this.livesText = this.add.text(620, 16, 'Pelotas: 8', { fontFamily: 'monospace', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' });
+        this.livesText = this.add.text(620, 16, 'Pelotas: 4', { fontFamily: 'monospace', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' });
         this.multiplierText = this.add.text(16, 50, 'Mult: x1', { fontFamily: 'monospace', fontSize: '18px', color: '#60a5fa' });
         this.levelText = this.add.text(320, 16, 'Nivel: 1', { fontFamily: 'monospace', fontSize: '24px', color: '#ffd700', fontStyle: 'bold' });
         
@@ -97,7 +108,7 @@ export default class Breakout extends Phaser.Scene {
 
         this.input.on('pointermove', (pointer) => {
             if (this.isQuestionMode) return;
-            this.paddle.x = Phaser.Math.Clamp(pointer.x, 52, 748);
+            this.paddle.x = Phaser.Math.Clamp(pointer.x, 65, 735);
             if (this.ball.getData('onPaddle')) {
                 this.ball.x = this.paddle.x;
             }
@@ -137,10 +148,10 @@ export default class Breakout extends Phaser.Scene {
             brick.setData('wordText', this.currentWordQuestion.options[index]);
             brick.setData('isCorrect', index === this.currentWordQuestion.answer);
 
-            // Render text label over brick
+            // Render text label over brick (scaled slightly for 1.2x brick size)
             const label = this.add.text(brick.x, brick.y, this.currentWordQuestion.options[index], {
                 fontFamily: 'Arial',
-                fontSize: '15px',
+                fontSize: '17px',
                 color: '#ffffff',
                 fontStyle: 'bold',
                 stroke: '#000000',
@@ -234,6 +245,10 @@ export default class Breakout extends Phaser.Scene {
         this.bricks.getChildren().forEach((brick) => {
             brick.enableBody(true, brick.x, brick.y, true, true);
             brick.setData('isWordBrick', false);
+            // Re-apply scale
+            brick.setScale(1.2);
+            brick.body.setSize(brick.width * 1.2, brick.height * 1.2);
+            brick.body.updateFromGameObject();
         });
         this.setupWordBricks();
     }
@@ -248,21 +263,21 @@ export default class Breakout extends Phaser.Scene {
             if (joystick && joystick.active) {
                 speed = 10 * Math.abs(joystick.dx);
                 if (joystick.dx < 0) {
-                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 52, 748);
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 65, 735);
                 } else if (joystick.dx > 0) {
-                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 52, 748);
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 65, 735);
                 }
                 if (this.ball && this.ball.getData('onPaddle')) {
                     this.ball.x = this.paddle.x;
                 }
             } else {
                 if (this.cursors.left.isDown) {
-                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 52, 748);
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x - speed, 65, 735);
                     if (this.ball && this.ball.getData('onPaddle')) {
                         this.ball.x = this.paddle.x;
                     }
                 } else if (this.cursors.right.isDown) {
-                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 52, 748);
+                    this.paddle.x = Phaser.Math.Clamp(this.paddle.x + speed, 65, 735);
                     if (this.ball && this.ball.getData('onPaddle')) {
                         this.ball.x = this.paddle.x;
                     }
@@ -334,13 +349,13 @@ export default class Breakout extends Phaser.Scene {
         let title = "¡PREGUNTA DE DESAFÍO!";
         if (reason === 'BALL_DROP') title = "¡PREGUNTA DE SALVACIÓN!";
         
-        const titleText = this.add.text(cx, cy - 180, title, {
-            fontFamily: 'monospace', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
+        const titleText = this.add.text(cx, cy - 190, title, {
+            fontFamily: 'monospace', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
         const questionText = this.add.text(cx, cy - 120, qData.q, {
-            fontFamily: 'monospace', fontSize: '26px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 700 }, align: 'center'
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 720 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
@@ -349,7 +364,7 @@ export default class Breakout extends Phaser.Scene {
         Phaser.Utils.Array.Shuffle(options);
         const correctIndex = options.indexOf(correctAnswerString);
 
-        const btnW = 320, btnH = 65, gapX = 24, gapY = 20;
+        const btnW = 350, btnH = 80, gapX = 24, gapY = 20;
         const gridX = cx - btnW - gapX / 2, gridY = cy - 40;
 
         options.forEach((option, i) => {
@@ -365,7 +380,7 @@ export default class Breakout extends Phaser.Scene {
 
             const label = String.fromCharCode(65 + i);
             const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
-                fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
+                fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', wordWrap: { width: btnW - 24 }, align: 'center'
             }).setOrigin(0.5).setDepth(102);
             this.questionOverlayObjects.push(btnText);
 
@@ -390,8 +405,8 @@ export default class Breakout extends Phaser.Scene {
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
                 const feedback = isCorrect ? '¡CORRECTO!' : 'FALLASTE';
-                const fbackText = this.add.text(cx, cy + 150, feedback, {
-                    fontFamily: 'monospace', fontSize: '26px', color: isCorrect ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+                const fbackText = this.add.text(cx, cy + 160, feedback, {
+                    fontFamily: 'monospace', fontSize: '28px', color: isCorrect ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(102);
                 this.questionOverlayObjects.push(fbackText);
 

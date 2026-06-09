@@ -18,7 +18,10 @@ export default class EnemySnowball extends Phaser.Physics.Arcade.Sprite
         this.setActive(true);
         this.setVisible(true);
 
-        this.setVelocityX(200);
+        const score = this.scene.score || 0;
+        const timeMultiplier = 1 + Math.min(score * 0.005, 1.5);
+        const baseSpeed = Phaser.Math.Between(150, 250);
+        this.setVelocityX(baseSpeed * timeMultiplier);
     }
 
     stop ()

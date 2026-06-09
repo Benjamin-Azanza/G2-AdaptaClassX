@@ -67,7 +67,7 @@ describe('ChatContextBuilder', () => {
     });
     games.resolveGameByPath.mockResolvedValue({
       id: 'g1',
-      titulo: 'Snake',
+      titulo: 'Tom',
       tema: Tema.LECTURA,
       descripcion: 'Aprende leyendo mientras juegas',
     });
@@ -75,7 +75,7 @@ describe('ChatContextBuilder', () => {
     const block = await builder.build({
       studentId: 'student-1',
       paraleloId: 'paralelo-1',
-      currentPath: '/games/snake',
+      currentPath: '/games/tom',
     });
 
     expect(block).toContain('Paralelo: 3ro A (3° EGB)');
@@ -83,7 +83,7 @@ describe('ChatContextBuilder', () => {
     expect(block).toContain('lectura.pdf');
     expect(block).toContain('Lectura'); // tema mapped to Spanish, not LECTURA
     expect(block).not.toContain('LECTURA'); // raw enum should not leak
-    expect(block).toContain('Juego en pantalla: Snake');
+    expect(block).toContain('Juego en pantalla: Tom');
     expect(block).toContain('60% de precisión');
     expect(block).toContain('jugar 10 minutos');
   });

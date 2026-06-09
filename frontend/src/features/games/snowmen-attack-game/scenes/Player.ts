@@ -23,7 +23,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         this.down = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
         this.keyZ = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
 
+        this._prevGamepadA = false;
+
         this.play('idle');
+
+
     }
 
     start ()
@@ -109,6 +113,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         this.body.stop();
 
         this.play('die');
+
+
     }
 
     preUpdate (time, delta)
@@ -120,12 +126,19 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
             return;
         }
 
-        // Virtual joystick support
+        // Virtual gamepad support (Action A button check)
+        const gamepad = (window as any).virtualGamepad;
+        if (gamepad && gamepad.A && !this._prevGamepadA && !this.isThrowing) {
+            this.throw();
+        }
+        this._prevGamepadA = gamepad ? gamepad.A : false;
+
+        // Virtual joystick support (checks both dy and dx for compatibility)
         const joystick = (window as any).virtualJoystick;
         if (joystick && joystick.active)
         {
             const joyUp = joystick.dy < -0.4;
-            const joyDown = joystick.dy > 0.4;
+        const joyDown = joystick.dy > 0.4;
             const joyAction = false; // action is handled by the A/B buttons via keyboard emulation
 
             // Emulate JustDown for lane switching

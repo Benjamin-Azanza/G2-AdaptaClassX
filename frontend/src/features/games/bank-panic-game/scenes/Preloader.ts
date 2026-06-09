@@ -51,9 +51,7 @@ export default class Preloader extends Phaser.Scene
 
         this.loading.setTexture('start');
 
-        this.loading.setInteractive();
-
-        this.loading.once('pointerdown', () => {
+        this.input.once('pointerdown', () => {
             this.scene.start('MainMenu');
         });
     }

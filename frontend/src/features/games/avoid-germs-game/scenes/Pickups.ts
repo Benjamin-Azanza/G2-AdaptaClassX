@@ -7,17 +7,17 @@ export default class Pickups extends Phaser.Physics.Arcade.Group
     {
         super(world, scene);
 
-        this.outer = new Phaser.Geom.Rectangle(64, 64, 672, 472);
+        this.outer = new Phaser.Geom.Rectangle(64, 64, 896, 640);
         this.target = new Phaser.Math.Vector2();
     }
 
     start ()
     {
-        this.create(400, 100, 'assets', 'ring');
-        this.create(100, 380, 'assets', 'ring');
-        this.create(700, 380, 'assets', 'ring');
-        this.create(300, 500, 'assets', 'ring');
-        this.create(500, 500, 'assets', 'ring');
+        this.create(512, 128, 'assets', 'ring');
+        this.create(128, 486, 'assets', 'ring');
+        this.create(896, 486, 'assets', 'ring');
+        this.create(384, 640, 'assets', 'ring');
+        this.create(640, 640, 'assets', 'ring');
     }
 
     collect (pickup)
