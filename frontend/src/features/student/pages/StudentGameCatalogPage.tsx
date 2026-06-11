@@ -88,6 +88,31 @@ export function StudentGameCatalogPage() {
 
       {!error && games.length > 0 && (
         <div className="grid grid-cols-1 gap-lg sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            to={routePaths.studentAdaptaGJoin}
+            className="group flex flex-col border-4 border-on-background bg-surface-container-lowest shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] md:shadow-[8px_8px_0_0_#1d1c17] md:hover:shadow-[4px_4px_0_0_#1d1c17]"
+          >
+            <div className="relative h-44 overflow-hidden border-b-4 border-on-background bg-[#1368ce]">
+              <div className="flex h-full w-full items-center justify-center">
+                <span className="material-symbols-outlined text-[64px] text-white">
+                  group
+                </span>
+              </div>
+              <span className="absolute right-sm top-sm border-2 border-on-background bg-primary px-sm py-xs font-mono text-xs font-bold uppercase text-on-primary">
+                En Vivo
+              </span>
+            </div>
+            <div className="flex flex-1 flex-col p-md">
+              <h4 className="mb-xs font-headline text-xl font-bold">Adapta - G (Multijugador)</h4>
+              <p className="flex-1 text-sm text-on-surface-variant">Únete a una partida en vivo con tu profesor y compite con tus compañeros.</p>
+              <div className="mt-md flex items-center justify-end">
+                <span className="flex items-center gap-xs font-mono text-sm font-bold text-primary">
+                  <span className="material-symbols-outlined text-base">login</span>
+                  Unirse con PIN
+                </span>
+              </div>
+            </div>
+          </Link>
           {games.map((game) => (
             <Link
               key={game.id}

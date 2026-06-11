@@ -79,6 +79,7 @@ export class AiController {
       req.user.sub,
       dto.force ?? false,
       file.originalname,
+      dto.paralelo_id,
     );
   }
 
@@ -91,6 +92,7 @@ export class AiController {
       dto.source_id ?? null,
       dto.questions ?? [],
       userId,
+      dto.paralelo_id,
     );
   }
 }

@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Generador', icon: 'menu_book', to: routePaths.teacherQuestions },
   { label: 'Banco', icon: 'database', to: routePaths.teacherBank },
   { label: 'Aula', icon: 'school', to: routePaths.teacherClassroom },
+  { label: 'Adapta - G', icon: 'joystick', to: routePaths.teacherAdaptaGSetup },
 ];
 
 export function TeacherShell({ title, children, action }: TeacherShellProps) {

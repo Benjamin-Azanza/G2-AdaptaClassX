@@ -15,6 +15,27 @@ import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassr
 import { TeacherQuestionGeneratorPage } from '../../features/teacher/pages/TeacherQuestionGeneratorPage';
 import { TeacherBankPage } from '../../features/teacher/pages/TeacherBankPage';
 
+const TeacherAdaptaGSetupPage = lazy(() =>
+  import('../../features/teacher/pages/TeacherAdaptaGSetupPage').then((module) => ({
+    default: module.TeacherAdaptaGSetupPage,
+  })),
+);
+const TeacherAdaptaGHostPage = lazy(() =>
+  import('../../features/teacher/pages/TeacherAdaptaGHostPage').then((module) => ({
+    default: module.TeacherAdaptaGHostPage,
+  })),
+);
+const StudentAdaptaGJoinPage = lazy(() =>
+  import('../../features/student/pages/StudentAdaptaGJoinPage').then((module) => ({
+    default: module.StudentAdaptaGJoinPage,
+  })),
+);
+const StudentAdaptaGPlayPage = lazy(() =>
+  import('../../features/student/pages/StudentAdaptaGPlayPage').then((module) => ({
+    default: module.StudentAdaptaGPlayPage,
+  })),
+);
+
 const BombGamePage = lazy(() =>
   import('../../features/games/bomb-game/BombGamePage').then((module) => ({
     default: module.BombGamePage,
@@ -167,6 +188,38 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRole="TEACHER">
             <TeacherClassroomPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.teacherAdaptaGSetup}
+        element={
+          <ProtectedRoute allowedRole="TEACHER">
+            <TeacherAdaptaGSetupPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.teacherAdaptaGHost}
+        element={
+          <ProtectedRoute allowedRole="TEACHER">
+            <TeacherAdaptaGHostPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.studentAdaptaGJoin}
+        element={
+          <ProtectedRoute allowedRole="STUDENT">
+            <StudentAdaptaGJoinPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.studentAdaptaGPlay}
+        element={
+          <ProtectedRoute allowedRole="STUDENT">
+            <StudentAdaptaGPlayPage />
           </ProtectedRoute>
         }
       />

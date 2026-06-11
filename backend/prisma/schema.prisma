@@ -135,9 +135,11 @@ model Paralelo {
   // Postgres TEXT[]. Length & item-length validated in the DTO.
   chatbot_extra_suggestions  String[] @default([])
 
-  teacher     User          @relation("TeacherParalelos", fields: [teacher_id], references: [id])
-  students    Student[]
-  missions    Mission[]
+  teacher           User              @relation("TeacherParalelos", fields: [teacher_id], references: [id])
+  students          Student[]
+  missions          Mission[]
+  question_sources  QuestionSource[]
+  questions         Question[]
 
   @@map("paralelos")
 }
@@ -179,12 +181,14 @@ model GameContent {
 model QuestionSource {
   id          String     @id @default(uuid())
   teacher_id  String
+  paralelo_id String?
   filename    String
   source_hash String
   tema        Tema
   created_at  DateTime   @default(now())
 
   teacher   User       @relation("TeacherQuestionSources", fields: [teacher_id], references: [id], onDelete: Cascade)
+  paralelo  Paralelo?  @relation(fields: [paralelo_id], references: [id], onDelete: Cascade)
   questions Question[]
 
   @@map("question_sources")
@@ -193,6 +197,7 @@ model QuestionSource {
 model Question {
   id                 String            @id @default(uuid())
   teacher_id         String
+  paralelo_id        String?
   source_id          String?
   tema               Tema
   texto              String
@@ -201,6 +206,7 @@ model Question {
   created_at         DateTime          @default(now())
 
   teacher   User              @relation("TeacherQuestions", fields: [teacher_id], references: [id], onDelete: Cascade)
+  paralelo  Paralelo?         @relation(fields: [paralelo_id], references: [id], onDelete: Cascade)
   source    QuestionSource?   @relation(fields: [source_id], references: [id], onDelete: Cascade)
   attempts  QuestionAttempt[]
 
@@ -337,3 +343,4 @@ model StudentAchievement {
   @@index([achievement_id])
   @@map("student_achievements")
 }
+

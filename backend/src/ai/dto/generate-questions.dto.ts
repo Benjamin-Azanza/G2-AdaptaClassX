@@ -56,6 +56,10 @@ export class GenerateQuestionsDto {
   source_id?: string;
 
   @IsOptional()
+  @IsUUID()
+  paralelo_id?: string;
+
+  @IsOptional()
   @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean()
   force?: boolean;
@@ -85,6 +89,10 @@ export class SaveQuestionsDto {
   @IsOptional()
   @IsUUID()
   source_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  paralelo_id?: string;
 
   @ValidateNested({ each: true })
   @Type(() => SaveQuestionsItemDto)

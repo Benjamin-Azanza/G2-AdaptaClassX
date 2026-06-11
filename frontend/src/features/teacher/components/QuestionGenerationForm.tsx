@@ -3,13 +3,15 @@ import { useState } from 'react';
 interface QuestionGenerationFormProps {
   onSubmit: (formData: FormData) => void;
   isLoading: boolean;
+  paralelos?: { id: string; nombre: string }[];
 }
 
-export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerationFormProps) {
+export function QuestionGenerationForm({ onSubmit, isLoading, paralelos = [] }: QuestionGenerationFormProps) {
   const [amount, setAmount] = useState(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [difficulty, setDifficulty] = useState('Basico');
   const [context, setContext] = useState('');
+  const [paraleloId, setParaleloId] = useState('');
 
   const questionAmounts = [5, 10, 15];
 
@@ -24,6 +26,9 @@ export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerati
     formData.append('amount', amount.toString());
     formData.append('difficulty', difficulty);
     formData.append('context', context);
+    if (paraleloId) {
+      formData.append('paralelo_id', paraleloId);
+    }
 
     onSubmit(formData);
   };
@@ -80,6 +85,20 @@ export function QuestionGenerationForm({ onSubmit, isLoading }: QuestionGenerati
           <option value="Basico">Basico</option>
           <option value="Intermedio">Intermedio</option>
           <option value="Avanzado">Avanzado</option>
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
+        Asignar a Paralelo
+        <select 
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
+          value={paraleloId}
+          onChange={(e) => setParaleloId(e.target.value)}
+        >
+          <option value="">Generales (Todos los paralelos)</option>
+          {paralelos.map((p) => (
+            <option key={p.id} value={p.id}>{p.nombre}</option>
+          ))}
         </select>
       </label>
 

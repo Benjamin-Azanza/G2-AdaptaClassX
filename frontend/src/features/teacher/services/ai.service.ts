@@ -27,6 +27,7 @@ export const aiService = {
   // sent — the backend stamps a default tag for schema compatibility.
   saveQuestions: async (data: {
     source_id: string | null;
+    paralelo_id?: string;
     questions: Array<{ texto: string; opciones: string[]; respuestaCorrecta: number }>;
   }): Promise<unknown> => {
     const mappedQuestions = data.questions.map((q) => ({
@@ -37,6 +38,7 @@ export const aiService = {
 
     const response = await api.post('/ai/save-questions', {
       source_id: data.source_id,
+      paralelo_id: data.paralelo_id,
       questions: mappedQuestions,
     });
     return response.data;

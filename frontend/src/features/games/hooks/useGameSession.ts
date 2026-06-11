@@ -62,6 +62,9 @@ export function useGameSession(buildGame: BuildGame) {
   const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get('gameId');
+  // Present only when this game runs embedded inside an Adapta-G room. Hoisted
+  // to a primitive (like gameId) so the lifecycle effect can depend on it.
+  const adaptaPin = searchParams.get('adaptag_pin');
   const [gameStarted, setGameStarted] = useState(false);
 
   const buildGameRef = useRef(buildGame);
@@ -148,6 +151,15 @@ export function useGameSession(buildGame: BuildGame) {
     const handleAnswer = (e: Event) => {
       const customEvent = e as CustomEvent<{ question_id: string; correct: boolean }>;
       const { question_id, correct } = customEvent.detail;
+
+      // MINIGAME INTEGRATION: If playing inside Adapta-G, report score
+      if (adaptaPin && correct) {
+        // We use dynamic import to avoid circular dependencies if any, or just import it at top
+        import('../services/adapta-g.service').then(({ adaptaGService }) => {
+          adaptaGService.miniGameTick(adaptaPin, 100).catch(err => console.error('MiniGameTick Error', err));
+        });
+      }
+
       // Defensive: never post attempts for teachers in preview mode, even
       // if a stale sessionId somehow leaked in.
       if (user?.role !== 'STUDENT') return;
@@ -172,7 +184,12 @@ export function useGameSession(buildGame: BuildGame) {
 
     async function init() {
       if (!gameRef.current || phaserGame.current) return;
-      const questions = await loadQuestions(gameId);
+      // Inside Adapta-G the minigame shows the room's dedicated question slice
+      // (the count the teacher assigned to the game), not the student's full
+      // paralelo bank. Outside Adapta-G, load the bank as usual.
+      const questions = adaptaPin
+        ? await loadAdaptaGameQuestions(adaptaPin)
+        : await loadQuestions(gameId);
       if (cancelled || !gameRef.current) return;
 
       if (user?.role === 'STUDENT' && gameId) {
@@ -215,7 +232,7 @@ export function useGameSession(buildGame: BuildGame) {
       hadActivityRef.current = false;
       if (heartbeat) window.clearInterval(heartbeat);
     };
-  }, [gameStarted, gameId, navigate, user?.role, routeAwayFromGame, sendHeartbeat]);
+  }, [gameStarted, gameId, adaptaPin, navigate, user?.role, routeAwayFromGame, sendHeartbeat]);
 
   // The wrapper's "Salir" button calls this directly.
   const quitHandler = useCallback(() => {
@@ -223,6 +240,31 @@ export function useGameSession(buildGame: BuildGame) {
   }, [routeAwayFromGame]);
 
   return { gameRef, phaserGame, gameStarted, setGameStarted, quitHandler };
+}
+
+// Loads the question slice the teacher assigned to the Adapta-G minigame.
+// Returns [] when the teacher left "preguntas para el juego" off — the scenes
+// then behave exactly as a minigame with no bank questions.
+async function loadAdaptaGameQuestions(pin: string): Promise<GameQuestion[]> {
+  try {
+    const { adaptaGService } = await import('../services/adapta-g.service');
+    const res = await adaptaGService.getRoomState(pin);
+    const gameQuestions = (res.data?.gameQuestions ?? []) as Array<{
+      id?: string;
+      texto?: string;
+      opciones?: string[];
+      respuestaCorrecta?: number;
+    }>;
+    return gameQuestions.map<GameQuestion>((q) => ({
+      id: q.id,
+      q: q.texto ?? '',
+      options: q.opciones ?? [],
+      answer: q.respuestaCorrecta ?? 0,
+    }));
+  } catch (error) {
+    console.error('Failed to load Adapta-G minigame questions', error);
+    return [];
+  }
 }
 
 async function loadQuestions(gameId: string | null): Promise<GameQuestion[]> {

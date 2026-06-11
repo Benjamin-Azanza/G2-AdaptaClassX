@@ -185,6 +185,7 @@ export class AiService {
     userId: string,
     force: boolean,
     filename: string,
+    paraleloId?: string,
   ): Promise<{
     cached: boolean;
     questions: NormalizedQuestion[];
@@ -309,6 +310,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
         const source = await this.prisma.questionSource.create({
           data: {
             teacher_id: userId,
+            paralelo_id: paraleloId || null,
             filename: filename || 'documento.pdf',
             source_hash: sourceHash,
             tema: tema,
@@ -534,6 +536,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     sourceId: string | null,
     questions: any[],
     userId: string,
+    paraleloId?: string,
   ) {
     try {
       if (questions.length === 0) {
@@ -553,6 +556,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
         const saved = await this.prisma.question.create({
           data: {
             teacher_id: userId,
+            paralelo_id: paraleloId || null,
             source_id: sourceId || null,
             tema: tema,
             texto: q.texto,

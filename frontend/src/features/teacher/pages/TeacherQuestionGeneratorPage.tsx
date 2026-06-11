@@ -5,6 +5,7 @@ import { QuestionPreview } from '../components/QuestionPreview';
 import { TeacherShell } from '../components/TeacherShell';
 import { aiService, type GeneratedQuestionPreview } from '../services/ai.service';
 import { ManualQuestionForm } from '../components/ManualQuestionForm';
+import { useParalelos } from '../hooks/useParalelos';
 
 type Banner = { kind: 'success' | 'error'; message: string } | null;
 
@@ -13,11 +14,15 @@ export function TeacherQuestionGeneratorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
+  const [selectedParaleloId, setSelectedParaleloId] = useState<string | null>(null);
+
+  const { paralelos } = useParalelos();
 
   const handleGenerate = async (formData: FormData) => {
     setBanner(null);
     setIsLoading(true);
     setSourceId(null);
+    setSelectedParaleloId(formData.get('paralelo_id') as string | null);
     try {
       const response = await aiService.generateQuestions(formData);
       setQuestions(response.questions);
@@ -42,10 +47,12 @@ export function TeacherQuestionGeneratorPage() {
       await aiService.saveQuestions({
         source_id: sourceId,
         questions,
+        paralelo_id: selectedParaleloId || undefined,
       });
       setBanner({ kind: 'success', message: 'Preguntas guardadas exitosamente en tu banco global.' });
       setQuestions([]);
       setSourceId(null);
+      setSelectedParaleloId(null);
     } catch (error: unknown) {
       console.error('Error saving questions', error);
       setBanner({
@@ -57,12 +64,14 @@ export function TeacherQuestionGeneratorPage() {
 
   const handleSaveManual = async (
     manualQuestions: { texto: string; opciones: [string, string, string, string]; respuestaCorrecta: number }[],
+    paraleloId?: string
   ) => {
     setBanner(null);
     try {
       await aiService.saveQuestions({
         source_id: null,
         questions: manualQuestions,
+        paralelo_id: paraleloId,
       });
       setBanner({ kind: 'success', message: 'Preguntas manuales añadidas exitosamente al banco.' });
     } catch (error: unknown) {
@@ -94,6 +103,7 @@ export function TeacherQuestionGeneratorPage() {
         <QuestionGenerationForm
           onSubmit={handleGenerate}
           isLoading={isLoading}
+          paralelos={paralelos}
         />
         <QuestionPreview
           questions={questions}
@@ -105,6 +115,7 @@ export function TeacherQuestionGeneratorPage() {
       <div className="mt-xl">
         <ManualQuestionForm
           onSave={handleSaveManual}
+          paralelos={paralelos}
         />
       </div>
     </TeacherShell>

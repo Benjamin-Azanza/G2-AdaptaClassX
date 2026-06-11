@@ -62,7 +62,7 @@ export const BankPanicGamePage: React.FC = () => {
             <span className="material-symbols-outlined !text-7xl text-orange-500">screen_rotation</span>
           </div>
           <h2 className="text-2xl font-black uppercase mb-4 text-orange-500">Gira tu dispositivo</h2>
-          <p className="text-lg max-w-md leading-relaxed text-slate-300">
+          <p className="text-lg max-w-[28rem] leading-relaxed text-slate-300">
             Para jugar <strong>Bank Panic</strong> correctamente, por favor gira tu celular a modo horizontal (paisaje).
           </p>
         </div>
