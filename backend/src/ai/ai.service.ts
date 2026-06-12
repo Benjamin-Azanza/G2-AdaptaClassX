@@ -15,7 +15,7 @@ import type {
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
 import * as mammoth from 'mammoth';
-import { Tema } from '@prisma/client';
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse');
 
@@ -178,7 +178,7 @@ export class AiService {
 
   async generateQuestions(
     text: string,
-    tema: Tema,
+    tema: string,
     amount: number,
     difficulty: string,
     context: string | undefined,
@@ -532,7 +532,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
   }
 
   async saveQuestions(
-    tema: Tema,
+    tema: string,
     sourceId: string | null,
     questions: any[],
     userId: string,

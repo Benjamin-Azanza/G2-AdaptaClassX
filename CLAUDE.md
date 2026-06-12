@@ -99,8 +99,8 @@ StudentProgress ni GameQuestion** — fueron eliminados a proposito.
 
 ### Schema (Prisma)
 
-- `Question` — banco **global por docente** (NO por juego ni por tema). El
-  campo `tema` es un tag legacy con default `LECTURA`; la UI no lo pide.
+- `Question` — banco **global por docente**. El campo `tema` es ahora **texto libre (`String`)** en lugar de Enum. El backend acepta cualquier string (por defecto "General").
+- `Role` — Enum actualizado con `STUDENT`, `TEACHER` y el nuevo rol `ADMIN`.
 - `QuestionSource` — documento PDF/DOCX/TXT subido al backend de IA. Agrupa
   las preguntas generadas en una corrida.
 - `GameSession` — una sesion de juego del estudiante. Acumula `minutos_jugados`
@@ -317,15 +317,16 @@ Esto cambio significativamente. Decisiones para no deshacer:
 - El banco es **global por docente**, NO por juego ni por tema. Cada estudiante
   ve las preguntas del docente de su paralelo en CUALQUIER juego.
 - `GamesService.getQuestionsForUser` **NO filtra por `game.tema`**. Devuelve
-  todas las del `teacher_id` resuelto.
+  todas las del `teacher_id` resuelto. (Aunque luego se pueda filtrar por el tema libre para el dashboard).
 - `GamesService.findAllForUser` devuelve `questionsCount` = total del banco
   del docente. Es el MISMO numero para todos los juegos.
-- `QuestionGenerationForm` y `ManualQuestionForm` **no tienen combo de tema**.
-  El backend acepta `tema` opcional en DTOs y aplica `DEFAULT_TEMA = LECTURA`
+- `QuestionGenerationForm` y `ManualQuestionForm` **tienen un combo de tema** 
+  (datalist) que autocompleta con los temas únicos en la DB. El backend acepta 
+  `tema` como string.
   via `ai.controller.ts` si falta — esto evita migrar el schema y mantiene
   backward-compat.
-- `TeacherBankPage` no tiene filtro por tema. El header dice _"Las preguntas
-  guardadas aqui se usan en todos los juegos"_.
+- `TeacherBankPage` SI tiene filtro dinámico por tema (leyendo todos los temas
+  distintos del banco) y por paralelo.
 - `StudentGameCatalogPage` muestra una **lista plana** (sin agrupacion por
   categoria) y cada card lleva un badge `N preguntas` arriba a la izquierda.
 
@@ -479,8 +480,9 @@ Para evitar la reintroducción de brechas de seguridad o falsos positivos descon
 11. **No reintroducir** `Assignment`, `StudentProgress`, `GameQuestion`, ni la
     feature de archivado de paralelos. Si parecen faltar, el modelo nuevo
     (`Mission` + `GameSession` + `QuestionAttempt`) los reemplaza.
-12. **No filtrar preguntas por `tema` en runtime** (el banco es global por
-    docente). El campo en schema es solo legacy.
+12. **No filtrar preguntas por `tema` en runtime** dentro de los juegos (el banco 
+    es global por docente para los minijuegos). El campo de tema se usa en el 
+    Dashboard para agrupar métricas y en el Banco para filtrar visualmente.
 13. **Comparar fechas de calendario en UTC**: `date.toISOString().slice(0, 10)`.
     No usar `setHours(0,0,0,0)` (interpreta en TZ local; rompe en Ecuador UTC-5).
 14. `Mission.xp_reward` es la fuente de verdad para la recompensa. **No
@@ -561,9 +563,11 @@ Credenciales del seed (todas con password `Password123!`):
 
 - Chatbot backend/frontend.
 - Tests e2e para login, join paralelo, misiones, jugar/heartbeat, completion.
+- Dashboards de Profesores y Administradores:
+  - Frontend preparado con la ruta `/admin/dashboard` y página placeholder.
+  - Implementación de gráficos (se sugiere Recharts) con estilo Neo-Brutalist (colores vivos, `border-4 border-on-background`).
+  - Agrupar métricas usando el campo `tema` libre de `Question` cruzándolo con los `QuestionAttempt`.
 - Refinar/limpiar escenas Phaser legacy (`@ts-nocheck`, fallbacks inline).
-- Considerar eliminar fallbacks hardcoded en escenas Phaser una vez que cada
-  docente tenga un banco poblado (hoy son red de seguridad).
 - UX para misiones vencidas (hoy `recalculateMissionsFor` solo procesa
   `fecha_limite > now`; las vencidas quedan visibles pero no avanzan).
 
@@ -595,4 +599,28 @@ Migraciones aplicadas en esta sesion:
 - `20260602000739_restart_learning_model` — rework completo del schema.
 - `20260602182500_gamification_achievements_and_badges` — Achievement+StudentAchievement.
 - `20260602190000_mission_progress_decimal` — `current_value` Int → Decimal(7,2).
-- `20260602220000_mission_description_and_xp_reward` — `descripcion` + `xp_reward`.
+- Migración del campo `Tema` a texto libre (`String`) y eliminación de su Enum.
+- Migración de `Role` para incluir `ADMIN`.
+- Inserción de cuenta Administrador, y actualización de minijuegos y seeders.
+- Adapta-G ahora escribe `GameSession` y `QuestionAttempt` permitiendo seguimiento total de datos en todos los minijuegos.
+- Autocompletado (datalist) del tema libre extraído dinámicamente vía backend (`/questions/temas`).
+
+---
+
+## Próximos Pasos: Dashboards y Métricas
+
+La infraestructura actual ya recolecta todos los datos necesarios para montar los dashboards (fase siguiente).
+Los agentes que implementen estas gráficas deben tomar en cuenta:
+
+1. **Jerarquía y Agrupamiento**:
+   - `GameSession` rastrea cuántas partidas y tiempo total (`minutos_jugados`).
+   - `QuestionAttempt` se cruza con `Question` para saber **qué temas fallan más los estudiantes**.
+   - Como `tema` es un String de texto libre, se deben agrupar los intentos usando sentencias `GROUP BY` de SQL o funciones de agregación de Prisma para calcular % de aciertos (Correctas / Totales) por "Tema".
+
+2. **Componentes Visuales**:
+   - Para las gráficas, utilizar una librería simple y personalizable como **Recharts**.
+   - **Estilo Neo-Brutalist**: Las gráficas no deben usar diseños suaves corporativos. Deben tener stroke de color negro fuerte (`stroke="#1d1c17"`), líneas rectas o grid blocks marcados, y barras/líneas con los colores primarios de la paleta (`bg-primary`, `bg-secondary`, `bg-tertiary`). Evitar esquinas redondeadas en exceso o sombras suaves difuminadas en los tooltips; usar sombras blocky (`[4px_4px_0_0_#1d1c17]`).
+
+3. **Roles**:
+   - **ADMIN**: `/admin/dashboard`. Ve agregados **globales de la plataforma** (cuántos profesores, alumnos, total de sesiones de toda la app).
+   - **TEACHER**: `/teacher/dashboard`. Ve agregados de **sus estudiantes**. Métricas de qué tema deben reforzar más en clase, quién tiene rachas más altas, etc.

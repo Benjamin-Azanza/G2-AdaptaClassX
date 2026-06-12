@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { AdaptaGRedisService, AdaptaGRoomState } from './adapta-g-redis.service';
 import { PusherService } from '../pusher/pusher.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AdaptaGService {
+  private readonly logger = new Logger(AdaptaGService.name);
+
   constructor(
     private readonly redisService: AdaptaGRedisService,
     private readonly pusherService: PusherService,
@@ -138,12 +141,42 @@ export class AdaptaGService {
     if (room.state !== 'LOBBY') throw new BadRequestException('La partida ya ha comenzado');
 
     if (!room.players[studentId]) {
+      const sessionId = randomUUID();
+      try {
+        let game = null;
+        if (room.miniGameRoute) {
+          // This relies on finding the game by its default config. It's a bit
+          // hacky, but safe since config is known.
+          const games = await this.prisma.game.findMany();
+          game = games.find(g => (g.config_default as any)?.rutaJuego === room.miniGameRoute);
+        }
+        if (!game) {
+          game = await this.prisma.game.findFirst(); // Fallback
+        }
+        
+        if (game) {
+          await this.prisma.gameSession.create({
+            data: {
+              id: sessionId,
+              student_id: studentId,
+              game_id: game.id,
+              minutos_jugados: 0,
+              preguntas_correctas: 0,
+              preguntas_intentadas: 0,
+            }
+          });
+        }
+      } catch (err) {
+        this.logger.error(`Failed to create GameSession for student ${studentId}`, err);
+      }
+
       room.players[studentId] = { 
         name: studentName, 
         score: 0, 
         money: 0, 
         streak: 0, 
-        currentQuestionIndex: 0 
+        currentQuestionIndex: 0,
+        gameSessionId: sessionId
       };
       await this.redisService.saveRoom(pin, room);
       
@@ -262,6 +295,18 @@ export class AdaptaGService {
       const question = room.questions[player.currentQuestionIndex];
       const correct = answerIndex === question.respuestaCorrecta;
       
+      if (player.gameSessionId) {
+        this.prisma.questionAttempt.create({
+          data: {
+            id: randomUUID(),
+            student_id: studentId,
+            question_id: question.id,
+            game_session_id: player.gameSessionId,
+            correcta: correct
+          }
+        }).catch(err => this.logger.error(`Failed to save QuestionAttempt: ${err}`));
+      }
+      
       let moneyEarned = 0;
       if (correct) {
         // Progression: 1, 5, 15, 30, 50, 100...
@@ -308,6 +353,18 @@ export class AdaptaGService {
     const question = room.questions[room.currentQuestionIndex];
     let pointsEarned = 0;
     const correct = answerIndex === question.respuestaCorrecta;
+
+    if (room.players[studentId]?.gameSessionId) {
+      this.prisma.questionAttempt.create({
+        data: {
+          id: randomUUID(),
+          student_id: studentId,
+          question_id: question.id,
+          game_session_id: room.players[studentId].gameSessionId,
+          correcta: correct
+        }
+      }).catch(err => this.logger.error(`Failed to save QuestionAttempt: ${err}`));
+    }
 
     if (correct) {
       const timeElapsed = Date.now() - (room.questionStartedAt || Date.now());

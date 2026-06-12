@@ -4,13 +4,15 @@ interface QuestionGenerationFormProps {
   onSubmit: (formData: FormData) => void;
   isLoading: boolean;
   paralelos?: { id: string; nombre: string }[];
+  existingTemas?: string[];
 }
 
-export function QuestionGenerationForm({ onSubmit, isLoading, paralelos = [] }: QuestionGenerationFormProps) {
+export function QuestionGenerationForm({ onSubmit, isLoading, paralelos = [], existingTemas = [] }: QuestionGenerationFormProps) {
   const [amount, setAmount] = useState(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [difficulty, setDifficulty] = useState('Basico');
   const [context, setContext] = useState('');
+  const [tema, setTema] = useState('');
   const [paraleloId, setParaleloId] = useState('');
 
   const questionAmounts = [5, 10, 15];
@@ -26,6 +28,9 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos = [] }: 
     formData.append('amount', amount.toString());
     formData.append('difficulty', difficulty);
     formData.append('context', context);
+    if (tema.trim()) {
+      formData.append('tema', tema.trim());
+    }
     if (paraleloId) {
       formData.append('paralelo_id', paraleloId);
     }
@@ -86,6 +91,24 @@ export function QuestionGenerationForm({ onSubmit, isLoading, paralelos = [] }: 
           <option value="Intermedio">Intermedio</option>
           <option value="Avanzado">Avanzado</option>
         </select>
+      </label>
+
+      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
+        <div className="flex items-center gap-xs">
+          <span className="material-symbols-outlined text-primary text-xl">category</span>
+          Tema
+        </div>
+        <input
+          type="text"
+          list="temas-list"
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:bg-yellow-100 focus:ring-2 focus:ring-primary transition-colors"
+          placeholder="Ej: Sumas, Lectura, Unidad 1..."
+          value={tema}
+          onChange={(e) => setTema(e.target.value)}
+        />
+        <datalist id="temas-list">
+          {existingTemas.map(t => <option key={t} value={t} />)}
+        </datalist>
       </label>
 
       <label className="flex flex-col gap-sm text-sm font-bold uppercase">

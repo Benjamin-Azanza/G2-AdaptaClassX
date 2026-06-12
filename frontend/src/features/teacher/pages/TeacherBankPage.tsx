@@ -37,6 +37,7 @@ export function TeacherBankPage() {
   // the unassigned (global) documents/questions. Picking a paralelo narrows
   // the view to that classroom's assigned items.
   const [filterParaleloId, setFilterParaleloId] = useState<string>(GENERAL);
+  const [filterTema, setFilterTema] = useState<string>(GENERAL);
   const { paralelos } = useParalelos();
 
   // Question sources (uploaded documents) state
@@ -94,20 +95,29 @@ export function TeacherBankPage() {
     };
   }, [activeTab, fetchSources, fetchQuestions]);
 
-  // Client-side filtering: the bank is small and already fully loaded, so we
-  // narrow by the selected paralelo here. GENERAL keeps only unassigned rows.
+  // Client-side filtering
   const matchesFilter = useCallback(
-    (paraleloId: string | null) =>
-      filterParaleloId === GENERAL ? paraleloId == null : paraleloId === filterParaleloId,
-    [filterParaleloId],
+    (paraleloId: string | null, tema: string) => {
+      const matchParalelo = filterParaleloId === GENERAL ? paraleloId == null : paraleloId === filterParaleloId;
+      const matchTema = filterTema === GENERAL ? true : tema === filterTema;
+      return matchParalelo && matchTema;
+    },
+    [filterParaleloId, filterTema],
   );
 
+  const uniqueTemas = useMemo(() => {
+    const temas = new Set<string>();
+    sources.forEach((s) => s.tema && temas.add(s.tema));
+    questions.forEach((q) => q.tema && temas.add(q.tema));
+    return Array.from(temas).sort();
+  }, [sources, questions]);
+
   const filteredSources = useMemo(
-    () => sources.filter((s) => matchesFilter(s.paralelo_id)),
+    () => sources.filter((s) => matchesFilter(s.paralelo_id, s.tema)),
     [sources, matchesFilter],
   );
   const filteredQuestions = useMemo(
-    () => questions.filter((q) => matchesFilter(q.paralelo_id)),
+    () => questions.filter((q) => matchesFilter(q.paralelo_id, q.tema)),
     [questions, matchesFilter],
   );
 
@@ -223,6 +233,21 @@ export function TeacherBankPage() {
               {paralelos.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mt-md flex flex-col gap-sm text-sm font-bold uppercase">
+            Tema
+            <select
+              className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
+              value={filterTema}
+              onChange={(e) => setFilterTema(e.target.value)}
+            >
+              <option value={GENERAL}>Todos los temas</option>
+              {uniqueTemas.map((t) => (
+                <option key={t} value={t}>
+                  {t}
                 </option>
               ))}
             </select>

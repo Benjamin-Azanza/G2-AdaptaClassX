@@ -13,6 +13,7 @@ export interface AdaptaGPlayerState {
   money: number;
   streak: number;
   currentQuestionIndex: number; // For asynchronous 'Dinero' mode
+  gameSessionId: string; // To link QuestionAttempt
 }
 
 export interface AdaptaGRoomState {

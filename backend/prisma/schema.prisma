@@ -14,14 +14,7 @@ datasource db {
 enum Role {
   STUDENT
   TEACHER
-}
-
-enum Tema {
-  LENGUA_CULTURA
-  COMUNICACION_ORAL
-  LECTURA
-  ESCRITURA
-  LITERATURA
+  ADMIN
 }
 
 enum TipoJuego {
@@ -149,7 +142,7 @@ model Paralelo {
 model Game {
   id                  String    @id @default(uuid())
   titulo              String    @unique
-  tema                Tema
+  tema                String
   tipo                TipoJuego
   acepta_preguntas_ia Boolean   @default(false)
   config_default      Json?
@@ -184,7 +177,7 @@ model QuestionSource {
   paralelo_id String?
   filename    String
   source_hash String
-  tema        Tema
+  tema        String    @default("General")
   created_at  DateTime   @default(now())
 
   teacher   User       @relation("TeacherQuestionSources", fields: [teacher_id], references: [id], onDelete: Cascade)
@@ -199,7 +192,7 @@ model Question {
   teacher_id         String
   paralelo_id        String?
   source_id          String?
-  tema               Tema
+  tema               String    @default("General")
   texto              String
   opciones           Json
   respuesta_correcta String

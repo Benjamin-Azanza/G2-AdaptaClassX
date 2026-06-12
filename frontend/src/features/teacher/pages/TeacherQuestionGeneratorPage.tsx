@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../../../services/api';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { QuestionGenerationForm } from '../components/QuestionGenerationForm';
 import { QuestionPreview } from '../components/QuestionPreview';
@@ -15,14 +16,23 @@ export function TeacherQuestionGeneratorPage() {
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
   const [selectedParaleloId, setSelectedParaleloId] = useState<string | null>(null);
+  const [selectedTema, setSelectedTema] = useState<string | null>(null);
 
+  const [existingTemas, setExistingTemas] = useState<string[]>([]);
   const { paralelos } = useParalelos();
+
+  useEffect(() => {
+    api.get<string[]>('/temas')
+      .then(res => setExistingTemas(res.data))
+      .catch(err => console.error('Failed to fetch temas:', err));
+  }, []);
 
   const handleGenerate = async (formData: FormData) => {
     setBanner(null);
     setIsLoading(true);
     setSourceId(null);
     setSelectedParaleloId(formData.get('paralelo_id') as string | null);
+    setSelectedTema(formData.get('tema') as string | null);
     try {
       const response = await aiService.generateQuestions(formData);
       setQuestions(response.questions);
@@ -48,11 +58,13 @@ export function TeacherQuestionGeneratorPage() {
         source_id: sourceId,
         questions,
         paralelo_id: selectedParaleloId || undefined,
+        tema: selectedTema || 'General',
       });
       setBanner({ kind: 'success', message: 'Preguntas guardadas exitosamente en tu banco global.' });
       setQuestions([]);
       setSourceId(null);
       setSelectedParaleloId(null);
+      setSelectedTema(null);
     } catch (error: unknown) {
       console.error('Error saving questions', error);
       setBanner({
@@ -64,6 +76,7 @@ export function TeacherQuestionGeneratorPage() {
 
   const handleSaveManual = async (
     manualQuestions: { texto: string; opciones: [string, string, string, string]; respuestaCorrecta: number }[],
+    tema: string,
     paraleloId?: string
   ) => {
     setBanner(null);
@@ -72,6 +85,7 @@ export function TeacherQuestionGeneratorPage() {
         source_id: null,
         questions: manualQuestions,
         paralelo_id: paraleloId,
+        tema: tema || 'General',
       });
       setBanner({ kind: 'success', message: 'Preguntas manuales añadidas exitosamente al banco.' });
     } catch (error: unknown) {
@@ -104,6 +118,7 @@ export function TeacherQuestionGeneratorPage() {
           onSubmit={handleGenerate}
           isLoading={isLoading}
           paralelos={paralelos}
+          existingTemas={existingTemas}
         />
         <QuestionPreview
           questions={questions}
@@ -116,6 +131,7 @@ export function TeacherQuestionGeneratorPage() {
         <ManualQuestionForm
           onSave={handleSaveManual}
           paralelos={paralelos}
+          existingTemas={existingTemas}
         />
       </div>
     </TeacherShell>

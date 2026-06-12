@@ -10,10 +10,12 @@ export const routePaths = {
   studentLeaderboard: '/student/leaderboard',
   studentResult: '/student/result',
   teacherDashboard: '/teacher/dashboard',
+  teacherData: '/teacher/datos',
   teacherClassroom: '/teacher/classroom',
   teacherQuestions: '/teacher/questions',
   teacherBank: '/teacher/banco',
   teacherAdaptaGSetup: '/teacher/adapta-g',
+  adminDashboard: '/admin/dashboard',
   teacherAdaptaGHost: '/teacher/adapta-g/:pin/host',
   studentAdaptaGJoin: '/games/adapta-g',
   studentAdaptaGPlay: '/games/adapta-g/:pin/play',
@@ -36,6 +38,7 @@ export const routePaths = {
  * students go to their games catalog so they can pick another one quickly.
  */
 export function getHomeRoute(role: UserRole | undefined): string {
+  if (role === 'ADMIN') return routePaths.adminDashboard;
   return role === 'TEACHER' ? routePaths.teacherDashboard : routePaths.studentGames;
 }
 
@@ -44,5 +47,6 @@ export function getHomeRoute(role: UserRole | undefined): string {
  * student should land on their dashboard (not the catalog).
  */
 export function getDashboardRoute(role: UserRole | undefined): string {
+  if (role === 'ADMIN') return routePaths.adminDashboard;
   return role === 'TEACHER' ? routePaths.teacherDashboard : routePaths.studentDashboard;
 }

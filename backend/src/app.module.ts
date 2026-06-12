@@ -15,6 +15,7 @@ import { AchievementsModule } from './achievements/achievements.module';
 import { ChatModule } from './chat/chat.module';
 import { PusherModule } from './pusher/pusher.module';
 import { AdaptaGModule } from './adapta-g/adapta-g.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { CsrfGuard } from './common/security/csrf.guard';
 
 @Module({
@@ -66,6 +67,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
     ChatModule,
     PusherModule,
     AdaptaGModule,
+    DashboardModule,
   ],
   providers: [
     // Global double-submit CSRF guard. Runs on every request; safe methods

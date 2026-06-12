@@ -15,6 +15,18 @@ import { TeacherClassroomPage } from '../../features/teacher/pages/TeacherClassr
 import { TeacherQuestionGeneratorPage } from '../../features/teacher/pages/TeacherQuestionGeneratorPage';
 import { TeacherBankPage } from '../../features/teacher/pages/TeacherBankPage';
 
+const AdminDashboardPage = lazy(() =>
+  import('../../features/admin/pages/AdminDashboardPage').then((module) => ({
+    default: module.AdminDashboardPage,
+  })),
+);
+
+const TeacherDataPage = lazy(() =>
+  import('../../features/teacher/pages/TeacherDataPage').then((module) => ({
+    default: module.TeacherDataPage,
+  })),
+);
+
 const TeacherAdaptaGSetupPage = lazy(() =>
   import('../../features/teacher/pages/TeacherAdaptaGSetupPage').then((module) => ({
     default: module.TeacherAdaptaGSetupPage,
@@ -180,6 +192,22 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRole="TEACHER">
             <TeacherBankPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.adminDashboard}
+        element={
+          <ProtectedRoute allowedRole="ADMIN">
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={routePaths.teacherData}
+        element={
+          <ProtectedRoute allowedRole="TEACHER">
+            <TeacherDataPage />
           </ProtectedRoute>
         }
       />
