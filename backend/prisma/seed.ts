@@ -2,7 +2,6 @@ import 'dotenv/config';
 import {
   PrismaClient,
   Role,
-  Tema,
   TipoJuego,
   MissionType,
   AchievementCode,
@@ -50,7 +49,17 @@ async function main() {
       },
     },
   });
-  console.log('  2 profesores creados');
+
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@escuela.edu' },
+    update: {},
+    create: {
+      email: 'admin@escuela.edu',
+      password_hash: passwordHash,
+      role: Role.ADMIN,
+    },
+  });
+  console.log('  2 profesores y 1 admin creados');
 
   // 2. Crear Paralelos
   const paralelo3A = await prisma.paralelo.upsert({
@@ -120,7 +129,7 @@ async function main() {
   const juegosImportados = [
     {
       titulo: 'Quiz Rapido - Lectura',
-      tema: Tema.LECTURA,
+      tema: 'Lectura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 3,
@@ -136,7 +145,7 @@ async function main() {
     },
     {
       titulo: 'Avoid the Germs',
-      tema: Tema.LENGUA_CULTURA,
+      tema: 'Lengua y Cultura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 2,
@@ -146,7 +155,7 @@ async function main() {
     },
     {
       titulo: 'Bank Panic',
-      tema: Tema.COMUNICACION_ORAL,
+      tema: 'Comunicación Oral',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 3,
@@ -156,7 +165,7 @@ async function main() {
     },
     {
       titulo: 'Breakout',
-      tema: Tema.LECTURA,
+      tema: 'Lectura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 2,
@@ -166,7 +175,7 @@ async function main() {
     },
     {
       titulo: 'Card Memory',
-      tema: Tema.LITERATURA,
+      tema: 'Literatura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 2,
@@ -176,7 +185,7 @@ async function main() {
     },
     {
       titulo: 'Emoji Match',
-      tema: Tema.LENGUA_CULTURA,
+      tema: 'Lengua y Cultura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 2,
@@ -186,7 +195,7 @@ async function main() {
     },
     {
       titulo: 'Sliding Puzzle',
-      tema: Tema.ESCRITURA,
+      tema: 'Escritura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 3,
@@ -196,7 +205,7 @@ async function main() {
     },
     {
       titulo: 'Snowmen Attack',
-      tema: Tema.COMUNICACION_ORAL,
+      tema: 'Comunicación Oral',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 3,
@@ -206,7 +215,7 @@ async function main() {
     },
     {
       titulo: 'Stacker',
-      tema: Tema.ESCRITURA,
+      tema: 'Escritura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 4,
@@ -216,7 +225,7 @@ async function main() {
     },
     {
       titulo: 'Tom',
-      tema: Tema.LITERATURA,
+      tema: 'Literatura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 2,
@@ -226,7 +235,7 @@ async function main() {
     },
     {
       titulo: 'Pirate Survival',
-      tema: Tema.COMUNICACION_ORAL,
+      tema: 'Comunicación Oral',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,
       grado_min: 3,
@@ -251,7 +260,7 @@ async function main() {
       teacher_id: teacher1.id,
       filename: 'comprension_lectora_3ero.pdf',
       source_hash: '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',
-      tema: Tema.LECTURA,
+      tema: 'Lectura',
     },
   });
 
@@ -260,7 +269,7 @@ async function main() {
       teacher_id: teacher1.id,
       filename: 'reglas_ortograficas_basicas.pdf',
       source_hash: '8f4305af2f778d9b1390f77ff181bf372dc458b0f8cd4384a6c8e8886266e7bf',
-      tema: Tema.ESCRITURA,
+      tema: 'Escritura',
     },
   });
 
@@ -269,7 +278,7 @@ async function main() {
       teacher_id: teacher2.id,
       filename: 'lecturas_avanzadas_4to.pdf',
       source_hash: '48f305af2f778d9b1390f77ff181bf372dc458b0f8cd4384a6c8e8886266e7cf',
-      tema: Tema.LECTURA,
+      tema: 'Lectura',
     },
   });
   console.log('  3 fuentes de preguntas creadas (QuestionSource)');
@@ -313,19 +322,19 @@ async function main() {
 
   const defaultQuestionsOtros = [
     {
-      tema: Tema.LENGUA_CULTURA,
+      tema: 'Lengua y Cultura',
       texto: '¿Cuántas vocales tiene el abecedario español?',
       opciones: ['3', '4', '5', '6'],
       respuesta_correcta: '5',
     },
     {
-      tema: Tema.COMUNICACION_ORAL,
+      tema: 'Comunicación Oral',
       texto: '¿Qué hacemos al escuchar con atención a alguien?',
       opciones: ['Interrumpir', 'Mirar a los ojos y prestar atención', 'Mirar el celular', 'Hablar más fuerte'],
       respuesta_correcta: 'Mirar a los ojos y prestar atención',
     },
     {
-      tema: Tema.LITERATURA,
+      tema: 'Literatura',
       texto: '¿Quién escribió un poema?',
       opciones: ['El reportero', 'El poeta', 'El científico', 'El panadero'],
       respuesta_correcta: 'El poeta',
@@ -338,7 +347,7 @@ async function main() {
       data: {
         teacher_id: teacher1.id,
         source_id: sourceLectura1.id,
-        tema: Tema.LECTURA,
+        tema: 'Lectura',
         texto: q.texto,
         opciones: q.opciones,
         respuesta_correcta: q.respuesta_correcta,
@@ -352,7 +361,7 @@ async function main() {
       data: {
         teacher_id: teacher1.id,
         source_id: sourceEscritura1.id,
-        tema: Tema.ESCRITURA,
+        tema: 'Escritura',
         texto: q.texto,
         opciones: q.opciones,
         respuesta_correcta: q.respuesta_correcta,
@@ -379,7 +388,7 @@ async function main() {
       data: {
         teacher_id: teacher2.id,
         source_id: sourceLectura2.id,
-        tema: Tema.LECTURA,
+        tema: 'Lectura',
         texto: q.texto,
         opciones: q.opciones,
         respuesta_correcta: q.respuesta_correcta,

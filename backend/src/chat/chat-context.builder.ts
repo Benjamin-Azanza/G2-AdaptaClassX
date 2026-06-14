@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MissionType, Tema } from '@prisma/client';
+import { MissionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MissionsService } from '../missions/missions.service';
 import { GamesService } from '../games/games.service';
@@ -34,13 +34,7 @@ import { sanitizeForPrompt } from '../common/security/prompt-sanitize';
  *      data we surface are the missions, which are shared by design.
  */
 
-const SPANISH_TEMA: Record<Tema, string> = {
-  LENGUA_CULTURA: 'Lengua y Cultura',
-  COMUNICACION_ORAL: 'Comunicación Oral',
-  LECTURA: 'Lectura',
-  ESCRITURA: 'Escritura',
-  LITERATURA: 'Literatura',
-};
+
 
 const MISSION_LABEL: Record<MissionType, (goal: number) => string> = {
   PLAY_TIME: (g) => `jugar ${g} minutos`,
@@ -176,7 +170,7 @@ export class ChatContextBuilder {
 
   private async loadMaterials(
     paraleloId: string | null,
-  ): Promise<{ filename: string; tema: Tema }[]> {
+  ): Promise<{ filename: string; tema: string }[]> {
     if (!paraleloId) return [];
     try {
       const paralelo = await this.prisma.paralelo.findUnique({
@@ -312,7 +306,7 @@ export class ChatContextBuilder {
     if (parts.materialsInfo.length > 0) {
       lines.push('- Materiales subidos recientemente por el docente:');
       for (const m of parts.materialsInfo) {
-        const tema = humanTema(m.tema);
+        const tema = m.tema;
         const name = m.filename || 'archivo';
         lines.push(`  · "${name}" — tema: ${tema}`);
       }
@@ -322,7 +316,7 @@ export class ChatContextBuilder {
 
     if (parts.gameInfo) {
       const { titulo, tema, descripcion } = parts.gameInfo;
-      const themed = humanTema(tema as Tema);
+      const themed = tema;
       const desc = descripcion ? ` — ${descripcion}` : '';
       lines.push(`- Juego en pantalla: ${titulo} (tema: ${themed})${desc}`);
     } else {
@@ -363,10 +357,3 @@ export class ChatContextBuilder {
   }
 }
 
-function humanTema(tema: Tema): string {
-  // Tema comes from a closed enum we validated at the schema level — not
-  // user input. The lookup is safe; the lint rule fires because the
-  // expression is computed, not literal.
-  // eslint-disable-next-line security/detect-object-injection
-  return SPANISH_TEMA[tema] ?? String(tema);
-}

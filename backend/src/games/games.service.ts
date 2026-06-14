@@ -12,21 +12,21 @@ export class GamesService {
    *  - students see the bank of the teacher who owns their paralelo
    *  - students without a paralelo see no bank (returns null)
    */
-  private async resolveTeacherIdFor(
+  private async resolveContextFor(
     userId: string,
     role: Role,
-  ): Promise<string | null> {
-    if (role === Role.TEACHER) return userId;
+  ): Promise<{ teacherId: string | null; paraleloId: string | null }> {
+    if (role === Role.TEACHER) return { teacherId: userId, paraleloId: null };
 
     const student = await this.prisma.student.findUnique({
       where: { user_id: userId },
     });
-    if (!student?.paralelo_id) return null;
+    if (!student?.paralelo_id) return { teacherId: null, paraleloId: null };
 
     const paralelo = await this.prisma.paralelo.findUnique({
       where: { id: student.paralelo_id },
     });
-    return paralelo?.teacher_id ?? null;
+    return { teacherId: paralelo?.teacher_id ?? null, paraleloId: student.paralelo_id };
   }
 
   /**
@@ -35,14 +35,18 @@ export class GamesService {
    * every game, because every question now applies to every game.
    */
   async findAllForUser(userId: string, role: Role) {
-    const [games, teacherId] = await Promise.all([
-      this.prisma.game.findMany({ orderBy: { titulo: 'asc' } }),
-      this.resolveTeacherIdFor(userId, role),
-    ]);
+    const context = await this.resolveContextFor(userId, role);
+    const teacherId = context.teacherId;
+    const paraleloId = context.paraleloId;
+
+    const games = await this.prisma.game.findMany({ orderBy: { titulo: 'asc' } });
 
     const questionsCount = teacherId
       ? await this.prisma.question.count({
-          where: { teacher_id: teacherId },
+          where: { 
+            teacher_id: teacherId,
+            ...(paraleloId ? { OR: [{ paralelo_id: paraleloId }, { paralelo_id: null }] } : {})
+          },
         })
       : 0;
 
@@ -61,11 +65,17 @@ export class GamesService {
       throw new NotFoundException('Juego no encontrado');
     }
 
-    const teacherId = await this.resolveTeacherIdFor(userId, role);
+    const context = await this.resolveContextFor(userId, role);
+    const teacherId = context.teacherId;
+    const paraleloId = context.paraleloId;
+
     if (!teacherId) return [];
 
     const dbQuestions = await this.prisma.question.findMany({
-      where: { teacher_id: teacherId },
+      where: { 
+        teacher_id: teacherId,
+        ...(paraleloId ? { OR: [{ paralelo_id: paraleloId }, { paralelo_id: null }] } : {})
+      },
       orderBy: { created_at: 'desc' },
     });
 

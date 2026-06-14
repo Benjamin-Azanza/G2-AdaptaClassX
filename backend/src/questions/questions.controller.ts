@@ -14,7 +14,7 @@ import { QuestionsService } from './questions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, Tema } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 
 @Controller()
@@ -33,8 +33,13 @@ export class QuestionsController {
     return this.questionsService.regenerateSource(id, req.user.sub);
   }
 
+  @Get('temas')
+  async getTemas(@Request() req: any) {
+    return this.questionsService.listTemas(req.user.sub);
+  }
+
   @Get('questions')
-  async getQuestions(@Query('tema') tema: Tema, @Request() req: any) {
+  async getQuestions(@Query('tema') tema: string, @Request() req: any) {
     return this.questionsService.listQuestions(req.user.sub, tema);
   }
 

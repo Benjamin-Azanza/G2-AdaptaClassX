@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Tema } from '@prisma/client';
+
 import { UpdateQuestionDto } from './dto/update-question.dto';
 
 @Injectable()
@@ -17,6 +17,15 @@ export class QuestionsService {
     });
   }
 
+  async listTemas(teacherId: string) {
+    const records = await this.prisma.question.findMany({
+      where: { teacher_id: teacherId },
+      select: { tema: true },
+      distinct: ['tema'],
+    });
+    return records.map((r) => r.tema).sort();
+  }
+
   async regenerateSource(sourceId: string, teacherId: string) {
     const source = await this.prisma.questionSource.findUnique({
       where: { id: sourceId },
@@ -31,7 +40,7 @@ export class QuestionsService {
     };
   }
 
-  async listQuestions(teacherId: string, tema?: Tema) {
+  async listQuestions(teacherId: string, tema?: string) {
     return this.prisma.question.findMany({
       where: {
         teacher_id: teacherId,

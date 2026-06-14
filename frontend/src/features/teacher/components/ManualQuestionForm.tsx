@@ -7,15 +7,19 @@ interface ManualQuestion {
 }
 
 interface ManualQuestionFormProps {
-  onSave: (questions: ManualQuestion[]) => Promise<void>;
+  onSave: (questions: ManualQuestion[], tema: string, paraleloId?: string) => Promise<void>;
+  paralelos?: { id: string; nombre: string }[];
+  existingTemas?: string[];
 }
 
-export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
+export function ManualQuestionForm({ onSave, paralelos = [], existingTemas = [] }: ManualQuestionFormProps) {
   const [questions, setQuestions] = useState<ManualQuestion[]>([
     { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }
   ]);
   const [isSaving, setIsSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [tema, setTema] = useState('');
+  const [paraleloId, setParaleloId] = useState('');
 
   const handleAddQuestion = () => {
     setQuestions([...questions, { texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
@@ -54,7 +58,7 @@ export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
 
     try {
       setIsSaving(true);
-      await onSave(questions);
+      await onSave(questions, tema, paraleloId || undefined);
       // Reset after save
       setQuestions([{ texto: '', opciones: ['', '', '', ''], respuestaCorrecta: 0 }]);
     } catch (error) {
@@ -73,7 +77,39 @@ export function ManualQuestionForm({ onSave }: ManualQuestionFormProps) {
         </p>
       </div>
 
-      <div className="flex flex-col gap-lg">
+      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
+        <div className="flex items-center gap-xs">
+          <span className="material-symbols-outlined text-primary text-xl">category</span>
+          Tema
+        </div>
+        <input
+          type="text"
+          list="manual-temas-list"
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:bg-yellow-100 focus:ring-2 focus:ring-primary transition-colors"
+          placeholder="Ej: Sumas, Lectura, Unidad 1..."
+          value={tema}
+          onChange={(e) => setTema(e.target.value)}
+        />
+        <datalist id="manual-temas-list">
+          {existingTemas.map(t => <option key={t} value={t} />)}
+        </datalist>
+      </label>
+
+      <label className="flex flex-col gap-sm text-sm font-bold uppercase">
+        Asignar a Paralelo
+        <select 
+          className="rounded-none border-2 border-on-background bg-surface-container-lowest p-3 font-normal normal-case shadow-[4px_4px_0_0_#1d1c17] outline-none focus:ring-2 focus:ring-primary"
+          value={paraleloId}
+          onChange={(e) => setParaleloId(e.target.value)}
+        >
+          <option value="">Generales (Todos los paralelos)</option>
+          {paralelos.map((p) => (
+            <option key={p.id} value={p.id}>{p.nombre}</option>
+          ))}
+        </select>
+      </label>
+
+      <div className="flex flex-col gap-lg mt-sm">
         {questions.map((q, qIndex) => (
           <div key={qIndex} className="border-2 border-outline-variant p-md flex flex-col gap-sm relative bg-surface-variant">
             {questions.length > 1 && (

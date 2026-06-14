@@ -12,7 +12,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { Tema } from '@prisma/client';
 
 // Allowed characters regex, using * instead of + to support empty string if sent
 const SAFE_TEXT = /^[\w\sáéíóúÁÉÍÓÚñÑüÜ.,;:¿?¡!()\-'"\n\r]*$/;
@@ -23,10 +22,8 @@ export class GenerateQuestionsDto {
   // tag. Kept optional so old UIs still work; the service defaults to
   // LECTURA when missing.
   @IsOptional()
-  @IsEnum(Tema, {
-    message: 'tema debe ser un valor válido del enum Tema.',
-  })
-  tema?: Tema;
+  @IsString()
+  tema?: string;
 
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -56,6 +53,10 @@ export class GenerateQuestionsDto {
   source_id?: string;
 
   @IsOptional()
+  @IsUUID()
+  paralelo_id?: string;
+
+  @IsOptional()
   @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean()
   force?: boolean;
@@ -77,14 +78,16 @@ export class SaveQuestionsDto {
   // Same story as in GenerateQuestionsDto: `tema` is now a legacy tag,
   // the bank is global per teacher.
   @IsOptional()
-  @IsEnum(Tema, {
-    message: 'tema debe ser un valor válido del enum Tema.',
-  })
-  tema?: Tema;
+  @IsString()
+  tema?: string;
 
   @IsOptional()
   @IsUUID()
   source_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  paralelo_id?: string;
 
   @ValidateNested({ each: true })
   @Type(() => SaveQuestionsItemDto)
