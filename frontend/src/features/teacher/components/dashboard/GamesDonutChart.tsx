@@ -25,15 +25,15 @@ export function GamesDonutChart({ data }: { data: MinijuegoRow[] }) {
 
   return (
     <div className="flex flex-col items-center gap-md md:flex-row">
-      <div className="relative" style={{ width: 220, height: 220 }}>
+      <div className="relative shrink-0" style={{ width: 160, height: 160 }}>
         <ResponsiveContainer>
           <PieChart>
             <Pie
               data={data}
               dataKey="sesiones"
               nameKey="titulo"
-              innerRadius={58}
-              outerRadius={92}
+              innerRadius={42}
+              outerRadius={68}
               paddingAngle={2}
               stroke={INK}
               strokeWidth={2}
@@ -46,10 +46,9 @@ export function GamesDonutChart({ data }: { data: MinijuegoRow[] }) {
             <Tooltip content={<GamesTooltip />} wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }} />
           </PieChart>
         </ResponsiveContainer>
-        {/* Center label — total sessions */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-headline text-3xl font-bold text-on-surface">{totalSesiones}</span>
-          <span className="font-mono text-[10px] font-bold uppercase text-on-surface-variant">partidas</span>
+          <span className="font-headline text-2xl font-bold text-on-surface">{totalSesiones}</span>
+          <span className="font-mono text-[9px] font-bold uppercase text-on-surface-variant">partidas</span>
         </div>
       </div>
 

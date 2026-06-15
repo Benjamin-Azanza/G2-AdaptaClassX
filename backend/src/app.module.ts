@@ -47,7 +47,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
           .uri()
           .optional()
           .default('https://api.openai.com/v1'),
-        AI_MODEL: Joi.string().default('z-ai/glm-4.5-air'), // Override to swap models without code changes
+        AI_MODEL: Joi.string().default('google/gemma-4-31b-it:free'), // Override to swap models without code changes
         // Optional — when set, the AI flow persists question drafts between
         // /generate-questions and /save-questions for 30 min. Missing is fine
         // (drafts just won't survive a tab reload).

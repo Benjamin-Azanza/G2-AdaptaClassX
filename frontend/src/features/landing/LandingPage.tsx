@@ -69,30 +69,12 @@ export function LandingPage() {
             </div>
             <div className="flex items-center gap-xs border-l-2 border-on-background pl-md">
               <span className="material-symbols-outlined text-[18px]">dns</span>
-              Server: localhost
+              Server: PUCE
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="relative z-10 mt-auto w-full border-t-4 border-on-background bg-surface p-md shadow-[0_-4px_0_0_#1d1c17]">
-        <div className="flex flex-col items-center justify-between gap-md text-center md:flex-row md:text-left">
-          <p className="font-headline text-base font-bold uppercase tracking-normal text-on-surface">
-            Est. 2024 // Adaptaclass Protocol
-          </p>
-          <div className="flex gap-md">
-            <Link className="text-sm font-medium uppercase underline decoration-2 underline-offset-4 hover:text-primary" to="#">
-              Terms
-            </Link>
-            <Link className="text-sm font-medium uppercase underline decoration-2 underline-offset-4 hover:text-primary" to="#">
-              Privacy
-            </Link>
-            <Link className="text-sm font-medium uppercase underline decoration-2 underline-offset-4 hover:text-primary" to="#">
-              Sys info
-            </Link>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

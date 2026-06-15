@@ -1,9 +1,7 @@
 # CLAUDE.md - Adapta Class
 
 Guia operativa para IAs/agentes que trabajen en este repositorio.
-Ultima actualizacion contextual: 2 de junio de 2026, despues de la sesion
-que rehizo el modelo de gamificacion (Mission/Achievement/Leaderboard) y
-elimino el sistema de Assignment/StudentProgress/GameQuestion.
+Ultima actualizacion contextual: 15 de junio de 2026.
 
 Si una IA futura ve documentacion vieja que contradiga esto, priorizar el
 codigo actual y este archivo.
@@ -17,8 +15,9 @@ codigo actual y este archivo.
 - **Juegos:** Phaser 4 sobre Canvas.
 - **DB:** Postgres/Supabase. `prisma.config.ts` usa `DIRECT_URL` para Migrate (evita PgBouncer).
 - **Auth:** JWT en cookie httpOnly + CSRF double-submit.
-- **IA:** cliente compatible con OpenAI; provider/model configurables por env.
+- **IA:** OpenRouter (`https://openrouter.ai/api/v1`), modelo default `google/gemma-4-31b-it:free`. `z-ai/glm-4.5-air:free` fue discontinuado — **no reintroducirlo**.
 - **Redis:** opcional, usado para drafts/cache/throttling de IA cuando `REDIS_URL` existe.
+- **Pusher:** Adapta-G usa Pusher para tiempo real. El `PusherService` llama la REST API de Pusher directamente con `axios` + `crypto` de Node — **NO usa el SDK `pusher` npm** (incompatible con el bundler de Vercel `@vercel/node`). No reintroducir `require('pusher')`.
 
 Importante: el frontend actual **no es Next.js** y no usa Jinja.
 
@@ -334,7 +333,15 @@ Esto cambio significativamente. Decisiones para no deshacer:
 
 ## Variables de Entorno
 
-Backend:
+**Un solo `.env` en la raiz del repo** compartido por frontend y backend.
+- Vite expone al browser solo las variables con prefijo `VITE_*` (aunque el archivo tenga vars del backend).
+- NestJS ignora las `VITE_*`.
+- En produccion (Vercel) las vars vienen del dashboard — el archivo `.env` solo sirve para desarrollo local.
+- `frontend/vite.config.ts` tiene `envDir` apuntando a `../` (raiz).
+- `backend/prisma.config.ts` carga `../.env`.
+- `backend/src/app.module.ts` tiene `envFilePath` resuelto a `../../.env` desde `dist/`.
+
+Variables del backend:
 
 - `DATABASE_URL` — pooled (PgBouncer en Supabase).
 - `DIRECT_URL` — directa, requerida para `prisma migrate` en Supabase.
@@ -343,17 +350,19 @@ Backend:
 - `PORT`.
 - `NODE_ENV`.
 - `FRONTEND_URL` obligatorio en produccion.
-- `AI_API_KEY` preferido.
-- `OPENAI_API_KEY` alias legacy aceptado.
-- `AI_API_URL`.
-- `AI_MODEL`.
+- `AI_API_KEY` preferido (o `OPENAI_API_KEY` como alias legacy).
+- `AI_API_URL` — default `https://api.openai.com/v1`. Usar `https://openrouter.ai/api/v1`.
+- `AI_MODEL` — default en codigo: `google/gemma-4-31b-it:free`.
 - `REDIS_URL` opcional.
+- `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` — requeridos para Adapta-G.
 
-Frontend:
+Variables del frontend (prefijo `VITE_*`):
 
 - `VITE_API_URL` opcional. Default recomendado: `/api`.
+- `VITE_PUSHER_KEY` — igual que `PUSHER_KEY`. Requerido para Adapta-G.
+- `VITE_PUSHER_CLUSTER` — igual que `PUSHER_CLUSTER`. Requerido para Adapta-G.
 
-Toda env nueva debe pasar por `ConfigModule`/Joi si es backend.
+Toda env nueva de backend debe pasar por `ConfigModule`/Joi si es backend.
 
 ---
 
@@ -561,12 +570,8 @@ Credenciales del seed (todas con password `Password123!`):
 
 ## Pendientes Principales
 
-- Chatbot backend/frontend.
 - Tests e2e para login, join paralelo, misiones, jugar/heartbeat, completion.
-- Dashboards de Profesores y Administradores:
-  - Frontend preparado con la ruta `/admin/dashboard` y página placeholder.
-  - Implementación de gráficos (se sugiere Recharts) con estilo Neo-Brutalist (colores vivos, `border-4 border-on-background`).
-  - Agrupar métricas usando el campo `tema` libre de `Question` cruzándolo con los `QuestionAttempt`.
+- Dashboard de Admin (`/admin/dashboard`) — solo tiene placeholder. El de docente (`/teacher/datos`) ya esta implementado con Recharts (Neo-Brutalist).
 - Refinar/limpiar escenas Phaser legacy (`@ts-nocheck`, fallbacks inline).
 - UX para misiones vencidas (hoy `recalculateMissionsFor` solo procesa
   `fecha_limite > now`; las vencidas quedan visibles pero no avanzan).
@@ -574,6 +579,18 @@ Credenciales del seed (todas con password `Password123!`):
 ---
 
 ## Notas de Contexto Reciente
+
+Sesion del 15 jun 2026:
+
+- **Migracion faltante aplicada**: `20260615000000_adapta_g_and_dashboard_schema` — el branch Dashboard modifico `schema.prisma` sin crear SQL. La migracion agrega: `ADMIN` al enum `Role`, convierte `Tema` enum a `String` (en `games`, `question_sources`, `questions`), agrega `paralelo_id` nullable FK en `question_sources` y `questions`. Aplicada a Supabase con `prisma migrate deploy`. Prisma client regenerado.
+- **PusherService reescrito**: el SDK `pusher` npm falla en `@vercel/node` por su dependencia `node-fetch`. Reemplazado por llamadas directas a la REST API de Pusher usando `axios` + `crypto` nativo. Ver `backend/src/pusher/pusher.service.ts`.
+- **Single root `.env`**: unificado `backend/.env` y `frontend/.env.local` en un solo `.env` en la raiz del repo. Actualizado `vite.config.ts` (`envDir`), `prisma.config.ts` y `app.module.ts` (`envFilePath`).
+- **AI model**: `z-ai/glm-4.5-air:free` discontinuado en OpenRouter. Default cambiado a `google/gemma-4-31b-it:free` en `ai.service.ts` (dos lugares) y en el schema Joi de `app.module.ts`.
+- **Auth DTO**: mensajes de validacion en español en `backend/src/auth/dto/auth.dto.ts`. `RegisterPage` valida password >= 8 chars (igual que `@MinLength(8)` del backend).
+- **Recharts tooltip**: todos los `<Tooltip>` en los charts del dashboard necesitan `wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }}` para evitar un cuadro blanco fantasma que Recharts renderiza aunque el content devuelva null.
+- **pusher-js**: instalado en `frontend/package.json` (faltaba, causaba fallo de build).
+- **Chatbot**: implementado y funcional (backend + frontend). Ver seccion Chatbot arriba.
+- **Dashboard docente**: implementado en `/teacher/datos` con 4 charts Recharts (TemaBarChart, EvolutionLineChart, GamesDonutChart, StudentSemaphoreTable) + 4 KPIs. Servicio en `backend/src/dashboard/`.
 
 Sesion del 2 jun 2026 hizo el rework grande de gamificacion:
 

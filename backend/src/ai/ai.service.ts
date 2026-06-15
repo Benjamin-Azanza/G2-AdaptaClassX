@@ -238,7 +238,7 @@ export class AiService {
     }
 
     const model =
-      this.configService.get<string>('AI_MODEL') || 'z-ai/glm-4.5-air:free';
+      this.configService.get<string>('AI_MODEL') || 'google/gemma-4-31b-it:free';
 
     // Generar el prompt omitiendo "Consideraciones" si context está vacío
     const contextPart =
@@ -353,7 +353,7 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     const model =
       opts.model ||
       this.configService.get<string>('AI_MODEL') ||
-      'z-ai/glm-4.5-air:free';
+      'google/gemma-4-31b-it:free';
 
     const response = await this.openai.chat.completions.create({
       model,
