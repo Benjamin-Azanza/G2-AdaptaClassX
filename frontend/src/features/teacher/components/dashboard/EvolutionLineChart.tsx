@@ -61,7 +61,7 @@ export function EvolutionLineChart({ data }: { data: EvolucionRow[] }) {
             tickLine={{ stroke: INK }}
             width={48}
           />
-          <Tooltip content={<EvolutionTooltip />} />
+          <Tooltip content={<EvolutionTooltip />} wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }} />
           <Line
             type="monotone"
             dataKey="accuracy"

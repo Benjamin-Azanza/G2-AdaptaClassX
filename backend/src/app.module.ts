@@ -22,6 +22,10 @@ import { CsrfGuard } from './common/security/csrf.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Single .env at repo root shared with the frontend (Vite).
+      // VITE_* vars are ignored by NestJS; backend vars are ignored by Vite.
+      // In production (Vercel) env vars come from the dashboard, not a file.
+      envFilePath: require('path').resolve(__dirname, '../../.env'),
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
         DIRECT_URL: Joi.string().optional(), // Required for Supabase migrations, optional for local dev
@@ -43,7 +47,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
           .uri()
           .optional()
           .default('https://api.openai.com/v1'),
-        AI_MODEL: Joi.string().default('z-ai/glm-4.5-air:free'), // Override to swap models without code changes
+        AI_MODEL: Joi.string().default('z-ai/glm-4.5-air'), // Override to swap models without code changes
         // Optional — when set, the AI flow persists question drafts between
         // /generate-questions and /save-questions for 30 min. Missing is fine
         // (drafts just won't survive a tab reload).

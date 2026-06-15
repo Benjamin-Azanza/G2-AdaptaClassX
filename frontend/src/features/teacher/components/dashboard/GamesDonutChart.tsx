@@ -43,7 +43,7 @@ export function GamesDonutChart({ data }: { data: MinijuegoRow[] }) {
                 <Cell key={row.titulo} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
               ))}
             </Pie>
-            <Tooltip content={<GamesTooltip />} />
+            <Tooltip content={<GamesTooltip />} wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }} />
           </PieChart>
         </ResponsiveContainer>
         {/* Center label — total sessions */}

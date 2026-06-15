@@ -5,6 +5,9 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Load .env from the repo root so frontend and backend share one file.
+  // Vite only exposes VITE_* variables to the browser bundle regardless.
+  envDir: fileURLToPath(new URL('..', import.meta.url)),
   plugins: [
     react(),
     tailwindcss(),

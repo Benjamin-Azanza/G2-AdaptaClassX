@@ -24,8 +24,8 @@ export function RegisterPage() {
       return;
     }
 
-    if (form.password.length < 6) {
-      setValidationError('La contrasena debe tener al menos 6 caracteres');
+    if (form.password.length < 8) {
+      setValidationError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
 

@@ -70,7 +70,7 @@ export function TemaBarChart({ data }: { data: TemaRow[] }) {
             axisLine={{ stroke: INK, strokeWidth: 2 }}
             tickLine={false}
           />
-          <Tooltip cursor={{ fill: 'rgba(29,28,23,0.06)' }} content={<TemaTooltip />} />
+          <Tooltip cursor={{ fill: 'rgba(29,28,23,0.06)' }} content={<TemaTooltip />} wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }} />
           <Bar dataKey="accuracy" stroke={INK} strokeWidth={2} isAnimationActive={false}>
             {data.map((row) => (
               <Cell key={row.tema} fill={accuracyColor(row.accuracy)} />
