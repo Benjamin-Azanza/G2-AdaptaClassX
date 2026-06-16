@@ -34,7 +34,9 @@ export default class MainGame extends Phaser.Scene
         this.speedTimer = 0;
         this.questionTimer = 10;
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this.pendingBuff = null;
+        this.pendingBuffQueue = [];
         this.ringsSinceLastQuestion = 0;
 
         this.questions = this.registry.get('preguntasDelNivel') || [];
@@ -42,6 +44,13 @@ export default class MainGame extends Phaser.Scene
         this.itemGroup = this.add.group();
         this.itemSpawnTimer = 5;
         this.questionOverlayObjects = [];
+        this.events.once('shutdown', () => {
+            this.pendingBuff = null;
+            this.pendingBuffQueue = [];
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
+        });
 
         this.add.image(512, 384, 'background').setScale(2);
 
@@ -70,8 +79,7 @@ export default class MainGame extends Phaser.Scene
             if (this.immunityTimer > 0) return;
             
             if (this.hasQuestions) {
-                this.pendingBuff = 'GERM';
-                this._showQuestion();
+                this._queueQuestion('GERM');
             } else {
                 this.lives--;
                 this.livesText.setText(`Vidas   ${this.lives}`);
@@ -116,7 +124,7 @@ export default class MainGame extends Phaser.Scene
             this.ringsSinceLastQuestion++;
             if (this.ringsSinceLastQuestion >= 30) {
                 this.ringsSinceLastQuestion = 0;
-                this.pendingBuff = 'PERIODIC';
+                this.pendingBuffQueue.push('PERIODIC');
                 this.time.delayedCall(300, () => {
                     this._showQuestion();
                 });
@@ -213,8 +221,7 @@ export default class MainGame extends Phaser.Scene
                 item.destroy();
 
                 if (this.hasQuestions) {
-                    this.pendingBuff = type;
-                    this._showQuestion();
+                    this._queueQuestion(type);
                 } else {
                     this._applyBuff(type);
                 }
@@ -232,6 +239,11 @@ export default class MainGame extends Phaser.Scene
         } else if (type === 'INMUNITY') {
             this.immunityTimer = 7;
         }
+    }
+
+    _queueQuestion (type) {
+        this.pendingBuffQueue.push(type);
+        this._showQuestion();
     }
 
     _destroyRandomGerms(count = 3) {
@@ -256,14 +268,14 @@ export default class MainGame extends Phaser.Scene
     }
 
     _showQuestion() {
-        // Re-entrancy guard: physics.add.overlap can fire the same frame
-        // for multiple germs/pickups before isQuestionMode propagates,
-        // which used to stack overlays on top of each other (the smeared
-        // text bug). Bail out if a question is already up, and destroy
-        // any stray overlay objects as a belt-and-suspenders cleanup.
-        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+        if (this.isQuestionMode || this.modalLocked) {
             return;
         }
+        this.pendingBuff = this.pendingBuffQueue.shift();
+        if (!this.pendingBuff) {
+            return;
+        }
+        this.modalLocked = true;
         this.isQuestionMode = true;
         this.physics.pause();
         this.player.body.stop();
@@ -295,7 +307,7 @@ export default class MainGame extends Phaser.Scene
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 420, btnH = 80, gapX = 30, gapY = 20;
+        const btnW = 420, btnH = 120, gapX = 30, gapY = 20;
         const gridX = cx - btnW - gapX / 2, gridY = cy - 20;
 
         options.forEach((option, i) => {
@@ -336,24 +348,29 @@ export default class MainGame extends Phaser.Scene
         btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
         btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-        const resultText = this.add.text(512, 384 + 190, correct ? '¡CORRECTO!' : 'FALLASTE', {
+        const resultText = this.add.text(512, 384 + 260, correct ? '¡CORRECTO!' : 'FALLASTE', {
                 fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(102);
         this.questionOverlayObjects.push(resultText);
 
+        const resolvedBuff = this.pendingBuff;
+
         if (correct) {
             this._destroyRandomGerms(3);
-            if (this.pendingBuff !== 'PERIODIC' && this.pendingBuff !== 'GERM') {
-                this._applyBuff(this.pendingBuff);
+            if (resolvedBuff !== 'PERIODIC' && resolvedBuff !== 'GERM') {
+                this._applyBuff(resolvedBuff);
             }
         } else {
-            if (this.pendingBuff === 'PERIODIC' || this.pendingBuff === 'GERM') {
+            if (resolvedBuff === 'PERIODIC' || resolvedBuff === 'GERM') {
                 this.lives--;
                 this.livesText.setText(`Vidas   ${this.lives}`);
                 if (this.lives <= 0) {
                     this.time.delayedCall(1500, () => {
                         this.questionOverlayObjects.forEach(o => o.destroy());
                         this.questionOverlayObjects = [];
+                        this.pendingBuff = null;
+                        this.pendingBuffQueue = [];
+                        this.modalLocked = false;
                         this.gameOver();
                     });
                     return;
@@ -362,13 +379,17 @@ export default class MainGame extends Phaser.Scene
         }
 
         this.immunityTimer = 1.5;
-        this.pendingBuff = null;
 
         this.time.delayedCall(1600, () => {
             this.questionOverlayObjects.forEach(o => o.destroy());
             this.questionOverlayObjects = [];
             this.isQuestionMode = false;
+            this.modalLocked = false;
+            this.pendingBuff = null;
             this.physics.resume();
+            if (this.pendingBuffQueue.length > 0) {
+                this._showQuestion();
+            }
         });
     }
 

@@ -36,6 +36,8 @@ export const TomGamePage: React.FC = () => {
         'Pausar: Botón Pausa',
       ]}
       hasGamepad={true}
+      joystickAxes="horizontal"
+      aspectRatio="16 / 9"
       phaserGameRef={phaserGame}
       gameRef={gameRef}
       gameStarted={gameStarted}

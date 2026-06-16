@@ -36,7 +36,7 @@ export const SnowmenAttackGamePage: React.FC = () => {
         'Pausar: Botón Pausa',
       ]}
       hasGamepad={true}
-      gamepadType="arrows"
+      gamepadType="arrows-vertical"
       phaserGameRef={phaserGame}
       gameRef={gameRef}
       gameStarted={gameStarted}

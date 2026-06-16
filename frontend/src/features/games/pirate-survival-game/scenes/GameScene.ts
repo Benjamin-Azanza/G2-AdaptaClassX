@@ -126,10 +126,18 @@ export class GameScene extends Phaser.Scene {
     // Question state
     this.preguntas            = this.registry.get('preguntasDelNivel') || [];
     this.isQuestionMode       = false;
+    this.modalLocked          = false;
     this.currentQuestion      = null;
     this.correctAnswerIndex   = -1;
     this.questionOverlayObjects = [];
     this.pendingItemBuff      = null;
+
+    this.events.once('shutdown', () => {
+      this.modalLocked = false;
+      this.isQuestionMode = false;
+      this.questionOverlayObjects = [];
+      this.pendingItemBuff = null;
+    });
 
     // Items & Buffs
     this.itemGroup            = this.add.group();
@@ -341,11 +349,10 @@ export class GameScene extends Phaser.Scene {
   // ── Question system ───────────────────────────────────────────────────────
 
   _showQuestion() {
-    // Re-entrancy guard: round-end + damage event can fire in the same
-    // tick and trigger two question modals stacked on each other.
-    if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+    if (this.isQuestionMode || this.modalLocked) {
       return;
     }
+    this.modalLocked = true;
     this.isQuestionMode = true;
     const cam = this.cameras.main;
     const cx  = cam.width * 0.5;
@@ -388,7 +395,7 @@ export class GameScene extends Phaser.Scene {
 
     // 4 answer buttons in a 2×2 grid
     const btnW  = 460;
-    const btnH  = 85;
+    const btnH  = 113;
     const gapX  = 24;
     const gapY  = 16;
     const gridX = cx - btnW - gapX / 2;
@@ -459,7 +466,7 @@ export class GameScene extends Phaser.Scene {
     btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
     const cam = this.cameras.main;
-    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 160,
+    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 235,
       correct ? '¡CORRECTO! +1 HP' : 'INCORRECTO! -1 HP', {
         fontFamily: 'monospace',
         fontSize: '36px',
@@ -488,6 +495,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(1600, () => {
         this._clearQuestionOverlay();
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this._showGameOver();
       });
       return;
@@ -496,6 +504,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1600, () => {
       this._clearQuestionOverlay();
       this.isQuestionMode = false;
+      this.modalLocked = false;
       this._startRound(this.roundNumber + 1);
     });
   }
@@ -942,12 +951,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   _showItemQuestion(type) {
-    // Re-entrancy guard: picking up two buff items in the same frame
-    // would otherwise stack overlays.
-    if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+    if (this.isQuestionMode || this.modalLocked) {
       return;
     }
     this.pendingItemBuff = type;
+    this.modalLocked = true;
     this.isQuestionMode = true;
     const cam = this.cameras.main;
     const cx  = cam.width * 0.5;
@@ -979,7 +987,7 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
     this.questionOverlayObjects.push(questionText);
 
-    const btnW = 460, btnH = 80, gapX = 24, gapY = 20;
+    const btnW = 460, btnH = 113, gapX = 24, gapY = 20;
     const gridX = cx - btnW - gapX / 2;
     const gridY = cy - 20;
 
@@ -1032,7 +1040,7 @@ export class GameScene extends Phaser.Scene {
     btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
     const cam = this.cameras.main;
-    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 140,
+    const resultText = this.add.text(cam.width * 0.5, cam.height * 0.5 + 235,
       correct ? '¡PODER OBTENIDO!' : 'FALLASTE (No hay poder)', {
         fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold',
         shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true },
@@ -1047,6 +1055,8 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1600, () => {
       this._clearQuestionOverlay();
       this.isQuestionMode = false;
+      this.modalLocked = false;
+      this.pendingItemBuff = null;
     });
   }
 

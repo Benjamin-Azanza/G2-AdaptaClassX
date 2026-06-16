@@ -54,6 +54,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
         AI_API_KEY: Joi.string().optional(), // preferred name (Groq / OpenAI / any compatible host)
         AI_API_URL: Joi.string()
           .uri()
+          .empty('')
           .optional()
           .default('https://api.groq.com/openai/v1'),
         AI_MODEL: Joi.string().default('llama-3.3-70b-versatile'), // Override to swap models without code changes
@@ -62,6 +63,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
         // (drafts just won't survive a tab reload).
         REDIS_URL: Joi.string()
           .uri({ scheme: ['redis', 'rediss'] })
+          .empty('')
           .optional(),
       })
         // Require at least one AI key so the AiService never starts unauthenticated.

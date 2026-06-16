@@ -22,6 +22,7 @@ export default class Breakout extends Phaser.Scene {
     
     private questions: any[] = [];
     private questionOverlayObjects: any[] = [];
+    private modalLocked: boolean = false;
     private wordLabels: Phaser.GameObjects.Text[] = [];
     private currentWordQuestion: any = null;
     private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
@@ -53,7 +54,14 @@ export default class Breakout extends Phaser.Scene {
         this.ballSpeedMultiplier = 1.0;
         this.levelBreakout = 1;
         this.questionOverlayObjects = [];
+        this.modalLocked = false;
         this.wordLabels = [];
+
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
+        });
         
         this.questions = this.registry.get('preguntasDelNivel') || [];
         if (this.input.keyboard) {
@@ -200,9 +208,13 @@ export default class Breakout extends Phaser.Scene {
             this.showFloatingText(`+200 ¡Ladrillo Correcto!`, brick.x, brick.y);
             
             // Pause and trigger question modal
-            this.time.delayedCall(300, () => {
-                this.triggerQuestionModal('WORD_HIT');
-            });
+            if (!this.modalLocked) {
+                this.modalLocked = true;
+                this.physics.pause();
+                this.time.delayedCall(300, () => {
+                    this.triggerQuestionModal('WORD_HIT');
+                });
+            }
         }
 
         if (this.bricks.countActive() === 0) {
@@ -319,12 +331,11 @@ export default class Breakout extends Phaser.Scene {
     }
 
     triggerQuestionModal(reason: 'WORD_HIT' | 'BALL_DROP') {
-        // Re-entrancy guard: ball drop + word brick hit can resolve in the
-        // same physics step; without this we'd stack two question modals
-        // and the text would smear on top of itself.
-        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+        const isPendingWordHit = reason === 'WORD_HIT' && this.modalLocked && !this.isQuestionMode;
+        if (this.isQuestionMode || (this.modalLocked && !isPendingWordHit)) {
             return;
         }
+        this.modalLocked = true;
         this.isQuestionMode = true;
         this.physics.pause();
         
@@ -364,7 +375,7 @@ export default class Breakout extends Phaser.Scene {
         Phaser.Utils.Array.Shuffle(options);
         const correctIndex = options.indexOf(correctAnswerString);
 
-        const btnW = 350, btnH = 80, gapX = 24, gapY = 20;
+        const btnW = 350, btnH = 96, gapX = 24, gapY = 20;
         const gridX = cx - btnW - gapX / 2, gridY = cy - 40;
 
         options.forEach((option, i) => {
@@ -405,7 +416,7 @@ export default class Breakout extends Phaser.Scene {
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
                 const feedback = isCorrect ? '¡CORRECTO!' : 'FALLASTE';
-                const fbackText = this.add.text(cx, cy + 160, feedback, {
+                const fbackText = this.add.text(cx, cy + 185, feedback, {
                     fontFamily: 'monospace', fontSize: '28px', color: isCorrect ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(102);
                 this.questionOverlayObjects.push(fbackText);
@@ -422,6 +433,10 @@ export default class Breakout extends Phaser.Scene {
                         
                         if (this.lives <= 0) {
                             this.time.delayedCall(1500, () => {
+                                this.questionOverlayObjects.forEach(o => o.destroy());
+                                this.questionOverlayObjects = [];
+                                this.isQuestionMode = false;
+                                this.modalLocked = false;
                                 this.triggerGameOver();
                             });
                             return;
@@ -434,6 +449,7 @@ export default class Breakout extends Phaser.Scene {
                     this.questionOverlayObjects.forEach(o => o.destroy());
                     this.questionOverlayObjects = [];
                     this.isQuestionMode = false;
+                    this.modalLocked = false;
                     this.physics.resume();
                     
                     this.resetBall();

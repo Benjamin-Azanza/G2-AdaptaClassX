@@ -37,6 +37,7 @@ export const SlidingPuzzleGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="4 / 3"
     />
   );
 };

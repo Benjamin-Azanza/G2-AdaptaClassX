@@ -32,6 +32,7 @@ export default class MainGame extends Phaser.Scene
         this.instructionText = null;
         this.preguntas = [];
         this.correctDoorIndex = -1;
+        this.pendingSalvation = false;
     }
 
     create ()
@@ -77,7 +78,16 @@ export default class MainGame extends Phaser.Scene
 
         this.preguntas = this.registry.get('preguntasDelNivel') || [];
         this.isQuestionMode = false;
+        this.modalLocked = false;
+        this.pendingSalvation = false;
         this.questionTimer = this.time.now + 15000; // First question after 15 seconds
+
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.pendingSalvation = false;
+            this.questionOverlayObjects = [];
+        });
 
         this.questionPanel = this.add.graphics().setDepth(99).setVisible(false);
 
@@ -279,6 +289,8 @@ export default class MainGame extends Phaser.Scene
 
     killed (x, y, doorObj)
     {
+        if (this.pendingSalvation) return;
+        this.pendingSalvation = true;
         this.offendingDoor = doorObj;
         this.bulletHoles = [];
 
@@ -309,11 +321,14 @@ export default class MainGame extends Phaser.Scene
     }
 
     startSalvationQuestion() {
-        // Re-entrancy guard: a salvation question can be queued by a
-        // delayedCall while another question is already on screen.
-        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+        if (this.isQuestionMode || this.modalLocked) {
+            this.time.delayedCall(100, () => {
+                this.startSalvationQuestion();
+            });
             return;
         }
+        this.pendingSalvation = false;
+        this.modalLocked = true;
         this.isQuestionMode = true;
         this.questionOverlayObjects = [];
         
@@ -350,7 +365,7 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects.push(questionText);
 
         const btnW = 800;
-        const btnH = 80;
+        const btnH = 120;
         const gapY = 16;
         const startY = cy - 20;
 
@@ -414,6 +429,7 @@ export default class MainGame extends Phaser.Scene
                 }
 
                 this.isQuestionMode = false;
+                this.modalLocked = false;
                 this.isPaused = false;
             });
         } else {
@@ -421,6 +437,8 @@ export default class MainGame extends Phaser.Scene
             this.time.delayedCall(1600, () => {
                 this.questionOverlayObjects.forEach(o => o.destroy());
                 this.questionOverlayObjects = [];
+                this.isQuestionMode = false;
+                this.modalLocked = false;
                 this.levelFail();
             });
         }
@@ -430,9 +448,10 @@ export default class MainGame extends Phaser.Scene
     {
         // Re-entrancy guard: the periodic question timer can race with a
         // door-triggered question event in the same tick.
-        if (this.isQuestionMode) {
+        if (this.isQuestionMode || this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         this.isQuestionMode = true;
 
         // Pick random question
@@ -517,6 +536,7 @@ export default class MainGame extends Phaser.Scene
             this.questionPanel.setVisible(false);
 
             this.isQuestionMode = false;
+            this.modalLocked = false;
             // Schedule next question
             this.questionTimer = this.time.now + 20000;
         }
@@ -530,6 +550,7 @@ export default class MainGame extends Phaser.Scene
                 if (door.isOpen) door.closeDoor(this.time.now);
             });
             this.isQuestionMode = false;
+            this.modalLocked = false;
             doorObj.shootYou(); // This will trigger level fail
         }
     }
@@ -543,9 +564,11 @@ export default class MainGame extends Phaser.Scene
                 this.startQuestionEvent(time);
             }
 
-            this.doors.forEach((door) => {
-                door.update(time);
-            });
+            if (!this.isQuestionMode) {
+                this.doors.forEach((door) => {
+                    door.update(time);
+                });
+            }
         }
     }
 }

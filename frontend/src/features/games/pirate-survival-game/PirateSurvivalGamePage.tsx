@@ -40,6 +40,8 @@ export const PirateSurvivalGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="16 / 9"
+      joystickDeadzone={0.15}
     />
   );
 };

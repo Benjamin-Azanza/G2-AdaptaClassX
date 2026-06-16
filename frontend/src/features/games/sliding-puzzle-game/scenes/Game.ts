@@ -75,6 +75,7 @@ export default class Game extends Phaser.Scene
         this.movesCount = 0;
         this.questions = [];
         this.questionOverlayObjects = [];
+        this.modalLocked = false;
         this.movesText = null;
     }
 
@@ -87,6 +88,11 @@ export default class Game extends Phaser.Scene
         this.lives = 4;
         this.questions = this.registry.get('preguntasDelNivel') || [];
         this.questionOverlayObjects = [];
+        this.modalLocked = false;
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.questionOverlayObjects = [];
+        });
         this.movesText = this.add.text(20, 20, 'MOVIMIENTOS: 0', {
             fontFamily: 'Arial', fontSize: '32px', color: '#ffd700', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 4
@@ -586,12 +592,10 @@ export default class Game extends Phaser.Scene
     }
 
     triggerMoveQuestion() {
-        // Re-entrancy guard: fast consecutive moves can call this twice
-        // before the overlay cleanup runs, stacking overlays on top of
-        // each other.
-        if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
+        if (this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         const fallbacks = [
             { q: "¿Qué palabra es un sustantivo?", options: ["mesa", "cantar", "azul", "rápidamente"], answer: 0 },
             { q: "Sinónimo de 'estudiante':", options: ["alumno", "profesor", "aula", "libro"], answer: 0 },
@@ -627,7 +631,7 @@ export default class Game extends Phaser.Scene
         Phaser.Utils.Array.Shuffle(options);
         const correctIdx = options.indexOf(correctString);
 
-        const btnW = 420, btnH = 80, gapX = 30, gapY = 20;
+        const btnW = 420, btnH = 120, gapX = 30, gapY = 20;
         const gridX = cx - btnW - gapX / 2, gridY = cy + 30;
 
         options.forEach((option, i) => {
@@ -669,7 +673,7 @@ export default class Game extends Phaser.Scene
                 btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-                const feedbackText = this.add.text(cx, cy + 220, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+                const feedbackText = this.add.text(cx, cy + 300, correct ? '¡CORRECTO!' : 'INCORRECTO', {
                     fontFamily: 'Arial', fontSize: '36px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(202);
                 this.questionOverlayObjects.push(feedbackText);
@@ -677,6 +681,7 @@ export default class Game extends Phaser.Scene
                 this.time.delayedCall(1600, () => {
                     this.questionOverlayObjects.forEach(o => o.destroy());
                     this.questionOverlayObjects = [];
+                    this.modalLocked = false;
                     
                     if (correct) {
                         this.action = 0; // SlidingPuzzle.ALLOW_CLICK

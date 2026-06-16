@@ -21,7 +21,7 @@ export const createCard = ({
     container.setScale(scale);
     
     // Background sprite
-    const bg = scene.add.sprite(0, 0, backTexture).setInteractive();
+    const bg = scene.add.sprite(0, 0, backTexture).setInteractive({ useHandCursor: true });
     container.add(bg);
 
     // Dynamically adjust font size based on text length to make it larger and fit nicely

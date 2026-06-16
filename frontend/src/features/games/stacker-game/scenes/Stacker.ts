@@ -68,6 +68,7 @@ export class StackerGame extends Phaser.Scene {
         this.timer = null;
         this.offset = { x: 372, y: 84 };
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this.questions = [];
         this.questionOverlayObjects = [];
         this.placedBlocks = [];
@@ -82,6 +83,7 @@ export class StackerGame extends Phaser.Scene {
         this.direction = 0;
         this.currentY = this.gridHeight;
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this.questionOverlayObjects = [];
         this.placedBlocks = [];
         this.score = 0;
@@ -106,6 +108,11 @@ export class StackerGame extends Phaser.Scene {
         this.levelText = this.add.text(20, 70, 'NIVEL: 1', { fontFamily: 'bebas', fontSize: 36, color: '#ffd700' }).setShadow(2, 2, '#333333', 2, false, true);
         
         this.questions = this.registry.get('preguntasDelNivel') || [];
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
+        });
 
         this.block1 = this.add.rectangle(ox + size * 2, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0);
         this.block2 = this.add.rectangle(ox + size * 3, oy + (this.currentY - 1) * size, size - 1, size - 1, 0x99ffff).setOrigin(0);
@@ -141,8 +148,8 @@ export class StackerGame extends Phaser.Scene {
         }
     }
     drop() {
-        if (this.isQuestionMode) return;
-        this.timer.remove(false);
+        if (this.isQuestionMode || this.modalLocked) return;
+        if (this.timer) this.timer.remove(false);
         
         const pos1 = this.block1 ? this.getGridX(this.block1) : -1;
         const pos2 = this.block2 ? this.getGridX(this.block2) : -1;
@@ -340,11 +347,10 @@ export class StackerGame extends Phaser.Scene {
     }
 
     showQuizOverlay(title, subtitle, qData, onCorrect, onIncorrect) {
-        // Re-entrancy guard: salvation + milestone quizzes can queue back-
-        // to-back when a drop triggers game-over right on a milestone row.
-        if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
+        if (this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         const cx = 512;
         const cy = 384;
 
@@ -371,7 +377,7 @@ export class StackerGame extends Phaser.Scene {
         Phaser.Utils.Array.Shuffle(options);
         const correctIdx = options.indexOf(correctString);
 
-        const btnW = 420, btnH = 70, gapX = 40, gapY = 25;
+        const btnW = 420, btnH = 120, gapX = 40, gapY = 25;
         const gridX = cx - btnW - gapX / 2, gridY = cy + 20;
 
         options.forEach((option, i) => {
@@ -408,7 +414,7 @@ export class StackerGame extends Phaser.Scene {
                 btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
                 btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
 
-                const feedbackText = this.add.text(cx, cy + 220, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+                const feedbackText = this.add.text(cx, cy + 300, correct ? '¡CORRECTO!' : 'INCORRECTO', {
                     fontFamily: 'monospace', fontSize: '32px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(202);
                 this.questionOverlayObjects.push(feedbackText);
@@ -416,6 +422,7 @@ export class StackerGame extends Phaser.Scene {
                 this.time.delayedCall(1600, () => {
                     this.questionOverlayObjects.forEach(o => o.destroy());
                     this.questionOverlayObjects = [];
+                    this.modalLocked = false;
                     
                     if (correct) {
                         onCorrect();

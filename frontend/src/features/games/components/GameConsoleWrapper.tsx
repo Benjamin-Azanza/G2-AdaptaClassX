@@ -36,7 +36,10 @@ type GameConsoleWrapperProps = {
   onQuit: () => void;
   children?: React.ReactNode;
   aspectRatio?: string;
-  gamepadType?: 'joystick' | 'arrows';
+  gamepadType?: 'joystick' | 'arrows' | 'arrows-vertical';
+  joystickAxes?: 'both' | 'horizontal' | 'vertical';
+  /** Normalized joystick deadzone before key emulation starts. */
+  joystickDeadzone?: number;
 };
 
 export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
@@ -54,6 +57,8 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   children,
   aspectRatio,
   gamepadType,
+  joystickAxes,
+  joystickDeadzone = 0.25,
 }) => {
   // Surface the role so the wrapper can show a "preview mode" banner when
   // a teacher opens a game directly from the catalog. The flag is purely
@@ -86,6 +91,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
   const joystickAreaRef = useRef<HTMLDivElement>(null);
   const activeKeysRef = useRef({ left: false, right: false, up: false, down: false });
+
+  useEffect(() => {
+    if (import.meta.env.DEV && !aspectRatio) {
+      console.warn(`[GameConsoleWrapper] ${title} no recibió aspectRatio; usando fallback 4 / 3.`);
+    }
+  }, [aspectRatio, title]);
 
   // Initialize global virtual joystick object
   useEffect(() => {
@@ -209,12 +220,14 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     };
 
     // Keyboard emulation transitions
-    const deadzone = 0.25;
+    const deadzone = joystickDeadzone;
+    const axisX = joystickAxes !== 'vertical';
+    const axisY = joystickAxes !== 'horizontal';
     const keys = {
-      left: normalX < -deadzone,
-      right: normalX > deadzone,
-      up: normalY < -deadzone,
-      down: normalY > deadzone,
+      left: axisX && normalX < -deadzone,
+      right: axisX && normalX > deadzone,
+      up: axisY && normalY < -deadzone,
+      down: axisY && normalY > deadzone,
     };
 
     if ((window as any).virtualGamepad) {
@@ -441,6 +454,10 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   };
 
   const handlePause = () => {
+    const hasModal = phaserGameRef.current?.scene.scenes.some(
+      (s) => s.scene.isActive() && (s as any).isQuestionMode === true
+    );
+    if (hasModal) return;
     setIsPaused(true);
     if (phaserGameRef.current) {
       phaserGameRef.current.scene.scenes.forEach((scene) => {
@@ -826,7 +843,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       {/* Visual background details */}
       <div className="absolute inset-0 opacity-5 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:10px_10px]" />
  
-      {/* Joystick Area or Arrow Buttons */}
+      {/* Joystick Area, Horizontal Arrows, or Vertical Arrows */}
       {gamepadType === 'arrows' ? (
         <div className="flex gap-4 select-none items-center justify-center" style={{ width: '140px', height: '140px' }}>
           {/* Left Arrow */}
@@ -850,6 +867,31 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
           >
             ▶
+          </button>
+        </div>
+      ) : gamepadType === 'arrows-vertical' ? (
+        <div className="flex flex-col gap-4 select-none items-center justify-center" style={{ width: '140px', height: '140px' }}>
+          {/* Up Arrow */}
+          <button
+            onTouchStart={(e) => handleDpadButtonDown(e, 'up')}
+            onTouchEnd={(e) => handleDpadButtonUp(e, 'up')}
+            onMouseDown={(e) => handleDpadButtonDown(e, 'up')}
+            onMouseUp={(e) => handleDpadButtonUp(e, 'up')}
+            onMouseLeave={(e) => handleDpadButtonUp(e, 'up')}
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+          >
+            ▲
+          </button>
+          {/* Down Arrow */}
+          <button
+            onTouchStart={(e) => handleDpadButtonDown(e, 'down')}
+            onTouchEnd={(e) => handleDpadButtonUp(e, 'down')}
+            onMouseDown={(e) => handleDpadButtonDown(e, 'down')}
+            onMouseUp={(e) => handleDpadButtonUp(e, 'down')}
+            onMouseLeave={(e) => handleDpadButtonUp(e, 'down')}
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+          >
+            ▼
           </button>
         </div>
       ) : (

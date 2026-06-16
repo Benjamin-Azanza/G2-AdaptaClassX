@@ -120,6 +120,8 @@ export function MissionProgressOverlay({ active }: MissionProgressOverlayProps) 
   const extra = pending.length - 1;
 
   return (
+    // Keep non-interactive: Phaser answer buttons live in the canvas below,
+    // and this fixed HUD must never intercept taps after a modal re-render.
     <div className="pointer-events-none fixed left-1/2 top-2 z-30 w-[min(92vw,360px)] -translate-x-1/2">
       {celebration !== null && (
         <div className="mb-2 flex items-center justify-center gap-2 border-4 border-on-background bg-tertiary px-3 py-2 text-on-tertiary shadow-[4px_4px_0_0_#1d1c17]">

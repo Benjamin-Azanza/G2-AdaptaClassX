@@ -17,6 +17,8 @@ export default class MainGame extends Phaser.Scene
 
         this.selectedEmoji = null;
         this.matched = false;
+        this.modalLocked = false;
+        this.hasUsedSalvation = false;
 
         this.score = 0;
         this.highscore = 0;
@@ -84,6 +86,14 @@ export default class MainGame extends Phaser.Scene
 
         this.highscore = this.registry.get('highscore');
 
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
+            this.matched = false;
+            this.hasUsedSalvation = false;
+        });
+
         this.arrangeGrid();
     }
 
@@ -120,6 +130,7 @@ export default class MainGame extends Phaser.Scene
             //  Is it a match?
             if (emoji.frame.name === this.selectedEmoji.frame.name)
             {
+                this.matched = true;
                 this.circle1.setStrokeStyle(4, 0x00ff00);
                 this.circle2.setPosition(emoji.x, emoji.y);
                 this.circle2.setVisible(true);
@@ -149,7 +160,6 @@ export default class MainGame extends Phaser.Scene
 
     newRound ()
     {
-        this.matched = false;
 
         this.score++;
 
@@ -211,7 +221,10 @@ export default class MainGame extends Phaser.Scene
             scale: { start: 0, from: 0, to: 1.35 },
             ease: 'bounce.out',
             duration: 600,
-            delay: this.tweens.stagger(100, { grid: [ 4, 4 ], from: 'center' })
+            delay: this.tweens.stagger(100, { grid: [ 4, 4 ], from: 'center' }),
+            onComplete: () => {
+                this.matched = false;
+            }
         });
     }
 
@@ -264,21 +277,21 @@ export default class MainGame extends Phaser.Scene
             duration: 250,
             ease: 'sine.inout',
             onComplete: () => {
-
-                this.input.once('pointerdown', () => {
-                    this.scene.start('MainMenu');
-                }, this);
-
+                if (!this.hasUsedSalvation) {
+                    this.hasUsedSalvation = true;
+                    this.startSalvationQuestion();
+                } else {
+                    this._triggerRealGameOver();
+                }
             }
         });
     }
 
     startQuestionSequence() {
-        // Re-entrancy guard: completing two matches in the same frame
-        // can call this twice before isQuestionMode propagates.
-        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+        if (this.isQuestionMode || this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         this.isQuestionMode = true;
         if (this.timer) {
             this.timer.paused = true;
@@ -326,7 +339,7 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects.push(questionText);
 
         const btnW = 740;
-        const btnH = 80;
+        const btnH = 96;
         const gapY = 16;
         const startY = cy - 20;
 
@@ -388,12 +401,132 @@ export default class MainGame extends Phaser.Scene
                 this.questionOverlayObjects.forEach(o => o.destroy());
                 this.questionOverlayObjects = [];
                 this.isQuestionMode = false;
+                this.modalLocked = false;
                 if (this.timer) {
                     this.timer.paused = false;
                 }
                 this.newRound();
             }
         });
+    }
+
+    startSalvationQuestion() {
+        if (this.isQuestionMode || this.modalLocked) {
+            return;
+        }
+        this.modalLocked = true;
+        this.isQuestionMode = true;
+        
+        this.questions = this.registry.get('preguntasDelNivel') || [];
+        if (this.questions.length === 0) {
+            this.questions = [
+                { q: "María llevó un paraguas aunque el cielo estaba despejado. ¿Por qué?", options: ["Porque le gusta", "Porque previó lluvia", "Porque estaba roto"], answer: 1 }
+            ];
+        }
+
+        const cx = 400;
+        const cy = 400;
+        const idx = Phaser.Math.Between(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[idx];
+
+        const options = [...this.currentQuestion.options];
+        const correctOption = options[this.currentQuestion.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        this.correctAnswerIndex = options.indexOf(correctOption);
+
+        this.questionOverlayObjects = [];
+
+        // Dark background overlay
+        const bg = this.add.rectangle(cx, cy, 800, 800, 0x000000, 0.85).setDepth(100).setInteractive();
+        this.questionOverlayObjects.push(bg);
+
+        const titleText = this.add.text(cx, cy - 220, "¡PREGUNTA DE SALVACIÓN!", {
+            fontFamily: 'monospace', fontSize: '36px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 130, this.currentQuestion.q, {
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 740 }, align: 'center'
+        }).setOrigin(0.5).setDepth(101);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 740;
+        const btnH = 96;
+        const gapY = 16;
+        const startY = cy - 20;
+
+        options.forEach((option, i) => {
+            const by = startY + i * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(101);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
+            }).setOrigin(0.5).setDepth(102);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(cx, by + btnH / 2, btnW, btnH)
+                .setDepth(103).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerSalvationQuestion(i, cx - btnW / 2, by, btnW, btnH, btnGfx));
+        });
+    }
+
+    _answerSalvationQuestion(selectedIndex, bx, by, btnW, btnH, btnGfx) {
+        this.questionOverlayObjects.forEach(obj => { if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive(); });
+
+        const correct = selectedIndex === this.correctAnswerIndex;
+        if (this.currentQuestion && this.currentQuestion.id) {
+            window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: this.currentQuestion.id, correct } }));
+        }
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+        const resultText = this.add.text(400, 330, correct ? '¡SALVADO! (+10s)' : 'FALLASTE', {
+            fontFamily: 'monospace', fontSize: '28px', color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(102);
+        this.questionOverlayObjects.push(resultText);
+
+        if (correct) {
+            this.sound.play('match');
+            // Give 10 seconds of extra time
+            if (this.timer) {
+                this.timer.destroy();
+            }
+            this.timer = this.time.addEvent({ delay: 10000, callback: this.gameOver, callbackScope: this });
+            this.input.on('gameobjectdown', this.selectEmoji, this);
+        } else {
+            this.sound.play('draw');
+        }
+
+        this.time.delayedCall(1600, () => {
+            this.questionOverlayObjects.forEach(o => o.destroy());
+            this.questionOverlayObjects = [];
+            this.isQuestionMode = false;
+            this.modalLocked = false;
+            
+            if (correct) {
+                this.arrangeGrid();
+            } else {
+                this._triggerRealGameOver();
+            }
+        });
+    }
+
+    _triggerRealGameOver() {
+        this.input.once('pointerdown', () => {
+            this.scene.start('MainMenu');
+        }, this);
     }
 
     adjustTimer(timeDeltaMs) {

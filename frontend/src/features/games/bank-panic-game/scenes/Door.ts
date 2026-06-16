@@ -320,8 +320,8 @@ export default class Door extends Phaser.GameObjects.Container
 
     update (time)
     {
-        // Don't process normal door timings if we are in question mode
-        if (this.scene.isQuestionMode) return;
+        // Don't process normal door timings if paused or in question mode
+        if (this.scene.isPaused || this.scene.isQuestionMode) return;
 
         if (!this.isOpen && time >= this.timeToOpen)
         {

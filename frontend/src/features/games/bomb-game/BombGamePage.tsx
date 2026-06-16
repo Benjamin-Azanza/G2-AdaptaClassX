@@ -50,6 +50,7 @@ export const BombGamePage: React.FC = () => {
       gameStarted={gameStarted}
       setGameStarted={setGameStarted}
       onQuit={quitHandler}
+      aspectRatio="1 / 1"
     />
   );
 };

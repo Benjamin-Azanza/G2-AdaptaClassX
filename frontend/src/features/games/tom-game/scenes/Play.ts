@@ -82,6 +82,7 @@ class Play extends Phaser.Scene
 
         // Periodic question timer every 25s
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this.questionOverlayObjects = [];
         this.periodicQuestionTimer = this.time.addEvent({
             delay: 12000,
@@ -99,6 +100,9 @@ class Play extends Phaser.Scene
             if (this.periodicQuestionTimer) {
                 this.periodicQuestionTimer.destroy();
             }
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
         });
     }
 
@@ -110,12 +114,10 @@ class Play extends Phaser.Scene
     }
 
     _showQuestion() {
-        // Re-entrancy guard: callers (overlap callbacks and the periodic
-        // timer) can fire back-to-back before isQuestionMode propagates,
-        // which stacks overlays on top of each other.
-        if (this.isQuestionMode || (this.questionOverlayObjects && this.questionOverlayObjects.length > 0)) {
+        if (this.isQuestionMode || this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         this.isQuestionMode = true;
         this.physics.pause();
         
@@ -147,20 +149,20 @@ class Play extends Phaser.Scene
             title = "¡DESAFÍO PERIODICO BOMB!";
         }
 
-        const titleText = this.add.text(cx, cy - 120, title, {
+        const titleText = this.add.text(cx, cy - 140, title, {
             fontFamily: 'monospace', fontSize: '24px', color: '#facc15', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(titleText);
 
-        const questionText = this.add.text(cx, cy - 70, this.currentQuestion.q, {
+        const questionText = this.add.text(cx, cy - 100, this.currentQuestion.q, {
             fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 560 }, align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.questionOverlayObjects.push(questionText);
 
         const btnW = 500;
-        const btnH = 40;
-        const gapY = 8;
-        const startY = cy - 20;
+        const btnH = 76;
+        const gapY = 6;
+        const startY = cy - 60;
 
         options.forEach((option, i) => {
             const by = startY + i * (btnH + gapY);
@@ -225,19 +227,44 @@ class Play extends Phaser.Scene
                 const countToDestroy = Math.ceil(activeBombs.length * 0.5);
                 const toDestroy = activeBombs.slice(0, countToDestroy);
                 toDestroy.forEach(b => b.destroy());
+
+                // Give 1.5s of immunity to tomato
+                this.tomato.hitDelay = true;
+                this.tomato.setTint(0x1abc9c);
+                this.tomato.setAlpha(0.6);
+                this.time.delayedCall(1500, () => {
+                    this.tomato.hitDelay = false;
+                    this.tomato.clearTint();
+                    this.tomato.setAlpha(1.0);
+                });
             }
         } else {
             this.sound.play('draw');
             if (this.pendingBuff === 'BOMB' || this.pendingBuff === 'PERIODIC') {
+                if (this.pendingBuff === 'BOMB' && this.collidedBomb) {
+                    this.collidedBomb.destroy();
+                }
                 this.tomato.life--;
                 this.registry.events.emit('remove_life');
                 if (this.tomato.life <= 0) {
                     this.time.delayedCall(1500, () => {
                         this.questionOverlayObjects.forEach(o => o.destroy());
                         this.questionOverlayObjects = [];
+                        this.isQuestionMode = false;
+                        this.modalLocked = false;
                         this.registry.events.emit('game_over');
                     });
                     return;
+                } else {
+                    // Give 3s of immunity to tomato since they lost a life
+                    this.tomato.hitDelay = true;
+                    this.tomato.setTint(0x1abc9c);
+                    this.tomato.setAlpha(0.6);
+                    this.time.delayedCall(3000, () => {
+                        this.tomato.hitDelay = false;
+                        this.tomato.clearTint();
+                        this.tomato.setAlpha(1.0);
+                    });
                 }
             }
         }
@@ -248,6 +275,7 @@ class Play extends Phaser.Scene
             this.questionOverlayObjects.forEach(o => o.destroy());
             this.questionOverlayObjects = [];
             this.isQuestionMode = false;
+            this.modalLocked = false;
             this.physics.resume();
         });
     }

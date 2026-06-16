@@ -49,9 +49,20 @@ export default class MainGame extends Phaser.Scene
 
         this.doubleThrowActive = false;
         this.isQuestionMode = false;
+        this.modalLocked = false;
         this.questionOverlayObjects = [];
         this.mobileButtons = [];
         this.hasStarted = false;
+        this.postModalImmuneUntil = 0;
+        this.gameOverInputReadyAt = 0;
+
+        this.events.once('shutdown', () => {
+            this.modalLocked = false;
+            this.isQuestionMode = false;
+            this.questionOverlayObjects = [];
+            this.postModalImmuneUntil = 0;
+            this.gameOverInputReadyAt = 0;
+        });
 
 
 
@@ -126,6 +137,7 @@ export default class MainGame extends Phaser.Scene
 
     gameOver ()
     {
+        if (this.time.now < this.postModalImmuneUntil) return;
         if (this.isQuestionMode) return;
 
         // Trigger salvation question instead of immediate game over
@@ -137,6 +149,7 @@ export default class MainGame extends Phaser.Scene
     {
         this.toggleMobileControls(false);
         this.infoPanel.setTexture('gameover');
+        this.gameOverInputReadyAt = this.time.now + 1000;
 
         this.tweens.add({
             targets: this.infoPanel,
@@ -172,12 +185,15 @@ export default class MainGame extends Phaser.Scene
         const restart = () => {
             this.scene.start('MainMenu');
         };
-        this.input.keyboard.once('keydown-SPACE', restart, this);
-        this.input.keyboard.once('keydown-Z', restart, this);
 
-        this.input.once('pointerdown', () => {
-            this.scene.start('MainMenu');
-        }, this);
+        this.time.delayedCall(1000, () => {
+            this.input.keyboard.once('keydown-SPACE', restart, this);
+            this.input.keyboard.once('keydown-Z', restart, this);
+
+            this.input.once('pointerdown', () => {
+                this.scene.start('MainMenu');
+            }, this);
+        });
     }
 
     resetBoard ()
@@ -205,11 +221,10 @@ export default class MainGame extends Phaser.Scene
 
     startQuestionEvent ()
     {
-        // Re-entrancy guard: snowmen overlap + periodic timer can fire on
-        // the same tick before isQuestionMode propagates, stacking overlays.
-        if (this.isQuestionMode || this.questionOverlayObjects.length > 0) {
+        if (this.isQuestionMode || this.modalLocked) {
             return;
         }
+        this.modalLocked = true;
         this.isQuestionMode = true;
         this.physics.pause();
         this.toggleMobileControls(false);
@@ -256,7 +271,7 @@ export default class MainGame extends Phaser.Scene
         this.questionOverlayObjects.push(questionText);
 
         const btnW = 750;
-        const btnH = 80;
+        const btnH = 120;
         const gapY = 16;
         const startY = cy - 20;
 
@@ -319,6 +334,9 @@ export default class MainGame extends Phaser.Scene
             this.questionOverlayObjects.forEach(o => o.destroy());
             this.questionOverlayObjects = [];
             this.isQuestionMode = false;
+            this.modalLocked = false;
+            this.clearEnemySnowballs();
+            this.postModalImmuneUntil = this.time.now + 500;
             this.physics.resume();
             
             if (this.scoreTimer) this.scoreTimer.paused = false;
@@ -331,6 +349,17 @@ export default class MainGame extends Phaser.Scene
             if (!correct && this.pendingBuff === 'SALVATION') {
                 this.actualGameOver();
             }
+        });
+    }
+
+    clearEnemySnowballs ()
+    {
+        this.tracks.forEach(track => {
+            track.enemySnowballs.getChildren().forEach(ball => {
+                if (ball.active) {
+                    ball.stop();
+                }
+            });
         });
     }
 
@@ -349,7 +378,7 @@ export default class MainGame extends Phaser.Scene
             {
                 this.start();
             }
-            else if (this.player && !this.player.isAlive && !this.isQuestionMode)
+            else if (this.player && !this.player.isAlive && !this.isQuestionMode && this.time.now >= this.gameOverInputReadyAt)
             {
                 this.scene.start('MainMenu');
             }
