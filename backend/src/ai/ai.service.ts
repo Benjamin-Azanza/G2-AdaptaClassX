@@ -1,8 +1,11 @@
 import {
   Injectable,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
@@ -52,10 +55,12 @@ export class AiService {
 
     this.openai = new OpenAI({
       apiKey,
+      // Default provider: Groq (OpenAI-compatible endpoint). Overridable
+      // via AI_API_URL to swap to any other compatible host.
       baseURL:
         this.configService.get<string>('AI_API_URL') ||
-        'https://api.openai.com/v1',
-      timeout: 25_000,
+        'https://api.groq.com/openai/v1',
+      timeout: 35_000,
       maxRetries: 2,
     });
   }
@@ -238,31 +243,26 @@ export class AiService {
     }
 
     const model =
-      this.configService.get<string>('AI_MODEL') || 'google/gemma-4-31b-it:free';
+      this.configService.get<string>('AI_MODEL') || 'llama-3.3-70b-versatile';
 
-    // Generar el prompt omitiendo "Consideraciones" si context está vacío
     const contextPart =
-      context && context.trim() ? `\nConsideraciones: ${context.trim()}` : '';
-    const prompt = `Eres un generador de preguntas de opción múltiple para niños de 8 a 10 años (3ro-5to EGB).
+      context && context.trim() ? `\nConsideración extra: ${context.trim()}` : '';
+    const prompt = `Genera ${amount} preguntas de opción múltiple para niños de 8-10 años (3ro-5to EGB), nivel ${difficulty}, basadas SOLO en este texto:
 
-TEXTO BASE:
 """
 ${text}
-"""
+"""${contextPart}
 
-TAREA: Genera exactamente ${amount} preguntas de opción múltiple basadas ÚNICAMENTE en el texto anterior. Nivel de dificultad: ${difficulty}.${contextPart}
+Reglas:
+- Cada pregunta debe poder responderse leyendo el texto.
+- 4 opciones por pregunta, exactamente una correcta.
+- Lenguaje simple y claro para niños.
+- No inventes datos que no estén en el texto.
 
-REGLAS:
-- Cada pregunta debe poder responderse leyendo el texto base.
-- 4 opciones por pregunta, solo una correcta.
-- Lenguaje claro y simple para niños.
-- No inventes información que no esté en el texto.
-- IMPORTANTE: Limita tu pensamiento o razonamiento interno (thinking/reasoning process) a un máximo de 1 o 2 oraciones muy breves. No expliques el proceso, genera el JSON inmediatamente en el primer token posible para no exceder los límites de tokens de salida.
+Devuelve SOLO este JSON (sin markdown, sin texto extra):
+{"preguntas":[{"texto":"...","opciones":["...","...","...","..."],"respuestaCorrecta":0}]}
 
-RESPONDE SOLO con un objeto JSON válido con esta forma exacta, sin markdown, sin explicaciones:
-{"preguntas":[{"texto":"...","opciones":["A","B","C","D"],"respuestaCorrecta":0}]}
-
-respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones".`;
+respuestaCorrecta = índice 0-3 de la opción correcta.`;
 
     this.logger.debug(
       `generateQuestions — model=${model} amount=${amount} textWords=${text.split(/\s+/).length}`,
@@ -326,10 +326,42 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
         `generateQuestions failed after ${latencyMs}ms`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException(
-        'Error generating questions from LLM',
+      throw this.mapLlmError(error);
+    }
+  }
+
+  /**
+   * Maps low-level provider errors (OpenAI-compatible SDK) into HTTP
+   * exceptions the frontend can render usefully. Free-tier hosts return
+   * 429 under TPM/RPM pressure — surfacing that as 500 would make the UI
+   * say "internal error" when the right message is "try again soon".
+   */
+  private mapLlmError(error: unknown): HttpException {
+    const status =
+      error && typeof error === 'object' && 'status' in error
+        ? (error as { status?: number }).status
+        : undefined;
+
+    if (status === 429) {
+      return new HttpException(
+        'El proveedor de IA está saturado o alcanzó su cuota gratuita. Espera 1-2 minutos y vuelve a intentar.',
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+    if (status === 401 || status === 403) {
+      return new HttpException(
+        'Credenciales de IA inválidas o sin permiso para el modelo configurado. Avisa al admin.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+    if (status === 502 || status === 503 || status === 504) {
+      return new ServiceUnavailableException(
+        'El proveedor de IA no respondió a tiempo. Intenta de nuevo en un momento.',
+      );
+    }
+    return new InternalServerErrorException(
+      'No se pudieron generar las preguntas con la IA en este momento.',
+    );
   }
 
   /**
@@ -353,16 +385,18 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     const model =
       opts.model ||
       this.configService.get<string>('AI_MODEL') ||
-      'google/gemma-4-31b-it:free';
+      'llama-3.3-70b-versatile';
 
     const response = await this.openai.chat.completions.create({
       model,
       messages,
       max_tokens: opts.maxTokens ?? 200,
+      temperature: 0.5,
+      top_p: 0.9,
     });
 
     const choice = response.choices[0];
-    // Some providers (OpenRouter "thinking" models) split content from a
+    // Some providers (reasoning / thinking models) split content from a
     // reasoning_content field. Try content first; if empty, look for the
     // reasoning field via a permissive cast so we don't lose the answer.
     const msg = choice?.message as unknown as
@@ -386,10 +420,16 @@ respuestaCorrecta es el índice (0-3) de la opción correcta dentro de "opciones
     prompt: string,
     amount: number,
   ): Promise<ChatCompletion> {
+    // Output budget tuned for ~80-token JSON envelope + ~120 tokens per
+    // question on a 70B-class model. Keeping the cap tight matters more
+    // on free tiers (lower TPM ceiling) than on Groq specifically, but
+    // it's a fine default in either case.
     const baseParams: ChatCompletionCreateParamsNonStreaming = {
       model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500 + amount * 200,
+      max_tokens: 300 + amount * 130,
+      temperature: 0.4,
+      top_p: 0.9,
     };
 
     try {

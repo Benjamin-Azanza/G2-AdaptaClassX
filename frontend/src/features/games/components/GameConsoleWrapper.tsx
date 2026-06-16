@@ -66,6 +66,15 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   const [isShortScreen, setIsShortScreen] = useState(false);
   const [isBtnAPressed, setIsBtnAPressed] = useState(false);
   const [isBtnBPressed, setIsBtnBPressed] = useState(false);
+  // Surfaced by useGameSession when every question_id in the teacher's
+  // bank has been answered at least once. The modal pauses the Phaser
+  // scene so the kid can read their stats before deciding to bow out
+  // (results page) or keep playing for fun (practice mode — no XP).
+  const [bankSummary, setBankSummary] = useState<
+    | { correct: number; attempted: number; minutes: number; total: number }
+    | null
+  >(null);
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
 
   const [joystickState, setJoystickState] = useState({
     active: false,
@@ -90,6 +99,31 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       delete (window as any).virtualJoystick;
     };
   }, []);
+
+  // Bank-completion modal. useGameSession fires this once the student has
+  // answered every question in the teacher's bank at least once.
+  useEffect(() => {
+    const onExhausted = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        correct: number;
+        attempted: number;
+        minutes: number;
+        total: number;
+      };
+      setBankSummary(detail);
+      // Pause the Phaser scene so the kid can read the modal without
+      // dodging enemies behind it.
+      setIsPaused(true);
+      if (phaserGameRef.current) {
+        phaserGameRef.current.scene.scenes.forEach((scene) => {
+          if (scene.scene.isActive()) scene.scene.pause();
+        });
+        phaserGameRef.current.sound.pauseAll();
+      }
+    };
+    window.addEventListener('game:bankExhausted', onExhausted);
+    return () => window.removeEventListener('game:bankExhausted', onExhausted);
+  }, [phaserGameRef]);
 
 
 
@@ -651,6 +685,99 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     </div>
   );
 
+  const handleContinuePracticing = () => {
+    if (!bankSummary) return;
+    // Tell the hook to stop posting attempts / heartbeats.
+    window.dispatchEvent(new CustomEvent('game:enterPractice'));
+    setIsPracticeMode(true);
+    setBankSummary(null);
+    setIsPaused(false);
+    if (phaserGameRef.current) {
+      phaserGameRef.current.scene.scenes.forEach((scene) => {
+        if (scene.scene.isPaused()) scene.scene.resume();
+      });
+      phaserGameRef.current.sound.resumeAll();
+    }
+  };
+
+  const handleViewResults = () => {
+    setBankSummary(null);
+    // onQuit triggers the hook's routeAwayFromGame which flushes a final
+    // heartbeat and navigates to the results page.
+    onQuit();
+  };
+
+  const renderBankCompletionModal = () => {
+    if (!bankSummary) return null;
+    const { correct, attempted, minutes, total } = bankSummary;
+    const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 select-none">
+        <div
+          className="border-8 border-on-background bg-surface-container-lowest p-6 shadow-[12px_12px_0_0_#1d1c17]"
+          style={{ width: '92%', maxWidth: '460px', minWidth: '280px', boxSizing: 'border-box' }}
+        >
+          <h2 className="border-b-4 border-on-background pb-3 text-center font-headline text-2xl md:text-3xl font-black uppercase tracking-widest text-primary">
+            ¡Banco completado!
+          </h2>
+
+          <p className="mt-3 text-center text-sm md:text-base text-on-surface-variant">
+            Respondiste todas las preguntas del banco de tu docente.
+          </p>
+
+          <dl className="mt-5 grid grid-cols-3 gap-2">
+            <div className="border-4 border-on-background bg-primary-container p-2 text-center shadow-[3px_3px_0_0_#1d1c17]">
+              <dt className="font-mono text-[10px] font-bold uppercase text-on-primary-container">Aciertos</dt>
+              <dd className="mt-1 font-headline text-2xl font-black text-on-primary-container">
+                {correct}/{total}
+              </dd>
+            </div>
+            <div className="border-4 border-on-background bg-secondary-container p-2 text-center shadow-[3px_3px_0_0_#1d1c17]">
+              <dt className="font-mono text-[10px] font-bold uppercase text-on-secondary-container">Precisión</dt>
+              <dd className="mt-1 font-headline text-2xl font-black text-on-secondary-container">
+                {accuracy}%
+              </dd>
+            </div>
+            <div className="border-4 border-on-background bg-tertiary-container p-2 text-center shadow-[3px_3px_0_0_#1d1c17]">
+              <dt className="font-mono text-[10px] font-bold uppercase text-on-tertiary-container">Minutos</dt>
+              <dd className="mt-1 font-headline text-2xl font-black text-on-tertiary-container">
+                {minutes.toFixed(1)}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-5 border-2 border-dashed border-on-background/40 bg-surface-variant p-2 text-center font-mono text-[11px] uppercase text-on-surface-variant">
+            Si sigues jugando, las preguntas se repiten y ya no ganas XP.
+          </p>
+
+          <div className="mt-5 flex flex-col gap-3">
+            <button
+              onClick={handleViewResults}
+              className="flex items-center justify-center gap-2 border-4 border-on-background bg-primary px-4 py-3 font-headline text-base font-bold uppercase text-on-primary shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
+            >
+              <span className="material-symbols-outlined">flag</span>
+              Ver mis resultados
+            </button>
+            <button
+              onClick={handleContinuePracticing}
+              className="flex items-center justify-center gap-2 border-4 border-on-background bg-surface-variant px-4 py-3 font-headline text-base font-bold uppercase text-on-surface-variant shadow-[4px_4px_0_0_#1d1c17] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#1d1c17] cursor-pointer"
+            >
+              <span className="material-symbols-outlined">replay</span>
+              Seguir practicando
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPracticeBadge = () => (
+    <div className="flex items-center gap-1 border-2 sm:border-4 border-on-background bg-tertiary-container px-2 py-1 sm:px-3 sm:py-2 font-mono text-[10px] sm:text-xs font-bold uppercase text-on-tertiary-container shadow-[2px_2px_0_0_#1d1c17] sm:shadow-[4px_4px_0_0_#1d1c17]">
+      <span className="material-symbols-outlined text-xs sm:text-base">school</span>
+      Práctica · sin XP
+    </div>
+  );
+
   const renderPauseModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 select-none">
       <div 
@@ -858,7 +985,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
 
         {/* Bottom Gamepad controls (32% height) */}
         {renderGamepad()}
+        {/* Practice-mode badge over the canvas */}
+        {isPracticeMode && !bankSummary && (
+          <div className="absolute right-3 top-3 z-30">{renderPracticeBadge()}</div>
+        )}
         {pauseOverlay}
+        {renderBankCompletionModal()}
         <MissionProgressOverlay active={gameStarted} />
       </div>
     );
@@ -894,6 +1026,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             Modo preview
           </div>
         )}
+        {isPracticeMode && !bankSummary && renderPracticeBadge()}
       </div>
 
       <div
@@ -934,6 +1067,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       </div>
 
       {pauseOverlay}
+      {renderBankCompletionModal()}
       <MissionProgressOverlay active={gameStarted} />
     </div>
   );

@@ -81,16 +81,37 @@ export function useGameSession(buildGame: BuildGame) {
   // student quits mid-interval, so 15-second sessions still count.
   const lastHeartbeatAtRef = useRef<number>(0);
 
+  // Bank-exhaustion tracking. We keep a set of question_ids the student
+  // has actually answered (right or wrong) during this session, plus a
+  // count of the bank's total size. When the set fills the bank, we
+  // dispatch `game:bankExhausted` so the wrapper can show the completion
+  // modal. After that, the student can opt into "practice mode" via
+  // `game:enterPractice`, which stops the hook from posting attempts /
+  // heartbeats — they keep playing, but no XP, no missions, no farming.
+  const seenQuestionIdsRef = useRef<Set<string>>(new Set());
+  const totalBankRef = useRef<number>(0);
+  const practiceModeRef = useRef<boolean>(false);
+  const bankExhaustedFiredRef = useRef<boolean>(false);
+  const sessionStatsRef = useRef({ correct: 0, attempted: 0, minutes: 0 });
+
   // POSTs a heartbeat carrying the time elapsed since the previous one.
   // Returns nothing — callers fire-and-forget except for `routeAway`,
   // which awaits this so the final flush lands before navigation.
   const sendHeartbeat = useCallback(async () => {
     if (user?.role !== 'STUDENT' || !sessionIdRef.current) return;
+    // Practice mode: bank already cleared, no more XP/missions. Keep the
+    // clock advancing so the next non-practice run starts fresh, but
+    // don't bill the backend for it.
+    if (practiceModeRef.current) {
+      lastHeartbeatAtRef.current = Date.now();
+      return;
+    }
     const now = Date.now();
     const minutesSinceLast = (now - lastHeartbeatAtRef.current) / 60_000;
     if (minutesSinceLast < MIN_HEARTBEAT_MINUTES) return;
     lastHeartbeatAtRef.current = now;
     hadActivityRef.current = true;
+    sessionStatsRef.current.minutes += minutesSinceLast;
     try {
       await api.post(
         `/game-sessions/${sessionIdRef.current}/heartbeat`,
@@ -164,7 +185,15 @@ export function useGameSession(buildGame: BuildGame) {
       // if a stale sessionId somehow leaked in.
       if (user?.role !== 'STUDENT') return;
       if (!sessionIdRef.current || !question_id) return;
+      // Practice mode: bank already completed, the student just wants
+      // to keep playing for fun. No backend writes, no XP, no missions.
+      if (practiceModeRef.current) return;
+
       hadActivityRef.current = true;
+      sessionStatsRef.current.attempted += 1;
+      if (correct) sessionStatsRef.current.correct += 1;
+      seenQuestionIdsRef.current.add(question_id);
+
       api.post(`/game-sessions/${sessionIdRef.current}/attempt`, {
         question_id,
         correcta: correct,
@@ -172,15 +201,33 @@ export function useGameSession(buildGame: BuildGame) {
         .then(() => {
           // Backend recalculated mission progress; nudge the in-game overlay.
           window.dispatchEvent(new CustomEvent('mission:refresh'));
+          // Bank just got emptied — let the wrapper show the completion modal.
+          if (
+            !bankExhaustedFiredRef.current &&
+            totalBankRef.current > 0 &&
+            seenQuestionIdsRef.current.size >= totalBankRef.current
+          ) {
+            bankExhaustedFiredRef.current = true;
+            window.dispatchEvent(
+              new CustomEvent('game:bankExhausted', {
+                detail: { ...sessionStatsRef.current, total: totalBankRef.current },
+              }),
+            );
+          }
         })
         .catch((err) => {
           console.error('Failed to post question attempt', err);
         });
     };
 
+    const handleEnterPractice = () => {
+      practiceModeRef.current = true;
+    };
+
     window.addEventListener('game:quit', handleQuit);
     window.addEventListener('game:complete', handleComplete);
     window.addEventListener('game:answer', handleAnswer as EventListener);
+    window.addEventListener('game:enterPractice', handleEnterPractice);
 
     async function init() {
       if (!gameRef.current || phaserGame.current) return;
@@ -191,6 +238,16 @@ export function useGameSession(buildGame: BuildGame) {
         ? await loadAdaptaGameQuestions(adaptaPin)
         : await loadQuestions(gameId);
       if (cancelled || !gameRef.current) return;
+
+      // Reset per-session bank-completion bookkeeping. Only questions
+      // with a backend id count toward the bank — inline fallbacks in
+      // scenes don't have ids and shouldn't trigger the "you cleared it"
+      // modal.
+      seenQuestionIdsRef.current = new Set();
+      totalBankRef.current = questions.filter((q) => !!q.id).length;
+      practiceModeRef.current = false;
+      bankExhaustedFiredRef.current = false;
+      sessionStatsRef.current = { correct: 0, attempted: 0, minutes: 0 };
 
       if (user?.role === 'STUDENT' && gameId) {
         try {
@@ -222,6 +279,7 @@ export function useGameSession(buildGame: BuildGame) {
       window.removeEventListener('game:quit', handleQuit);
       window.removeEventListener('game:complete', handleComplete);
       window.removeEventListener('game:answer', handleAnswer as EventListener);
+      window.removeEventListener('game:enterPractice', handleEnterPractice);
       // Wipe the question registry before destroying so the next mount can't
       // inherit a stale list from a previous role's preview.
       phaserGame.current?.registry?.reset();
@@ -230,6 +288,11 @@ export function useGameSession(buildGame: BuildGame) {
       phaserGame.current = null;
       sessionIdRef.current = null;
       hadActivityRef.current = false;
+      seenQuestionIdsRef.current = new Set();
+      totalBankRef.current = 0;
+      practiceModeRef.current = false;
+      bankExhaustedFiredRef.current = false;
+      sessionStatsRef.current = { correct: 0, attempted: 0, minutes: 0 };
       if (heartbeat) window.clearInterval(heartbeat);
     };
   }, [gameStarted, gameId, adaptaPin, navigate, user?.role, routeAwayFromGame, sendHeartbeat]);

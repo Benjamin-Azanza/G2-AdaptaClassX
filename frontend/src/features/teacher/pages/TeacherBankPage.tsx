@@ -126,19 +126,6 @@ export function TeacherBankPage() {
       ? 'General'
       : (paralelos.find((p) => p.id === filterParaleloId)?.nombre ?? 'este paralelo');
 
-  const handleRegenerate = async (sourceId: string) => {
-    setActionError(null);
-    setActionSuccess(null);
-    try {
-      const res = await api.post<{ message: string }>(
-        `/question-sources/${sourceId}/regenerate`,
-      );
-      setActionSuccess(res.data.message);
-    } catch (err) {
-      setActionError(getApiErrorMessage(err, 'No se pudo regenerar el documento.'));
-    }
-  };
-
   const handleDeleteQuestion = async (qId: string) => {
     if (!window.confirm('¿Seguro que deseas eliminar esta pregunta del banco?')) return;
     setActionError(null);
@@ -301,15 +288,6 @@ export function TeacherBankPage() {
                       <p className="mt-xs text-xs text-on-surface-variant">
                         Subido el: {new Date(source.created_at).toLocaleDateString()}
                       </p>
-
-                      <div className="mt-md flex justify-end border-t-2 border-on-background pt-md">
-                        <button
-                          onClick={() => handleRegenerate(source.id)}
-                          className="border-2 border-on-background bg-surface px-4 py-1.5 text-xs font-bold uppercase shadow-[2px_2px_0_0_#1d1c17] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-                        >
-                          Regenerar con IA
-                        </button>
-                      </div>
                     </article>
                   ))}
                 </div>

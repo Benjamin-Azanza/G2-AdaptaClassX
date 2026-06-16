@@ -28,11 +28,6 @@ export class QuestionsController {
     return this.questionsService.listSources(req.user.sub);
   }
 
-  @Post('question-sources/:id/regenerate')
-  async regenerateQuestionSource(@Param('id') id: string, @Request() req: any) {
-    return this.questionsService.regenerateSource(id, req.user.sub);
-  }
-
   @Get('temas')
   async getTemas(@Request() req: any) {
     return this.questionsService.listTemas(req.user.sub);

@@ -25,7 +25,16 @@ import { CsrfGuard } from './common/security/csrf.guard';
       // Single .env at repo root shared with the frontend (Vite).
       // VITE_* vars are ignored by NestJS; backend vars are ignored by Vite.
       // In production (Vercel) env vars come from the dashboard, not a file.
-      envFilePath: require('path').resolve(__dirname, '../../.env'),
+      //
+      // Multiple candidate paths because nest-cli.json sets `sourceRoot: src`,
+      // so the compiled file lives at `backend/dist/src/app.module.js` (NOT
+      // `backend/dist/`). The first path that exists wins. Process.cwd()
+      // fallback covers running from `backend/` directly.
+      envFilePath: [
+        require('path').resolve(__dirname, '../../../.env'), // backend/dist/src → repo root
+        require('path').resolve(__dirname, '../../.env'),    // backend/dist or backend/src → repo root (legacy / direct ts-node)
+        require('path').resolve(process.cwd(), '..', '.env'), // cwd=backend → repo root
+      ],
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
         DIRECT_URL: Joi.string().optional(), // Required for Supabase migrations, optional for local dev
@@ -41,13 +50,13 @@ import { CsrfGuard } from './common/security/csrf.guard';
           then: Joi.required(),
           otherwise: Joi.optional(),
         }),
-        OPENAI_API_KEY: Joi.string().optional(), // alias for AI_API_KEY
-        AI_API_KEY: Joi.string().optional(), // preferred key name (OpenRouter / any provider)
+        OPENAI_API_KEY: Joi.string().optional(), // backwards-compat alias for AI_API_KEY
+        AI_API_KEY: Joi.string().optional(), // preferred name (Groq / OpenAI / any compatible host)
         AI_API_URL: Joi.string()
           .uri()
           .optional()
-          .default('https://api.openai.com/v1'),
-        AI_MODEL: Joi.string().default('google/gemma-4-31b-it:free'), // Override to swap models without code changes
+          .default('https://api.groq.com/openai/v1'),
+        AI_MODEL: Joi.string().default('llama-3.3-70b-versatile'), // Override to swap models without code changes
         // Optional — when set, the AI flow persists question drafts between
         // /generate-questions and /save-questions for 30 min. Missing is fine
         // (drafts just won't survive a tab reload).

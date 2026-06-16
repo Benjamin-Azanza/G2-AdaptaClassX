@@ -15,7 +15,7 @@ codigo actual y este archivo.
 - **Juegos:** Phaser 4 sobre Canvas.
 - **DB:** Postgres/Supabase. `prisma.config.ts` usa `DIRECT_URL` para Migrate (evita PgBouncer).
 - **Auth:** JWT en cookie httpOnly + CSRF double-submit.
-- **IA:** OpenRouter (`https://openrouter.ai/api/v1`), modelo default `google/gemma-4-31b-it:free`. `z-ai/glm-4.5-air:free` fue discontinuado — **no reintroducirlo**.
+- **IA:** Groq (`https://api.groq.com/openai/v1`, OpenAI-compatible), modelo default `llama-3.3-70b-versatile`. Provider anterior (OpenRouter free tier) fue migrado porque sus modelos free comparten cuota global y daban 429 upstream. Groq da cuota por usuario: 30 RPM, 6k TPM, 14.4k req/día.
 - **Redis:** opcional, usado para drafts/cache/throttling de IA cuando `REDIS_URL` existe.
 - **Pusher:** Adapta-G usa Pusher para tiempo real. El `PusherService` llama la REST API de Pusher directamente con `axios` + `crypto` de Node — **NO usa el SDK `pusher` npm** (incompatible con el bundler de Vercel `@vercel/node`). No reintroducir `require('pusher')`.
 
@@ -313,12 +313,20 @@ El prompt instruye al modelo a:
 
 Esto cambio significativamente. Decisiones para no deshacer:
 
-- El banco es **global por docente**, NO por juego ni por tema. Cada estudiante
-  ve las preguntas del docente de su paralelo en CUALQUIER juego.
-- `GamesService.getQuestionsForUser` **NO filtra por `game.tema`**. Devuelve
-  todas las del `teacher_id` resuelto. (Aunque luego se pueda filtrar por el tema libre para el dashboard).
-- `GamesService.findAllForUser` devuelve `questionsCount` = total del banco
-  del docente. Es el MISMO numero para todos los juegos.
+- El banco es **global por docente** (no por juego), pero los juegos solo
+  sirven el **tema activo**: el `tema` de la pregunta más reciente del
+  scope (docente + paralelo). Cuando el docente sube material de un tema
+  nuevo, los minijuegos cambian a ese tema y dejan de mezclar los anteriores.
+- `GamesService.getQuestionsForUser` ignora `game.tema` (el catálogo);
+  filtra por `teacher_id` resuelto + `tema = activeTema` (vía
+  `resolveActiveTema`). El banco viejo sigue intacto en la DB.
+- `GamesService.findAllForUser` devuelve `questionsCount` = tamaño del
+  **tema activo** (no del banco completo). Es el MISMO numero para todos
+  los juegos y alimenta la lógica de "banco completado" del overlay del
+  estudiante.
+- El banco del docente (`TeacherBankPage`, `/questions` API,
+  dashboard) sigue mostrando TODOS los temas. La regla del tema activo
+  solo aplica a `/games/:id/questions` y al contador del catálogo.
 - `QuestionGenerationForm` y `ManualQuestionForm` **tienen un combo de tema** 
   (datalist) que autocompleta con los temas únicos en la DB. El backend acepta 
   `tema` como string.
@@ -339,7 +347,7 @@ Esto cambio significativamente. Decisiones para no deshacer:
 - En produccion (Vercel) las vars vienen del dashboard — el archivo `.env` solo sirve para desarrollo local.
 - `frontend/vite.config.ts` tiene `envDir` apuntando a `../` (raiz).
 - `backend/prisma.config.ts` carga `../.env`.
-- `backend/src/app.module.ts` tiene `envFilePath` resuelto a `../../.env` desde `dist/`.
+- `backend/src/app.module.ts` tiene `envFilePath` como **array** de candidatos. Necesario porque `nest-cli.json` setea `sourceRoot: src`, así que el JS compilado vive en `backend/dist/src/app.module.js` (3 niveles de la raíz) — un solo path relativo no cubre dev vs prod ni distintos `cwd`. No regresar a path único o se rompe.
 
 Variables del backend:
 
@@ -352,7 +360,8 @@ Variables del backend:
 - `FRONTEND_URL` obligatorio en produccion.
 - `AI_API_KEY` preferido (o `OPENAI_API_KEY` como alias legacy).
 - `AI_API_URL` — default `https://api.openai.com/v1`. Usar `https://openrouter.ai/api/v1`.
-- `AI_MODEL` — default en codigo: `google/gemma-4-31b-it:free`.
+- `AI_API_URL` — default en codigo: `https://api.groq.com/openai/v1`. Cualquier endpoint OpenAI-compatible (Groq, OpenAI directo, Together, etc.) sirve sin tocar codigo.
+- `AI_MODEL` — default en codigo: `llama-3.3-70b-versatile` (Groq). Si se cambia el provider tambien hay que cambiar el ID del modelo.
 - `REDIS_URL` opcional.
 - `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` — requeridos para Adapta-G.
 
@@ -489,9 +498,13 @@ Para evitar la reintroducción de brechas de seguridad o falsos positivos descon
 11. **No reintroducir** `Assignment`, `StudentProgress`, `GameQuestion`, ni la
     feature de archivado de paralelos. Si parecen faltar, el modelo nuevo
     (`Mission` + `GameSession` + `QuestionAttempt`) los reemplaza.
-12. **No filtrar preguntas por `tema` en runtime** dentro de los juegos (el banco 
-    es global por docente para los minijuegos). El campo de tema se usa en el 
-    Dashboard para agrupar métricas y en el Banco para filtrar visualmente.
+12. **Los juegos sirven solo el tema activo** (el `tema` de la pregunta
+    más reciente del scope docente + paralelo) vía
+    `GamesService.resolveActiveTema`. NO reintroducir el comportamiento
+    de "banco completo a juegos" — al subir un tema nuevo, los minijuegos
+    deben cambiar. El campo `tema` también se usa en el Dashboard para
+    métricas y en el Banco del docente (TeacherBankPage), donde SÍ se
+    muestran todos los temas.
 13. **Comparar fechas de calendario en UTC**: `date.toISOString().slice(0, 10)`.
     No usar `setHours(0,0,0,0)` (interpreta en TZ local; rompe en Ecuador UTC-5).
 14. `Mission.xp_reward` es la fuente de verdad para la recompensa. **No
@@ -585,7 +598,7 @@ Sesion del 15 jun 2026:
 - **Migracion faltante aplicada**: `20260615000000_adapta_g_and_dashboard_schema` — el branch Dashboard modifico `schema.prisma` sin crear SQL. La migracion agrega: `ADMIN` al enum `Role`, convierte `Tema` enum a `String` (en `games`, `question_sources`, `questions`), agrega `paralelo_id` nullable FK en `question_sources` y `questions`. Aplicada a Supabase con `prisma migrate deploy`. Prisma client regenerado.
 - **PusherService reescrito**: el SDK `pusher` npm falla en `@vercel/node` por su dependencia `node-fetch`. Reemplazado por llamadas directas a la REST API de Pusher usando `axios` + `crypto` nativo. Ver `backend/src/pusher/pusher.service.ts`.
 - **Single root `.env`**: unificado `backend/.env` y `frontend/.env.local` en un solo `.env` en la raiz del repo. Actualizado `vite.config.ts` (`envDir`), `prisma.config.ts` y `app.module.ts` (`envFilePath`).
-- **AI model**: `z-ai/glm-4.5-air:free` discontinuado en OpenRouter. Default cambiado a `google/gemma-4-31b-it:free` en `ai.service.ts` (dos lugares) y en el schema Joi de `app.module.ts`.
+- **AI provider migrado a Groq**: OpenRouter free tier (`google/gemma-4-31b-it:free`) daba 429 upstream constantes porque la cuota se comparte globalmente. Cambio: `AI_API_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.3-70b-versatile`, key `gsk_...` en `.env`. Defaults actualizados en `ai.service.ts` (constructor, generateQuestions, chatCompletion) y `app.module.ts` (Joi). Removida la extension OpenRouter-specific `reasoning: { exclude: true }` (era para suprimir el thinking channel de Gemma 4 — Llama 3.3 no tiene ese canal). Si el provider falla, se puede swap a cualquier endpoint OpenAI-compatible solo cambiando esas 2-3 envs.
 - **Auth DTO**: mensajes de validacion en español en `backend/src/auth/dto/auth.dto.ts`. `RegisterPage` valida password >= 8 chars (igual que `@MinLength(8)` del backend).
 - **Recharts tooltip**: todos los `<Tooltip>` en los charts del dashboard necesitan `wrapperStyle={{ background: 'none', border: 'none', padding: 0, boxShadow: 'none' }}` para evitar un cuadro blanco fantasma que Recharts renderiza aunque el content devuelva null.
 - **pusher-js**: instalado en `frontend/package.json` (faltaba, causaba fallo de build).

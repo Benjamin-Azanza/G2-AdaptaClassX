@@ -26,20 +26,6 @@ export class QuestionsService {
     return records.map((r) => r.tema).sort();
   }
 
-  async regenerateSource(sourceId: string, teacherId: string) {
-    const source = await this.prisma.questionSource.findUnique({
-      where: { id: sourceId },
-    });
-    if (!source || source.teacher_id !== teacherId) {
-      throw new NotFoundException('Fuente de preguntas no encontrada');
-    }
-    return {
-      message:
-        'Regeneración simulada exitosamente. Sube el archivo de nuevo para re-correr la IA real.',
-      sourceId,
-    };
-  }
-
   async listQuestions(teacherId: string, tema?: string) {
     return this.prisma.question.findMany({
       where: {

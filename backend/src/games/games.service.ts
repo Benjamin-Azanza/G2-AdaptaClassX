@@ -30,9 +30,44 @@ export class GamesService {
   }
 
   /**
+   * Build the scoped `where` clause for the active bank: questions owned
+   * by `teacherId` and either global or matching the student's paralelo.
+   * Centralized so `findAllForUser` and `getQuestionsForUser` can't drift.
+   */
+  private scopedQuestionWhere(teacherId: string, paraleloId: string | null) {
+    return {
+      teacher_id: teacherId,
+      ...(paraleloId
+        ? { OR: [{ paralelo_id: paraleloId }, { paralelo_id: null }] }
+        : {}),
+    };
+  }
+
+  /**
+   * The "active tema" is the `tema` of the most recently created question
+   * in scope. Once the teacher uploads a new topic, the bank fed to
+   * minigames flips to that topic and stops mixing in older themes — the
+   * student's "banco completado" target resets cleanly.
+   *
+   * Older questions still live in the teacher's bank (TeacherBankPage)
+   * and dashboard aggregates; only the in-game feed is filtered.
+   */
+  private async resolveActiveTema(
+    teacherId: string,
+    paraleloId: string | null,
+  ): Promise<string | null> {
+    const latest = await this.prisma.question.findFirst({
+      where: this.scopedQuestionWhere(teacherId, paraleloId),
+      orderBy: { created_at: 'desc' },
+      select: { tema: true },
+    });
+    return latest?.tema ?? null;
+  }
+
+  /**
    * Lists every game in the catalog. Each row includes `questionsCount`,
-   * which is the size of the active teacher's bank — the SAME number for
-   * every game, because every question now applies to every game.
+   * which is the size of the active topic — same number for every game,
+   * because every question now applies to every game.
    */
   async findAllForUser(userId: string, role: Role) {
     const context = await this.resolveContextFor(userId, role);
@@ -41,23 +76,28 @@ export class GamesService {
 
     const games = await this.prisma.game.findMany({ orderBy: { titulo: 'asc' } });
 
-    const questionsCount = teacherId
-      ? await this.prisma.question.count({
-          where: { 
-            teacher_id: teacherId,
-            ...(paraleloId ? { OR: [{ paralelo_id: paraleloId }, { paralelo_id: null }] } : {})
+    let questionsCount = 0;
+    if (teacherId) {
+      const activeTema = await this.resolveActiveTema(teacherId, paraleloId);
+      if (activeTema) {
+        questionsCount = await this.prisma.question.count({
+          where: {
+            ...this.scopedQuestionWhere(teacherId, paraleloId),
+            tema: activeTema,
           },
-        })
-      : 0;
+        });
+      }
+    }
 
     return games.map((game) => ({ ...game, questionsCount }));
   }
 
   /**
-   * Returns the teacher's full bank for any requested game id, in the
-   * legacy `[{ preguntas_json: [...] }]` shape the Phaser scenes already
-   * understand. The `tema` of the game is intentionally ignored — the
-   * teacher's bank is global and shared across all games.
+   * Returns the active-topic slice of the teacher's bank for any
+   * requested game id, in the legacy `[{ preguntas_json: [...] }]` shape
+   * the Phaser scenes already understand. The `tema` of the catalog game
+   * is intentionally ignored — what filters is the most recent topic the
+   * teacher has uploaded.
    */
   async getQuestionsForUser(gameId: string, userId: string, role: Role) {
     const game = await this.prisma.game.findUnique({ where: { id: gameId } });
@@ -69,12 +109,15 @@ export class GamesService {
     const teacherId = context.teacherId;
     const paraleloId = context.paraleloId;
 
-    if (!teacherId) return [];
+    if (!teacherId) return [{ preguntas_json: [] }];
+
+    const activeTema = await this.resolveActiveTema(teacherId, paraleloId);
+    if (!activeTema) return [{ preguntas_json: [] }];
 
     const dbQuestions = await this.prisma.question.findMany({
-      where: { 
-        teacher_id: teacherId,
-        ...(paraleloId ? { OR: [{ paralelo_id: paraleloId }, { paralelo_id: null }] } : {})
+      where: {
+        ...this.scopedQuestionWhere(teacherId, paraleloId),
+        tema: activeTema,
       },
       orderBy: { created_at: 'desc' },
     });

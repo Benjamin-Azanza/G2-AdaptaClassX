@@ -134,7 +134,7 @@ async function main() {
       acepta_preguntas_ia: true,
       grado_min: 3,
       grado_max: 5,
-      descripcion: 'Responde preguntas sobre textos y mejora tu velocidad lectora.',
+      descripcion: 'Esquiva bombas, recoge corazones y responde preguntas para sobrevivir cada nivel.',
       config_default: {
         rutaJuego: '/games/bomb-game',
         tiempoLimitePreguntaSegundos: 30,
@@ -230,7 +230,7 @@ async function main() {
       acepta_preguntas_ia: true,
       grado_min: 2,
       grado_max: 6,
-      descripcion: 'Una demo interactiva con animaciones y sonidos divertidos.',
+      descripcion: 'Atrapa tomates, esquiva obstáculos y resuelve preguntas para ganar buffs.',
       config_default: { rutaJuego: '/games/tom' },
     },
     {
@@ -248,7 +248,13 @@ async function main() {
   for (const juegoData of juegosImportados) {
     await prisma.game.upsert({
       where: { titulo: juegoData.titulo },
-      update: { config_default: juegoData.config_default },
+      update: {
+        descripcion: juegoData.descripcion,
+        config_default: juegoData.config_default,
+        tema: juegoData.tema,
+        grado_min: juegoData.grado_min,
+        grado_max: juegoData.grado_max,
+      },
       create: juegoData,
     });
   }
