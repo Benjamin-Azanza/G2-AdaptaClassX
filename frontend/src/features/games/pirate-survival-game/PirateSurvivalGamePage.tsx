@@ -30,8 +30,8 @@ export const PirateSurvivalGamePage: React.FC = () => {
         'Pausar: Tecla ESC',
       ]}
       controlsMobile={[
-        'Moverse: D-Pad en cualquier dirección',
-        'Atacar con Espada: Botón A (Simula tecla Z)',
+        'Moverse: Mueve el joystick en cualquier dirección',
+        'Atacar con Espada: Botón A',
         'Pausar: Botón Pausa',
       ]}
       hasGamepad={true}

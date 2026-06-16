@@ -239,7 +239,11 @@ export default class MainGame extends Phaser.Scene
             }
             else
             {
-                const remaining = (30 - this.timer.getElapsedSeconds()).toPrecision(4);
+                // Use the timer's own delay rather than the literal 30 so the
+                // salvation bonus (which replaces the timer with a 10s one)
+                // displays the correct remaining time instead of phantom 20s.
+                const totalSec = this.timer.delay / 1000;
+                const remaining = (totalSec - this.timer.getElapsedSeconds()).toPrecision(4);
                 const pos = remaining.indexOf('.');
 
                 let seconds = remaining.substring(0, pos);

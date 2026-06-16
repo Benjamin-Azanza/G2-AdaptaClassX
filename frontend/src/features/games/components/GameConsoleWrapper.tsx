@@ -212,17 +212,23 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     const normalY = dy / maxRadius;
     const intensity = Math.min(distance / maxRadius, 1);
 
+    // Honor joystickAxes for the analog values too — not just for the
+    // keyboard emulation below. Scenes like Tom's Tomato.ts read
+    // `virtualJoystick.dy` directly to trigger ducking; without zeroing
+    // it here, a diagonal drag in a horizontal-only game still pushes
+    // through the unwanted axis.
+    const axisX = joystickAxes !== 'vertical';
+    const axisY = joystickAxes !== 'horizontal';
+
     (window as any).virtualJoystick = {
       active: true,
-      dx: normalX,
-      dy: normalY,
+      dx: axisX ? normalX : 0,
+      dy: axisY ? normalY : 0,
       intensity: intensity,
     };
 
     // Keyboard emulation transitions
     const deadzone = joystickDeadzone;
-    const axisX = joystickAxes !== 'vertical';
-    const axisY = joystickAxes !== 'horizontal';
     const keys = {
       left: axisX && normalX < -deadzone,
       right: axisX && normalX > deadzone,
@@ -454,8 +460,14 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   };
 
   const handlePause = () => {
+    // Bomb-game uses `isQuestionActive` instead of `isQuestionMode` (legacy
+    // scene contract), so check both flags before allowing pause — otherwise
+    // pausing during a bomb-game question stacks two modals on top of each
+    // other with no way out.
     const hasModal = phaserGameRef.current?.scene.scenes.some(
-      (s) => s.scene.isActive() && (s as any).isQuestionMode === true
+      (s) =>
+        s.scene.isActive() &&
+        ((s as any).isQuestionMode === true || (s as any).isQuestionActive === true)
     );
     if (hasModal) return;
     setIsPaused(true);
@@ -585,13 +597,14 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       const counterKey = `${key}PressedCount`;
       (window as any).virtualGamepad[counterKey] = ((window as any).virtualGamepad[counterKey] || 0) + 1;
     }
-    // Update virtual joystick for arrow movement
-    if ((window as any).virtualJoystick) {
-      (window as any).virtualJoystick.active = true;
-      (window as any).virtualJoystick.dx = key === 'left' ? -1 : key === 'right' ? 1 : 0;
-      (window as any).virtualJoystick.dy = key === 'up' ? -1 : key === 'down' ? 1 : 0;
-      (window as any).virtualJoystick.intensity = 1;
-    }
+    // NOTE: previously this handler also mutated `virtualJoystick.dx/dy`
+    // to keep "compatibility" with scenes that only read the joystick
+    // path. That caused a double-fire bug in Snowmen Attack: the scene
+    // reads BOTH the joystick path AND `Phaser.Input.Keyboard.JustDown`
+    // on the synthetic event below, so each ▲ tap moved the penguin TWO
+    // lanes (and wrapped around). The discrete D-pad is for keyboard-
+    // style input; the analog `virtualJoystick` must stay owned by the
+    // actual joystick area handlers below.
     // Dispatch custom event for direct response
     window.dispatchEvent(new CustomEvent(`gamepad:${key}`));
 
@@ -617,13 +630,10 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     if ((window as any).virtualGamepad) {
       (window as any).virtualGamepad[key] = false;
     }
-    // Reset virtual joystick when any dpad button released
-    if ((window as any).virtualJoystick) {
-      (window as any).virtualJoystick.active = false;
-      (window as any).virtualJoystick.dx = 0;
-      (window as any).virtualJoystick.dy = 0;
-      (window as any).virtualJoystick.intensity = 0;
-    }
+    // See handleDpadButtonDown — discrete D-pad must NOT touch the
+    // analog `virtualJoystick`. Touching it here also cleared state
+    // belonging to the real joystick handlers (when both inputs were
+    // somehow active during the same gesture).
 
     // Simulate keyup
     const keyMap = {
@@ -839,7 +849,10 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   const joyDown = joystickState.stickY > 8;
 
   const renderGamepad = () => (
-    <div className="flex h-[32vh] min-h-[180px] w-full select-none justify-around items-center bg-slate-900 px-6 md:px-24 py-4 border-t-8 border-on-background relative">
+    <div
+      className="flex h-[32dvh] min-h-[180px] w-full select-none justify-around items-center bg-slate-900 px-6 md:px-24 py-4 border-t-8 border-on-background relative"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       {/* Visual background details */}
       <div className="absolute inset-0 opacity-5 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:10px_10px]" />
  
@@ -997,9 +1010,15 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   // On Mobile and hasGamepad configured: 70% game area + 30% retro control chassis
   if (isMobile && hasGamepad) {
     return (
-      <div className="fixed inset-0 flex flex-col bg-slate-950 overflow-hidden select-none" style={{ touchAction: 'none' }}>
+      <div
+        className="fixed inset-0 flex flex-col bg-slate-950 overflow-hidden select-none"
+        style={{ touchAction: 'none', height: '100dvh' }}
+        // Block long-press context menu so the kid doesn't get a "Save image"
+        // popup when holding down a button on the virtual gamepad.
+        onContextMenu={(e) => e.preventDefault()}
+      >
         {/* Top Game viewport (70% height) */}
-        <div className="relative flex h-[68vh] w-full items-center justify-center bg-black p-1">
+        <div className="relative flex h-[68dvh] w-full items-center justify-center bg-black p-1">
           {/* Retro Game Frame Border */}
           <div className="relative flex h-full w-full max-w-[800px] flex-col border-4 border-slate-800 bg-black">
             {/* Retro Battery Light detail */}
@@ -1012,7 +1031,7 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
               <button
                 onTouchStart={(e) => { e.preventDefault(); handlePause(); }}
                 onMouseDown={(e) => { e.preventDefault(); handlePause(); }}
-                className="flex items-center justify-center rounded bg-slate-900/60 p-2 text-white cursor-pointer"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded bg-slate-900/60 p-2 text-white cursor-pointer"
               >
                 <span className="material-symbols-outlined text-md">pause</span>
               </button>
@@ -1041,7 +1060,12 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
   // Desktop or Mobile (without gamepad - full-screen touch mode)
   return (
     <div 
-      className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container ${isShortScreen ? 'p-1 overflow-hidden' : 'p-1 sm:p-4 md:p-8 overflow-y-auto'} ${gameStarted ? 'select-none' : ''}`} 
+      className={`relative flex min-h-screen w-full flex-col items-center justify-center bg-surface-container ${isShortScreen ? 'p-1 overflow-hidden' : 'p-1 sm:p-4 md:p-8 overflow-y-auto'} ${gameStarted ? 'select-none' : ''}`}
+      // Tailwind's `min-h-screen` gives 100vh as the baseline. The inline
+      // style overrides with 100dvh when supported (modern Safari/Chrome)
+      // so the page doesn't get cropped when iOS's URL bar collapses.
+      // Browsers that don't understand dvh just keep the 100vh class value.
+      style={{ minHeight: '100dvh' }} 
       style={{ touchAction: (isMobile && gameStarted) ? 'none' : 'auto' }}
     >
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />

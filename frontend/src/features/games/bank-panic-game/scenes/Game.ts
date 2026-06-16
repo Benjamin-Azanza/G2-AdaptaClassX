@@ -320,10 +320,19 @@ export default class MainGame extends Phaser.Scene
         });
     }
 
-    startSalvationQuestion() {
+    startSalvationQuestion(retryCount = 0) {
         if (this.isQuestionMode || this.modalLocked) {
+            // Cap retries at ~3 seconds (30 × 100ms). Without this, a stuck
+            // modalLocked flag (e.g. orphaned by a scene shutdown mid-quiz)
+            // would queue a delayedCall every 100ms forever, leaking Phaser
+            // TimerEvents until the page is closed.
+            if (retryCount >= 30) {
+                this.pendingSalvation = false;
+                this.levelFail();
+                return;
+            }
             this.time.delayedCall(100, () => {
-                this.startSalvationQuestion();
+                this.startSalvationQuestion(retryCount + 1);
             });
             return;
         }

@@ -61,13 +61,23 @@ html {
 
 body {
   min-width: 320px;
+  /* Fallback for browsers that don't support dvh (older Safari, Firefox <120). */
   min-height: 100vh;
+  /* iOS Safari counts the URL bar in 100vh, which crops the game gamepad
+     once the bar collapses. 100dvh tracks the dynamic viewport height. */
+  min-height: 100dvh;
   margin: 0;
   background: #fef9f1;
   color: #181c1b;
   font-family: "Lexend", sans-serif;
   overflow-x: hidden;
   max-width: 100%;
+}
+
+/* Kill the default iOS Safari blue flash on every tap. Gameplay buttons and
+   the virtual gamepad already have their own pressed states. */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
