@@ -212,18 +212,19 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     const normalY = dy / maxRadius;
     const intensity = Math.min(distance / maxRadius, 1);
 
-    // Honor joystickAxes for the analog values too — not just for the
-    // keyboard emulation below. Scenes like Tom's Tomato.ts read
-    // `virtualJoystick.dy` directly to trigger ducking; without zeroing
-    // it here, a diagonal drag in a horizontal-only game still pushes
-    // through the unwanted axis.
+    // `joystickAxes` only filters the synthetic keyboard emulation below —
+    // the analog dx/dy values stay raw so scenes that read them directly
+    // keep working (e.g. Tom's Tomato.ts uses `joystick.dy > 0.4` to duck).
+    // The accidental-jump bug that motivated `joystickAxes='horizontal'`
+    // happens because Tom uses `Phaser.Input.Keyboard.JustDown(this.cursor.up)`
+    // for jumping, so blocking ArrowUp emulation is enough.
     const axisX = joystickAxes !== 'vertical';
     const axisY = joystickAxes !== 'horizontal';
 
     (window as any).virtualJoystick = {
       active: true,
-      dx: axisX ? normalX : 0,
-      dy: axisY ? normalY : 0,
+      dx: normalX,
+      dy: normalY,
       intensity: intensity,
     };
 
@@ -1065,8 +1066,10 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
       // style overrides with 100dvh when supported (modern Safari/Chrome)
       // so the page doesn't get cropped when iOS's URL bar collapses.
       // Browsers that don't understand dvh just keep the 100vh class value.
-      style={{ minHeight: '100dvh' }} 
-      style={{ touchAction: (isMobile && gameStarted) ? 'none' : 'auto' }}
+      style={{
+        minHeight: '100dvh',
+        touchAction: (isMobile && gameStarted) ? 'none' : 'auto',
+      }}
     >
       <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-surface to-background opacity-50" />
 

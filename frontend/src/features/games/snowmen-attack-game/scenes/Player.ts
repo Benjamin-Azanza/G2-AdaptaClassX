@@ -24,6 +24,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
         this.keyZ = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
 
         this._prevGamepadA = false;
+        this._prevGamepadUp = false;
+        this._prevGamepadDown = false;
 
         this.play('idle');
 
@@ -126,52 +128,42 @@ export default class Player extends Phaser.Physics.Arcade.Sprite
             return;
         }
 
-        // Virtual gamepad support (Action A button check)
+        // Virtual gamepad rising-edge reads. Synthetic KeyboardEvents that
+        // the wrapper dispatches don't reliably reach Phaser's keyboard
+        // system on mobile, so for the D-pad we read the boolean flags
+        // directly — same pattern that already works for the A button.
         const gamepad = (window as any).virtualGamepad;
-        if (gamepad && gamepad.A && !this._prevGamepadA && !this.isThrowing) {
-            this.throw();
-        }
-        this._prevGamepadA = gamepad ? gamepad.A : false;
+        const gA = !!(gamepad && gamepad.A);
+        const gUp = !!(gamepad && gamepad.up);
+        const gDown = !!(gamepad && gamepad.down);
 
-        // Virtual joystick support (checks both dy and dx for compatibility)
-        const joystick = (window as any).virtualJoystick;
-        if (joystick && joystick.active)
-        {
-            const joyUp = joystick.dy < -0.4;
-        const joyDown = joystick.dy > 0.4;
-            const joyAction = false; // action is handled by the A/B buttons via keyboard emulation
+        // Drain the keyboard JustDown flags every frame so the desktop
+        // keyboard path can't double-fire with the gamepad rising edge
+        // when synthetic events DO happen to reach Phaser.
+        const kUp = Phaser.Input.Keyboard.JustDown(this.up);
+        const kDown = Phaser.Input.Keyboard.JustDown(this.down);
+        const kSpace = Phaser.Input.Keyboard.JustDown(this.spacebar);
+        const kZ = Phaser.Input.Keyboard.JustDown(this.keyZ);
 
-            // Emulate JustDown for lane switching
-            if (joyUp && !this._prevJoyUp)
-            {
-                this.moveUp();
-            }
-            else if (joyDown && !this._prevJoyDown)
-            {
-                this.moveDown();
-            }
+        const wantUp = (gUp && !this._prevGamepadUp) || (!gUp && kUp);
+        const wantDown = (gDown && !this._prevGamepadDown) || (!gDown && kDown);
+        const wantThrow = (gA && !this._prevGamepadA) || (!gA && (kSpace || kZ));
 
-            this._prevJoyUp = joyUp;
-            this._prevJoyDown = joyDown;
-        }
-        else
-        {
-            this._prevJoyUp = false;
-            this._prevJoyDown = false;
-        }
-
-        // Keyboard controls (also triggered by virtual button emulation)
-        if (Phaser.Input.Keyboard.JustDown(this.up))
+        if (wantUp)
         {
             this.moveUp();
         }
-        else if (Phaser.Input.Keyboard.JustDown(this.down))
+        else if (wantDown)
         {
             this.moveDown();
         }
-        else if ((Phaser.Input.Keyboard.JustDown(this.spacebar) || Phaser.Input.Keyboard.JustDown(this.keyZ)) && !this.isThrowing)
+        else if (wantThrow && !this.isThrowing)
         {
             this.throw();
         }
+
+        this._prevGamepadA = gA;
+        this._prevGamepadUp = gUp;
+        this._prevGamepadDown = gDown;
     }
 }

@@ -170,17 +170,9 @@ export default class GameScene extends Phaser.Scene {
         this.questionModalGroup = this.add.group();
         this.pauseMenuGroup = this.add.group();
 
-        // Pause button (top-right corner)
-        const pauseBtn = this.add.text(760, 16, '⏸', {
-            fontSize: '32px', color: '#fff'
-        }).setOrigin(1, 0).setInteractive().setScrollFactor(0);
-        pauseBtn.on('pointerover', () => pauseBtn.setAlpha(0.7));
-        pauseBtn.on('pointerout', () => pauseBtn.setAlpha(1));
-        pauseBtn.on('pointerdown', () => {
-            if (!this.gameOver && !this.isQuestionActive) {
-                this.showPauseMenu();
-            }
-        });
+        // Removed the in-scene pause button. The wrapper already pins a
+        // pause control in the chrome and duplicating it inside the canvas
+        // confused testers (and the on-canvas button overlapped the score).
 
         // ESC key to toggle pause
         if (this.input.keyboard) {

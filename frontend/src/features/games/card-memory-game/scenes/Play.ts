@@ -13,14 +13,20 @@ export class Play extends Phaser.Scene
     // Can play the game
     canMove = false;
 
-    // Game variables
-    lives = 10;
-    maxLives = 10;
+    // Game variables — the lives system was replaced with a streak-of-errors
+    // counter that surfaces a question every `errorsPerQuestion` mismatches.
+    // A pure lives system felt punishing on the bigger boards (5x4 etc.)
+    // where pair-locations are genuinely hard to memorize.
     level = 1;
     score = 0;
-    hearts = [];
     searchingText = null;
     scoreText = null;
+    errorsText = null;
+    errorsCount = 0;
+    errorsPerQuestion = 4;
+    isQuestionMode = false;
+    modalLocked = false;
+    questionOverlayObjects = [];
 
     // Word Concept pairs database
     pairsDatabase = {
@@ -70,19 +76,25 @@ export class Play extends Phaser.Scene
     init (data)
     {
         this.cameras.main.fadeIn(500);
-        
+
         if (data && data.level) {
             this.level = data.level;
-            this.lives = data.lives !== undefined ? data.lives : 10;
             this.score = data.score !== undefined ? data.score : 0;
-            this.maxLives = data.maxLives !== undefined ? data.maxLives : 10;
         } else {
             this.level = 1;
-            this.lives = 10;
             this.score = 0;
-            this.maxLives = 10;
         }
-        
+        this.errorsCount = 0;
+        this.isQuestionMode = false;
+        this.modalLocked = false;
+        this.questionOverlayObjects = [];
+
+        this.events.once('shutdown', () => {
+            this.isQuestionMode = false;
+            this.modalLocked = false;
+            this.questionOverlayObjects = [];
+        });
+
         this.volumeButton();
     }
 
@@ -164,28 +176,26 @@ export class Play extends Phaser.Scene
             fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold'
         });
 
-        // "Buscando: [Tema]" text below the hearts (hearts start at x=140, y=20)
-        this.searchingText = this.add.text(140, 52, `Buscando: ${displayThemeName}`, {
+        // "Buscando: [Tema]"
+        this.searchingText = this.add.text(140, 24, `Buscando: ${displayThemeName}`, {
             fontFamily: 'monospace', fontSize: '18px', color: '#facc15', fontStyle: 'bold'
         });
 
-        // WinnerText and GameOverText
+        // WinnerText (no more game-over screen since we removed the lives system)
         const winnerText = this.add.text(400, -1000, "¡NIVEL COMPLETADO!",
             { align: "center", strokeThickness: 4, fontSize: '42px', fontStyle: "bold", color: "#22c55e", fontFamily: 'monospace' }
         ).setOrigin(.5).setDepth(15).setInteractive();
- 
-        const gameOverText = this.add.text(400, -1000,
-            "¡HAS PERDIDO!\nClick para REINICIAR",
-            { align: "center", strokeThickness: 4, fontSize: '42px', fontStyle: "bold", color: "#ff0000", fontFamily: 'monospace' }
-        ).setName("gameOverText").setDepth(15).setOrigin(.5).setInteractive();
 
         // Score display
         this.scoreText = this.add.text(620, 16, `Puntos: ${this.score}`, {
             fontFamily: 'monospace', fontSize: '22px', color: '#22c55e', fontStyle: 'bold'
         });
 
-        // Render hearts
-        this.hearts = this.createHearts();
+        // Error counter — every `errorsPerQuestion` mismatches surfaces a
+        // question instead of removing a life.
+        this.errorsText = this.add.text(620, 46, `Errores: 0/${this.errorsPerQuestion}`, {
+            fontFamily: 'monospace', fontSize: '18px', color: '#fb923c', fontStyle: 'bold'
+        });
 
         // Generate card pairs
         this.cards = this.generateConceptCards(cardCount, currentTheme);
@@ -200,7 +210,7 @@ export class Play extends Phaser.Scene
 
         // Interaction logic
         this.input.on('pointerdown', (pointer) => {
-            if (!this.canMove || this.cards.length === 0) return;
+            if (!this.canMove || this.cards.length === 0 || this.isQuestionMode) return;
 
             const card = this.cards.find(c => c.gameObject.getBounds().contains(pointer.x, pointer.y));
             if (card) {
@@ -219,23 +229,23 @@ export class Play extends Phaser.Scene
                             this.sound.play("card-match");
                             this.score += 100;
                             this.scoreText.setText(`Puntos: ${this.score}`);
-                            
+
                             const o1 = this.cardOpened;
                             const o2 = card;
-                            
+
                             this.cards = this.cards.filter(cLocal => cLocal.pairId !== card.pairId);
                             this.cardOpened = undefined;
-                            
+
                             this.time.delayedCall(400, () => {
                                 o1.destroy();
                                 o2.destroy();
                                 this.canMove = true;
-                                
+
                                 // Check win
                                 if (this.cards.length === 0) {
                                     this.sound.play("victory");
                                     this.canMove = false;
-                                    
+
                                     this.add.tween({
                                         targets: winnerText,
                                         ease: Phaser.Math.Easing.Bounce.Out,
@@ -244,44 +254,29 @@ export class Play extends Phaser.Scene
                                 }
                             });
                         } else {
-                            // MISMATCH!
+                            // MISMATCH — bump the error counter. Every
+                            // `errorsPerQuestion` mismatches we surface a
+                            // question; the answer is informational (counter
+                            // resets either way), no lives lost.
                             this.sound.play("card-mismatch");
                             this.cameras.main.shake(400, 0.005);
-                            
-                            // Remove life & heart
-                            const lastHeart = this.hearts[this.hearts.length - 1];
-                            if (lastHeart) {
-                                this.add.tween({
-                                    targets: lastHeart,
-                                    ease: Phaser.Math.Easing.Expo.InOut,
-                                    duration: 500,
-                                    y: -1000,
-                                    onComplete: () => {
-                                        lastHeart.destroy();
-                                    }
-                                });
-                                this.hearts.pop();
-                            }
-                            this.lives -= 1;
+
+                            this.errorsCount += 1;
+                            this.errorsText.setText(`Errores: ${this.errorsCount}/${this.errorsPerQuestion}`);
 
                             this.time.delayedCall(1000, () => {
                                 card.flip();
                                 this.cardOpened.flip(() => {
                                     this.cardOpened = undefined;
-                                    this.canMove = true;
+                                    if (this.errorsCount >= this.errorsPerQuestion) {
+                                        this.errorsCount = 0;
+                                        this.errorsText.setText(`Errores: 0/${this.errorsPerQuestion}`);
+                                        this._showQuestion();
+                                    } else {
+                                        this.canMove = true;
+                                    }
                                 });
                             });
-                        }
-
-                        // Check lose
-                        if (this.lives <= 0) {
-                            this.sound.play("whoosh", { volume: 1.3 });
-                            this.add.tween({
-                                targets: gameOverText,
-                                ease: Phaser.Math.Easing.Bounce.Out,
-                                y: 450,
-                            });
-                            this.canMove = false;
                         }
                     });
                 } else {
@@ -303,27 +298,10 @@ export class Play extends Phaser.Scene
                 onComplete: () => {
                     this.cards.forEach(c => c.gameObject.destroy());
                     this.cards = [];
-                    const nextMaxLives = this.maxLives + 2;
-                    this.scene.start('Play', { 
-                        level: this.level + 1, 
-                        lives: Math.min(nextMaxLives, this.lives + 2),
+                    this.scene.start('Play', {
+                        level: this.level + 1,
                         score: this.score,
-                        maxLives: nextMaxLives
                     });
-                }
-            });
-        });
- 
-        // Game Over click: restarts game
-        gameOverText.on('pointerdown', () => {
-            this.add.tween({
-                targets: gameOverText,
-                y: -1000,
-                duration: 500,
-                onComplete: () => {
-                    this.cards.forEach(c => c.gameObject.destroy());
-                    this.cards = [];
-                    this.scene.start('Play', { level: 1, lives: 10, score: 0, maxLives: 10 });
                 }
             });
         });
@@ -406,18 +384,112 @@ export class Play extends Phaser.Scene
         });
     }
 
-    createHearts ()
+    _showQuestion ()
     {
-        return Array.from(new Array(this.lives)).map((el, index) => {
-            const heart = this.add.image(1000, 28, "heart").setScale(1.6);
-            this.add.tween({
-                targets: heart,
-                ease: Phaser.Math.Easing.Expo.InOut,
-                duration: 800,
-                delay: 100 + index * 100,
-                x: 140 + 26 * index
-            });
-            return heart;
+        if (this.isQuestionMode || this.modalLocked) return;
+        this.modalLocked = true;
+        this.isQuestionMode = true;
+
+        const fallback = [
+            { q: "¿Cuál de estas palabras es un sustantivo?", options: ["mesa", "correr", "rápido", "y"], answer: 0 },
+            { q: "Sinónimo de 'alegre':", options: ["triste", "feliz", "lento", "duro"], answer: 1 },
+            { q: "Antónimo de 'grande':", options: ["enorme", "gigante", "pequeño", "amplio"], answer: 2 },
+        ];
+        const bank = this.registry.get('preguntasDelNivel') || [];
+        const pool = bank.length > 0 ? bank : fallback;
+        const qData = Phaser.Utils.Array.GetRandom(pool);
+
+        const options = [...qData.options];
+        const correctString = options[qData.answer];
+        Phaser.Utils.Array.Shuffle(options);
+        const correctIndex = options.indexOf(correctString);
+
+        const cx = 400;
+        const cy = 450;
+
+        const overlay = this.add.rectangle(cx, cy, 800, 900, 0x000000, 0.85)
+            .setDepth(200).setInteractive();
+        this.questionOverlayObjects.push(overlay);
+
+        const titleText = this.add.text(cx, cy - 240, '¡PREGUNTA!', {
+            fontFamily: 'monospace', fontSize: '32px', color: '#facc15', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(titleText);
+
+        const questionText = this.add.text(cx, cy - 160, qData.q, {
+            fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
+            wordWrap: { width: 700 }, align: 'center'
+        }).setOrigin(0.5).setDepth(201);
+        this.questionOverlayObjects.push(questionText);
+
+        const btnW = 320, btnH = 90, gapX = 24, gapY = 16;
+        const gridX = cx - btnW - gapX / 2;
+        const gridY = cy - 40;
+
+        options.forEach((option, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const bx = gridX + col * (btnW + gapX);
+            const by = gridY + row * (btnH + gapY);
+
+            const btnGfx = this.add.graphics().setDepth(201);
+            btnGfx.fillStyle(0x1e293b, 0.95);
+            btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+            btnGfx.lineStyle(2, 0x64748b, 1);
+            btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+            this.questionOverlayObjects.push(btnGfx);
+
+            const label = String.fromCharCode(65 + i);
+            const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
+                fontFamily: 'monospace', fontSize: '18px', color: '#ffffff',
+                wordWrap: { width: btnW - 20 }, align: 'center'
+            }).setOrigin(0.5).setDepth(202);
+            this.questionOverlayObjects.push(btnText);
+
+            const hitZone = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH)
+                .setDepth(203).setInteractive({ useHandCursor: true });
+            this.questionOverlayObjects.push(hitZone);
+
+            hitZone.on('pointerdown', () => this._answerCardQuestion(i, correctIndex, bx, by, btnW, btnH, btnGfx, qData));
+        });
+    }
+
+    _answerCardQuestion (selectedIndex, correctIndex, bx, by, btnW, btnH, btnGfx, qData)
+    {
+        this.questionOverlayObjects.forEach(obj => {
+            if (obj instanceof Phaser.GameObjects.Rectangle) obj.disableInteractive();
+        });
+
+        const correct = selectedIndex === correctIndex;
+        if (qData && qData.id) {
+            window.dispatchEvent(new CustomEvent('game:answer', { detail: { question_id: qData.id, correct } }));
+        }
+        btnGfx.clear();
+        btnGfx.fillStyle(correct ? 0x166534 : 0x7f1d1d, 0.95);
+        btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
+        btnGfx.lineStyle(2, correct ? 0x22c55e : 0xef4444, 1);
+        btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
+
+        const feedback = this.add.text(400, 800, correct ? '¡CORRECTO!' : 'INCORRECTO', {
+            fontFamily: 'monospace', fontSize: '28px',
+            color: correct ? '#22c55e' : '#ef4444', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(202);
+        this.questionOverlayObjects.push(feedback);
+
+        if (correct) {
+            this.score += 50;
+            this.scoreText.setText(`Puntos: ${this.score}`);
+            this.sound.play("card-match");
+        } else {
+            this.sound.play("card-mismatch");
+        }
+
+        this.time.delayedCall(1600, () => {
+            this.questionOverlayObjects.forEach(o => o.destroy());
+            this.questionOverlayObjects = [];
+            this.isQuestionMode = false;
+            this.modalLocked = false;
+            this.canMove = true;
         });
     }
 

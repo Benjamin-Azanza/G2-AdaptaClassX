@@ -31,7 +31,7 @@ export const BombGamePage: React.FC = () => {
 
   return (
     <GameConsoleWrapper
-      title="Quiz Rápido - Lectura"
+      title="Bomb-Man"
       description="Controla al personaje para esquivar bombas, recoger estrellas y responder preguntas sobre textos y lecturas."
       objective="Recoge todas las estrellas posibles. Si tocas un enemigo o una bomba, se te presentará una pregunta para salvar tu vida. Toca los botiquines para responder preguntas y curarte."
       controlsPc={[

@@ -21,7 +21,10 @@ export default class MainGame extends Phaser.Scene
         this.level = 1;
         this.levelImage;
 
-        this.killDelay = 0.7;
+        // killDelay was 0.7s — basically impossible for a kid to react to a
+        // bandit on first sight. Bumped to 1.5s so the first encounters
+        // feel fair.
+        this.killDelay = 1.5;
         this.closeDurationLow = 2000;
         this.closeDurationHigh = 4000;
 
@@ -72,7 +75,8 @@ export default class MainGame extends Phaser.Scene
         this.isPaused = false;
 
         this.level = 1;
-        this.killDelay = 0.8;
+        // Match the reaction-window bump from the constructor.
+        this.killDelay = 1.5;
         this.closeDurationLow = 2000;
         this.closeDurationHigh = 4000;
 
@@ -80,7 +84,10 @@ export default class MainGame extends Phaser.Scene
         this.isQuestionMode = false;
         this.modalLocked = false;
         this.pendingSalvation = false;
-        this.questionTimer = this.time.now + 15000; // First question after 15 seconds
+        // First challenge question delayed long enough that the player has
+        // already played a couple of rounds. Used to be +15s, which felt
+        // like the game started ON a question.
+        this.questionTimer = this.time.now + 35000;
 
         this.events.once('shutdown', () => {
             this.modalLocked = false;
@@ -109,8 +116,28 @@ export default class MainGame extends Phaser.Scene
             shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 4, fill: true }
         }).setOrigin(0.5).setVisible(false).setDepth(100);
 
+        // Push the first door open by 4 extra seconds. Without this the
+        // first bandit can pop within 500ms — way too fast for someone
+        // who just entered the scene and is still orienting themselves.
+        // Bandits could shoot before the player even read the controls,
+        // forcing a salvation question on the very first second.
+        const startOffset = 4000;
         this.doors.forEach((door) => {
-            door.start(this.game.getTime());
+            door.start(this.game.getTime() + startOffset);
+        });
+
+        // "Prepárate" countdown so the warmup feels intentional rather
+        // than the player thinking the game is broken.
+        const ready = this.add.text(512, 384, '¡PREPÁRATE!', {
+            fontFamily: 'Courier', fontSize: '64px', color: '#ffd700', fontStyle: 'bold',
+            shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 8, fill: true }
+        }).setOrigin(0.5).setDepth(150);
+        this.tweens.add({
+            targets: ready,
+            alpha: 0,
+            duration: 800,
+            delay: 3000,
+            onComplete: () => ready.destroy()
         });
     }
 
@@ -373,32 +400,41 @@ export default class MainGame extends Phaser.Scene
         }).setOrigin(0.5).setDepth(201);
         this.questionOverlayObjects.push(questionText);
 
-        const btnW = 800;
-        const btnH = 120;
-        const gapY = 16;
-        const startY = cy - 20;
+        // 2x2 grid — stacking 4 options vertically at btnH=120 overflowed
+        // off-screen (last option at y=892, scene is 768 tall). The grid
+        // also reads much better on a landscape phone where the canvas is
+        // letterboxed.
+        const btnW = 420;
+        const btnH = 110;
+        const gapX = 28;
+        const gapY = 18;
+        const gridX = cx - btnW - gapX / 2;
+        const gridY = cy - 20;
 
         options.forEach((option, i) => {
-            const by = startY + i * (btnH + gapY);
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const bx = gridX + col * (btnW + gapX);
+            const by = gridY + row * (btnH + gapY);
 
             const btnGfx = this.add.graphics().setDepth(201);
             btnGfx.fillStyle(0x1e293b, 0.95);
-            btnGfx.fillRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            btnGfx.fillRoundedRect(bx, by, btnW, btnH, 8);
             btnGfx.lineStyle(2, 0x64748b, 1);
-            btnGfx.strokeRoundedRect(cx - btnW / 2, by, btnW, btnH, 8);
+            btnGfx.strokeRoundedRect(bx, by, btnW, btnH, 8);
             this.questionOverlayObjects.push(btnGfx);
 
             const label = String.fromCharCode(65 + i);
-            const btnText = this.add.text(cx, by + btnH / 2, `${label}) ${option}`, {
+            const btnText = this.add.text(bx + btnW / 2, by + btnH / 2, `${label}) ${option}`, {
                 fontFamily: 'Courier', fontSize: '22px', color: '#ffffff', wordWrap: { width: btnW - 30 }, align: 'center'
             }).setOrigin(0.5).setDepth(202);
             this.questionOverlayObjects.push(btnText);
 
-            const hitZone = this.add.rectangle(cx, by + btnH / 2, btnW, btnH)
+            const hitZone = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH)
                 .setDepth(203).setInteractive({ useHandCursor: true });
             this.questionOverlayObjects.push(hitZone);
 
-            hitZone.on('pointerdown', () => this._answerSalvationQuestion(i, cx - btnW / 2, by, btnW, btnH, btnGfx));
+            hitZone.on('pointerdown', () => this._answerSalvationQuestion(i, bx, by, btnW, btnH, btnGfx));
         });
     }
 

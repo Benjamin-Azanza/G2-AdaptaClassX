@@ -509,27 +509,20 @@ export default class Game extends Phaser.Scene
             //  Fade the missing piece back in ...
             //  When the tween finishes we'll let them click to start the next round
 
+            //  Solved — reveal the missing piece, then surface an explicit
+            //  completion overlay so the player has working buttons. The old
+            //  auto-advance to nextRound froze on some runs (broken texture
+            //  re-init across cycles); the overlay sidesteps that entirely.
             this.sound.play('win');
-
-            const winText = this.add.text(512, 384, "¡VICTORIA!", {
-                fontFamily: 'Arial', fontSize: '64px', color: '#22c55e', fontStyle: 'bold',
-                stroke: '#000000', strokeThickness: 6
-            }).setOrigin(0.5).setDepth(150);
 
             this.tweens.add({
                 targets: this.spacer,
                 alpha: 1,
                 duration: this.slideSpeed * 2,
                 ease: 'linear',
-                onComplete: () => {
-                    this.time.delayedCall(2000, () => {
-                        winText.destroy();
-                        this.nextRound();
-                    });
-                }
             });
 
-            // Pulse effect to celebrate the solved puzzle
+            // Pulse to celebrate
             this.tweens.add({
                 targets: this.pieces.getChildren(),
                 scaleX: '*=1.05',
@@ -537,9 +530,74 @@ export default class Game extends Phaser.Scene
                 duration: 200,
                 yoyo: true,
                 repeat: 1,
-                ease: 'Quad.easeInOut'
+                ease: 'Quad.easeInOut',
+                onComplete: () => this._showCompletionOverlay()
             });
         }
+    }
+
+    _showCompletionOverlay ()
+    {
+        const cx = 512;
+        const cy = 384;
+
+        const objects = [];
+
+        const overlay = this.add.rectangle(cx, cy, 1024, 768, 0x000000, 0.85)
+            .setDepth(200).setInteractive();
+        objects.push(overlay);
+
+        const winText = this.add.text(cx, cy - 180, "¡PUZZLE\nCOMPLETADO!", {
+            fontFamily: 'Arial', fontSize: '56px', color: '#22c55e', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 6, align: 'center'
+        }).setOrigin(0.5).setDepth(201);
+        objects.push(winText);
+
+        const movesInfo = this.add.text(cx, cy - 40,
+            `Movimientos: ${this.movesCount}`, {
+            fontFamily: 'monospace', fontSize: '28px', color: '#ffffff'
+        }).setOrigin(0.5).setDepth(201);
+        objects.push(movesInfo);
+
+        const makeButton = (y, label, color, onClick) => {
+            const btnW = 360, btnH = 80;
+            const bx = cx - btnW / 2;
+            const by = y - btnH / 2;
+
+            const gfx = this.add.graphics().setDepth(201);
+            gfx.fillStyle(color, 0.95);
+            gfx.fillRoundedRect(bx, by, btnW, btnH, 10);
+            gfx.lineStyle(3, 0x000000, 1);
+            gfx.strokeRoundedRect(bx, by, btnW, btnH, 10);
+            objects.push(gfx);
+
+            const text = this.add.text(cx, y, label, {
+                fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(202);
+            objects.push(text);
+
+            const hit = this.add.rectangle(cx, y, btnW, btnH)
+                .setDepth(203).setInteractive({ useHandCursor: true });
+            objects.push(hit);
+
+            hit.on('pointerdown', () => {
+                objects.forEach(o => o.destroy());
+                onClick();
+            });
+        };
+
+        // Two clean choices. The original game had a `nextRound` cycle but
+        // it doesn't work reliably across all the loaded puzzles, so we
+        // only offer Reiniciar (re-shuffles the same image, guaranteed to
+        // work) and Salir (dispatches 'game:quit' which useGameSession
+        // catches to route back to the catalog).
+        makeButton(cy + 60, 'Reiniciar', 0x16a34a, () => {
+            this.startPuzzle(this.photo, this.rows, this.columns);
+        });
+
+        makeButton(cy + 170, 'Salir', 0x0284c7, () => {
+            window.dispatchEvent(new CustomEvent('game:quit'));
+        });
     }
 
     /**
