@@ -33,7 +33,7 @@ export class PusherService {
     try {
       const body = JSON.stringify({
         name: event,
-        channel,
+        channels: [channel],
         data: JSON.stringify(data),
       });
 
