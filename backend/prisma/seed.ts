@@ -128,7 +128,7 @@ async function main() {
   // 4. Crear Juegos
   const juegosImportados = [
     {
-      titulo: 'Quiz Rapido - Lectura',
+      titulo: 'Bomb-Man',
       tema: 'Lectura',
       tipo: TipoJuego.CAMBIANTE,
       acepta_preguntas_ia: true,

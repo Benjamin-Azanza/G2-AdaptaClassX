@@ -83,7 +83,17 @@ export default class Game extends Phaser.Scene
     {
         this.add.image(512, 384, 'background');
         this.add.image(512, 384, 'box-inside');
- 
+
+        // Reset ALL per-run state. Phaser scenes reuse the same class
+        // instance across stop/start cycles, so properties set in the
+        // constructor keep their last-run value. `iterations` was the
+        // landmine here — it decremented to 0 during play, so a wrapper
+        // Restart re-entered create() with iterations=0, and the next
+        // `shufflePieces` did a single swap and went straight to
+        // ALLOW_CLICK with a puzzle already 99% solved.
+        this.iterations = 6;
+        this.action = SlidingPuzzle.ALLOW_CLICK;
+        this.lastMove = null;
         this.movesCount = 0;
         this.lives = 4;
         this.questions = this.registry.get('preguntasDelNivel') || [];
@@ -509,10 +519,12 @@ export default class Game extends Phaser.Scene
             //  Fade the missing piece back in ...
             //  When the tween finishes we'll let them click to start the next round
 
-            //  Solved — reveal the missing piece, then surface an explicit
-            //  completion overlay so the player has working buttons. The old
-            //  auto-advance to nextRound froze on some runs (broken texture
-            //  re-init across cycles); the overlay sidesteps that entirely.
+            //  Solved — reveal the missing piece, run a celebration pulse,
+            //  then surface the completion overlay. Critical: schedule the
+            //  overlay via `delayedCall` instead of the pulse tween's
+            //  `onComplete`. If the pulse tween fails to fire onComplete
+            //  (empty targets, conflicting tween on the same property, etc.)
+            //  the player gets stuck on a frozen scene with no way out.
             this.sound.play('win');
 
             this.tweens.add({
@@ -522,17 +534,22 @@ export default class Game extends Phaser.Scene
                 ease: 'linear',
             });
 
-            // Pulse to celebrate
-            this.tweens.add({
-                targets: this.pieces.getChildren(),
-                scaleX: '*=1.05',
-                scaleY: '*=1.05',
-                duration: 200,
-                yoyo: true,
-                repeat: 1,
-                ease: 'Quad.easeInOut',
-                onComplete: () => this._showCompletionOverlay()
-            });
+            // Pulse to celebrate (best-effort; not load-bearing).
+            const piecesArr = this.pieces ? this.pieces.getChildren() : [];
+            if (piecesArr.length > 0) {
+                this.tweens.add({
+                    targets: piecesArr,
+                    scaleX: '*=1.05',
+                    scaleY: '*=1.05',
+                    duration: 200,
+                    yoyo: true,
+                    repeat: 1,
+                    ease: 'Quad.easeInOut',
+                });
+            }
+
+            // Guaranteed overlay even if every tween above fails.
+            this.time.delayedCall(900, () => this._showCompletionOverlay());
         }
     }
 
@@ -592,12 +609,33 @@ export default class Game extends Phaser.Scene
         // work) and Salir (dispatches 'game:quit' which useGameSession
         // catches to route back to the catalog).
         makeButton(cy + 60, 'Reiniciar', 0x16a34a, () => {
+            this._resetForNewPuzzle();
             this.startPuzzle(this.photo, this.rows, this.columns);
         });
 
         makeButton(cy + 170, 'Salir', 0x0284c7, () => {
             window.dispatchEvent(new CustomEvent('game:quit'));
         });
+    }
+
+    _resetForNewPuzzle ()
+    {
+        // The restart button needs a clean slate. Without this:
+        //  - `iterations` was 0 after a full game so the new shuffle barely
+        //    moved any tiles → the "restarted" puzzle was already solved.
+        //  - `action` stayed at TWEENING (from the last slide before the
+        //    win) and blocked every future click.
+        //  - Stale tweens kept tweening pieces that were about to be
+        //    destroyed, occasionally throwing inside Phaser's update loop.
+        this.iterations = 6;
+        this.action = SlidingPuzzle.ALLOW_CLICK;
+        this.lastMove = null;
+        this.modalLocked = false;
+        if (this.questionOverlayObjects && this.questionOverlayObjects.length > 0) {
+            this.questionOverlayObjects.forEach(o => { try { o.destroy(); } catch { /* noop */ } });
+            this.questionOverlayObjects = [];
+        }
+        this.tweens.killAll();
     }
 
     /**

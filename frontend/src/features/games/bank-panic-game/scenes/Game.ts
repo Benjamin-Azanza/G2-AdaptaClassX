@@ -87,7 +87,17 @@ export default class MainGame extends Phaser.Scene
         // First challenge question delayed long enough that the player has
         // already played a couple of rounds. Used to be +15s, which felt
         // like the game started ON a question.
-        this.questionTimer = this.time.now + 35000;
+        //
+        // CRITICAL: must use `this.game.getTime()` (global loop time), NOT
+        // `this.time.now`. `Scene.time.now` is the scene clock which sits at
+        // 0 until the first frame's Clock.preUpdate ticks — meanwhile the
+        // `time` argument passed to `Scene.update()` is the global game time
+        // (already in the tens of thousands by the time the player navigates
+        // through Preloader → MainMenu → here). With the scene clock, the
+        // comparison `time >= this.questionTimer` was true on the very first
+        // frame of the Game scene, so the door-challenge question fired
+        // immediately — exactly the "los vaqueros" bug the user reported.
+        this.questionTimer = this.game.getTime() + 35000;
 
         this.events.once('shutdown', () => {
             this.modalLocked = false;
@@ -583,7 +593,8 @@ export default class MainGame extends Phaser.Scene
             this.isQuestionMode = false;
             this.modalLocked = false;
             // Schedule next question
-            this.questionTimer = this.time.now + 20000;
+            // Use the same global-time clock as the initial schedule.
+            this.questionTimer = this.game.getTime() + 20000;
         }
         else
         {

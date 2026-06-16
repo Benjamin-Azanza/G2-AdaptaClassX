@@ -89,6 +89,18 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     stickY: 0,
   });
 
+  // Press state for the D-pad. We drive the visual highlight from React
+  // state instead of relying on the CSS `:active` pseudo-class because
+  // `:active` doesn't fire on iOS Safari once we call `e.preventDefault()`
+  // on touchstart — and we need preventDefault on touchstart for the
+  // gamepad flags to actually persist past the first frame.
+  const [dpadPressed, setDpadPressed] = useState({
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+  });
+
   const joystickAreaRef = useRef<HTMLDivElement>(null);
   const activeKeysRef = useRef({ left: false, right: false, up: false, down: false });
 
@@ -589,10 +601,16 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     simulateKey('z', 'KeyZ', 90, 'keyup');
   };
 
-  const handleDpadButtonDown = (e: React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
+  const handleDpadButtonDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
+    // preventDefault is REQUIRED here. Without it iOS Safari fires a
+    // synthetic mouseup ~300ms after touchend AND can reorder events so
+    // a "down → up" cycle resolves in a single frame, which makes
+    // `virtualGamepad.up = true` flip back to false before
+    // Player.preUpdate reads it. Symptom: the A button (which has
+    // preventDefault) works, the arrow buttons don't. Visual press
+    // feedback is driven from React state below instead of `:active`.
     e.preventDefault();
-    const canvas = phaserGameRef.current?.canvas;
-    if (canvas) canvas.focus();
+    setDpadPressed((prev) => ({ ...prev, [key]: true }));
     if ((window as any).virtualGamepad) {
       (window as any).virtualGamepad[key] = true;
       const counterKey = `${key}PressedCount`;
@@ -626,8 +644,9 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
     }
   };
 
-  const handleDpadButtonUp = (e: React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
+  const handleDpadButtonUp = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent, key: 'up' | 'down' | 'left' | 'right') => {
     e.preventDefault();
+    setDpadPressed((prev) => ({ ...prev, [key]: false }));
     if ((window as any).virtualGamepad) {
       (window as any).virtualGamepad[key] = false;
     }
@@ -867,7 +886,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             onMouseDown={(e) => handleDpadButtonDown(e, 'left')}
             onMouseUp={(e) => handleDpadButtonUp(e, 'left')}
             onMouseLeave={(e) => handleDpadButtonUp(e, 'left')}
-            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 hover:bg-slate-700/65 text-2xl font-black cursor-pointer select-none transition-all duration-75"
+            style={{
+              backgroundColor: dpadPressed.left ? 'rgba(249,115,22,0.85)' : 'rgba(30,41,59,0.65)',
+              color: dpadPressed.left ? '#ffffff' : '#cbd5e1',
+              transform: dpadPressed.left ? 'translateY(1px)' : 'translateY(0)',
+              boxShadow: dpadPressed.left ? '1px 1px 0 0 #000' : '2px 2px 0 0 #000',
+            }}
           >
             ◀
           </button>
@@ -878,7 +903,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             onMouseDown={(e) => handleDpadButtonDown(e, 'right')}
             onMouseUp={(e) => handleDpadButtonUp(e, 'right')}
             onMouseLeave={(e) => handleDpadButtonUp(e, 'right')}
-            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 hover:bg-slate-700/65 text-2xl font-black cursor-pointer select-none transition-all duration-75"
+            style={{
+              backgroundColor: dpadPressed.right ? 'rgba(249,115,22,0.85)' : 'rgba(30,41,59,0.65)',
+              color: dpadPressed.right ? '#ffffff' : '#cbd5e1',
+              transform: dpadPressed.right ? 'translateY(1px)' : 'translateY(0)',
+              boxShadow: dpadPressed.right ? '1px 1px 0 0 #000' : '2px 2px 0 0 #000',
+            }}
           >
             ▶
           </button>
@@ -892,7 +923,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             onMouseDown={(e) => handleDpadButtonDown(e, 'up')}
             onMouseUp={(e) => handleDpadButtonUp(e, 'up')}
             onMouseLeave={(e) => handleDpadButtonUp(e, 'up')}
-            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 hover:bg-slate-700/65 text-2xl font-black cursor-pointer select-none transition-all duration-75"
+            style={{
+              backgroundColor: dpadPressed.up ? 'rgba(249,115,22,0.85)' : 'rgba(30,41,59,0.65)',
+              color: dpadPressed.up ? '#ffffff' : '#cbd5e1',
+              transform: dpadPressed.up ? 'translateY(1px)' : 'translateY(0)',
+              boxShadow: dpadPressed.up ? '1px 1px 0 0 #000' : '2px 2px 0 0 #000',
+            }}
           >
             ▲
           </button>
@@ -903,7 +940,13 @@ export const GameConsoleWrapper: React.FC<GameConsoleWrapperProps> = ({
             onMouseDown={(e) => handleDpadButtonDown(e, 'down')}
             onMouseUp={(e) => handleDpadButtonUp(e, 'down')}
             onMouseLeave={(e) => handleDpadButtonUp(e, 'down')}
-            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 bg-slate-800/65 active:bg-orange-500/85 hover:bg-slate-700/65 text-2xl font-black text-slate-300 active:text-white cursor-pointer select-none transition-all duration-75 shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000]"
+            className="flex h-14 w-14 items-center justify-center rounded-lg border-4 border-slate-950 hover:bg-slate-700/65 text-2xl font-black cursor-pointer select-none transition-all duration-75"
+            style={{
+              backgroundColor: dpadPressed.down ? 'rgba(249,115,22,0.85)' : 'rgba(30,41,59,0.65)',
+              color: dpadPressed.down ? '#ffffff' : '#cbd5e1',
+              transform: dpadPressed.down ? 'translateY(1px)' : 'translateY(0)',
+              boxShadow: dpadPressed.down ? '1px 1px 0 0 #000' : '2px 2px 0 0 #000',
+            }}
           >
             ▼
           </button>

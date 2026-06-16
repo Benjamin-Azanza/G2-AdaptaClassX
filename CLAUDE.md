@@ -1,7 +1,7 @@
 # CLAUDE.md - Adapta Class
 
 Guia operativa para IAs/agentes que trabajen en este repositorio.
-Ultima actualizacion contextual: 15 de junio de 2026.
+Ultima actualizacion contextual: 16 de junio de 2026.
 
 Si una IA futura ve documentacion vieja que contradiga esto, priorizar el
 codigo actual y este archivo.
@@ -530,6 +530,42 @@ Para evitar la reintroducción de brechas de seguridad o falsos positivos descon
     primera dispara recalc heavy + writes). NO leer `currentPath` raw —
     siempre normalizar y validar contra la regex del DTO antes de pasarla
     al resolver.
+20. **Gamepad virtual del wrapper — patrón fijo**: los botones del D-pad
+    (`arrows`, `arrows-vertical`) y A/B deben usar `onTouchStart` +
+    `onMouseDown` con `e.preventDefault()`, NO Pointer Events ni
+    `setPointerCapture`. En iOS Safari + `touch-action: none` del padre,
+    `setPointerCapture` dispara `pointercancel` casi inmediato y rompe el
+    flag `virtualGamepad[key]` antes que `Player.preUpdate` lo lea. El
+    feedback visual va por React state (`dpadPressed` / `isBtnAPressed`),
+    NO por `:active` CSS. Sin `preventDefault` iOS también dispara
+    mouseups sinteticos a ~300ms que reordenan eventos. Patrón validado
+    en Snowmen, Tom, Breakout, Bomb-Man, Pirate Survival.
+21. **Sintetizar KeyboardEvents no es confiable en mobile**: `simulateKey`
+    despacha `new KeyboardEvent` con `isTrusted=false`, y Phaser 4 los
+    procesa inconsistentemente en iOS/Chrome Android. Para gameplay
+    crítico, las escenas deben leer `virtualGamepad.up/down/A` **directo
+    como flags** (con detección de rising edge via `_prevGamepadKey`),
+    igual que ya hace Snowmen `Player.preUpdate`. El path keyboard
+    (`Phaser.Input.Keyboard.JustDown`) es solo para desktop; drenar el
+    flag cada frame para evitar double-fire si llegan a colarse.
+22. **`handleDpadButtonDown/Up` NO debe tocar `virtualJoystick.*`**: esa
+    estructura pertenece al stick analógico. Mezclarlas causa double-fire
+    en escenas que leen ambos paths (caso Snowmen original: tap ▲ movía
+    dos carriles). El D-pad solo escribe `virtualGamepad[key]` +
+    despacha el `KeyboardEvent` sintético.
+23. **Timers en escenas Phaser que se programan en `create()`**: usar
+    `this.game.getTime()` (loop time global), NUNCA `this.time.now`. El
+    scene clock (`time.now`) está en 0 hasta que el primer
+    `Clock.preUpdate` tickea, pero el `time` que recibe `Scene.update()`
+    es el global → la comparación `time >= questionTimer` da `true` en
+    el primer frame. Bug histórico de Bank Panic ("aparece pregunta de
+    vaqueros directo al iniciar").
+24. **Phaser reusa la instancia de Scene en stop/start**: el constructor
+    solo corre una vez. Cualquier propiedad mutada durante el juego
+    (`iterations`, `action`, contadores) DEBE resetearse en `create()`
+    o `init()`. Bug histórico de Sliding Puzzle: `iterations` quedaba
+    en 0 después de resolver, y al reiniciar `shufflePieces` hacía 1
+    swap y entregaba un puzzle casi resuelto.
 
 ---
 
@@ -592,6 +628,68 @@ Credenciales del seed (todas con password `Password123!`):
 ---
 
 ## Notas de Contexto Reciente
+
+Sesion del 16 jun 2026 — Auditoría de gameplay móvil + rework de minijuegos:
+
+### Wrapper de juegos (`GameConsoleWrapper.tsx`)
+
+- **D-pad y A/B**: patrón `onTouchStart`+`onMouseDown` con `preventDefault`. Migración a Pointer Events + `setPointerCapture` fue probada y **REVERTIDA** porque iOS Safari disparaba `pointercancel` casi inmediato (`virtualGamepad.up` flip a `false` en el mismo frame). Visual press feedback via React state (`dpadPressed`, `isBtnAPressed`), **no** `:active` CSS — `preventDefault` desactiva `:active` en iOS.
+- **`handleDpadButtonDown` ya NO muta `virtualJoystick.*`**: causaba double-fire en Snowmen (tap ▲ saltaba dos carriles).
+- **Nuevo `gamepadType='arrows-vertical'`**: cruceta vertical ▲▼ para juegos de carriles (Snowmen).
+- **Nuevo prop `joystickAxes` (`'horizontal' | 'vertical' | 'both'`)**: filtra solo la **emulación de teclas** ArrowUp/Down, NO los valores analógicos `dx/dy`. Tom usa `joystickAxes='horizontal'` para bloquear saltos accidentales pero seguir leyendo `dy > 0.4` para agacharse.
+- **Nuevo prop `joystickDeadzone`** (default 0.25): Pirate Survival usa 0.15 para movimiento más ágil.
+- **`handlePause` chequea `isQuestionMode` Y `isQuestionActive`**: Bomb-Man usa el segundo flag (legacy).
+- **DEV warning** cuando un juego no pasa `aspectRatio`.
+- **`100dvh` con fallback `100vh`** en todos los contenedores, `safe-area-inset-bottom` en el gamepad, `onContextMenu={e => e.preventDefault()}` para evitar el menú "Guardar imagen" en long-press móvil.
+
+### Snowmen Attack
+
+- D-pad ▲▼ (`gamepadType='arrows-vertical'`).
+- `Player.preUpdate` ahora lee `virtualGamepad.up/down/A` **directo** con detección de rising edge via `_prevGamepadUp/Down/A`. El path keyboard `JustDown` queda solo para desktop pero se drena cada frame para evitar double-fire.
+- Game-over input delay (`gameOverInputReadyAt = now + 1000`) para que no mande al menú con el mismo tap que mató.
+- `clearEnemySnowballs()` post-pregunta + 500ms inmunidad: las bolas congeladas ya no matan después de cerrar el modal.
+
+### Tom
+
+- `aspectRatio="16 / 9"` + `joystickAxes='horizontal'`.
+- Modal de pregunta refactorizado a **grid 2×2** (640×360 no caben 4 botones apilados verticalmente).
+- Bomba destruida también cuando respondes mal a salvación (`if pendingBuff === 'BOMB' && collidedBomb`).
+
+### Bank Panic
+
+- **Timer fix**: `questionTimer = this.game.getTime() + 35000` (NO `this.time.now`). Antes el question del modo "vaqueros" disparaba en el primer frame porque scene clock = 0 vs `time` global. `closeDoor` también pasó a global time.
+- **Warmup de 4s**: `door.start(game.getTime() + 4000)` + texto "¡PREPÁRATE!" centrado por 3s.
+- **killDelay 1.5s** (era 0.7s). Reaction window humano.
+- Modal de salvación 2×2 grid (`btnW=420, btnH=110`). El layout vertical desbordaba a y=892 (stage 768).
+
+### Card Memory
+
+- **Sistema de vidas eliminado por completo**. Variables `lives`, `maxLives`, `hearts`, `gameOverText`, `createHearts()` borradas.
+- Nuevo: `errorsCount` con HUD "Errores: N/4". Al 4to mismatch → modal de pregunta (banco del docente + fallback inline). Respuesta correcta = +50 pts. El contador resetea independiente del resultado y el juego sigue. No hay game-over; solo "completar" o "salir".
+
+### Bomb-Man (antes "Quiz Rápido - Lectura")
+
+- Rename en `BombGamePage.tsx`: `title="Bomb-Man"`.
+- Rename en seed.ts y **migración** `20260616000000_rename_bomb_game/migration.sql` con `UPDATE games SET titulo='Bomb-Man' WHERE titulo IN ('Quiz Rapido - Lectura', 'Quiz Rápido - Lectura')`. Aplicada a Supabase ✓.
+- Botón pausa interno del canvas removido (líneas 173-183 GameScene.ts). El wrapper tiene su propio.
+- `aspectRatio="1 / 1"`.
+
+### Sliding Puzzle
+
+- Win overlay con dos botones (`Reiniciar`, `Salir`). `Salir` despacha `window.dispatchEvent(new CustomEvent('game:quit'))` que `useGameSession` ya captura.
+- `_showCompletionOverlay()` se llama vía `time.delayedCall(900)`, **no** desde el `onComplete` del tween de celebración (si el tween falla por targets vacíos, antes se congelaba).
+- `iterations`, `action`, `lastMove`, `movesCount` se resetean en `create()` (no solo en constructor). Phaser reusa la instancia → sin reset, el restart entregaba puzzle pre-resuelto.
+- Nuevo `_resetForNewPuzzle()`: mata tweens (`tweens.killAll()`), resetea flags y limpia overlay. Se llama antes de cada `startPuzzle()` desde el overlay.
+- El ciclo `nextRound` (pic1 → pic2 → pic3) sigue en el código pero no se expone en el UI porque no es confiable (texturas dinámicas se rompen al re-init).
+
+### Estilos globales
+
+- `index.html` viewport: `viewport-fit=cover, interactive-widget=resizes-content`.
+- `globals.css`: `body { min-height: 100dvh }` con fallback `100vh`, `* { -webkit-tap-highlight-color: transparent }`.
+
+### Migración
+
+- `20260616000000_rename_bomb_game` aplicada (renombra el juego en BD).
 
 Sesion del 15 jun 2026:
 
