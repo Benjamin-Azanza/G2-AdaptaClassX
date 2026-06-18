@@ -17,7 +17,7 @@ export class CreateParaleloDto {
 
   @IsInt()
   @Min(3)
-  @Max(5)
+  @Max(10)
   grado: number;
 }
 
