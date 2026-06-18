@@ -14,6 +14,11 @@ function formatGrade(grade: number) {
     3: '3ro EGB',
     4: '4to EGB',
     5: '5to EGB',
+    6: '6to EGB',
+    7: '7mo EGB',
+    8: '8vo BGU',
+    9: '9no BGU',
+    10: '10mo BGU',
   };
   return labels[grade] ?? `${grade} EGB`;
 }
@@ -111,6 +116,11 @@ export function TeacherClassroomPage() {
             <option value={3}>3ro EGB</option>
             <option value={4}>4to EGB</option>
             <option value={5}>5to EGB</option>
+            <option value={6}>6to EGB</option>
+            <option value={7}>7mo EGB</option>
+            <option value={8}>8vo BGU</option>
+            <option value={9}>9no BGU</option>
+            <option value={10}>10mo BGU</option>
           </select>
         </label>
         <button
